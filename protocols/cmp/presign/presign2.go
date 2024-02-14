@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/lib/elgamal"
 	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/mr-shifu/mpc-lib/pkg/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
 	"github.com/mr-shifu/mpc-lib/pkg/paillier"

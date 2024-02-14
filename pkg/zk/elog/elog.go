@@ -3,7 +3,7 @@ package zkelog
 import (
 	"crypto/rand"
 
-	"github.com/mr-shifu/mpc-lib/lib/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
 	"github.com/mr-shifu/mpc-lib/pkg/math/sample"
