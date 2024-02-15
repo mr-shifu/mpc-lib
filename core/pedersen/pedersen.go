@@ -1,6 +1,7 @@
 package pedersen
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -100,6 +101,78 @@ func (p Parameters) Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool {
 	te := p.n.ExpI(T, e)          // Tᵉ (mod N)
 	rhs := te.ModMul(te, S, nMod) // rhs = S⋅Tᵉ (mod N)
 	return lhs.Eq(rhs) == 1
+}
+
+func (p Parameters) MarshalBiinary() ([]byte, error) {
+	nb, err := p.n.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	sb, err := p.s.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	tb, err := p.t.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	nlb := make([]byte, 2)
+	binary.LittleEndian.PutUint16(nlb, uint16(len(nb)))
+
+	slb := make([]byte, 2)
+	binary.LittleEndian.PutUint16(slb, uint16(len(sb)))
+
+	tlb := make([]byte, 2)
+	binary.LittleEndian.PutUint16(tlb, uint16(len(tb)))
+
+	buf := make([]byte, 0)
+	buf = append(buf, nlb...)
+	buf = append(buf, nb...)
+	buf = append(buf, slb...)
+	buf = append(buf, sb...)
+	buf = append(buf, tlb...)
+	buf = append(buf, tb...)
+
+	return buf, nil
+}
+
+func (p *Parameters) UnmarshalBiinary(data []byte) error {
+	nl := binary.LittleEndian.Uint16(data[:2])
+	data = data[2:nl+2]
+	nb := data[:nl]
+	data = data[nl:]
+
+	sl := binary.LittleEndian.Uint16(data[nl+2 : nl+4])
+	data = data[nl+4:nl+4+sl]
+	sb := data[:sl]
+	data = data[sl:]
+
+	tl := binary.LittleEndian.Uint16(data[nl+4+sl:nl+4+sl+2])
+	data = data[nl+4+sl+2:nl+4+sl+2+tl]
+	tb := data[:tl]
+
+	n := arith.NewEmptyModulus()
+	if err := n.UnmarshalBinary(nb); err != nil {
+		return err
+	}
+	p.n = n
+
+	var s saferith.Nat
+	if err := s.UnmarshalBinary(sb); err != nil {
+		return err
+	}
+	p.s = &s
+
+	var t saferith.Nat
+	if err := t.UnmarshalBinary(tb); err != nil {
+		return err
+	}
+	p.t = &t
+
+	return nil
 }
 
 // WriteTo implements io.WriterTo and should be used within the hash.Hash function.
