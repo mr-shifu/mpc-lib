@@ -4,12 +4,12 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/arith"
+	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zknth "github.com/mr-shifu/mpc-lib/core/zk/nth"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/arith"
-	"github.com/mr-shifu/mpc-lib/pkg/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zknth "github.com/mr-shifu/mpc-lib/pkg/zk/nth"
 )
 
 var _ round.Round = (*abort1)(nil)

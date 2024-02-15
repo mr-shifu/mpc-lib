@@ -5,17 +5,17 @@ import (
 	"encoding/json"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/pedersen"
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
+	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/math/polynomial"
-	"github.com/mr-shifu/mpc-lib/pkg/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
-	zkmod "github.com/mr-shifu/mpc-lib/pkg/zk/mod"
-	zksch "github.com/mr-shifu/mpc-lib/pkg/zk/sch"
 )
 
 var _ round.Round = (*round2)(nil)

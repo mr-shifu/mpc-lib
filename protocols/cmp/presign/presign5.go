@@ -3,11 +3,11 @@ package presign
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zkelog "github.com/mr-shifu/mpc-lib/core/zk/elog"
+	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zkelog "github.com/mr-shifu/mpc-lib/pkg/zk/elog"
-	zklogstar "github.com/mr-shifu/mpc-lib/pkg/zk/logstar"
 )
 
 var _ round.Round = (*presign5)(nil)

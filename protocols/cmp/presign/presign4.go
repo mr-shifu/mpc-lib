@@ -2,11 +2,11 @@ package presign
 
 import (
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/elgamal"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zklogstar "github.com/mr-shifu/mpc-lib/pkg/zk/logstar"
 )
 
 var _ round.Round = (*presign4)(nil)

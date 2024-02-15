@@ -7,10 +7,10 @@ import (
 	"math"
 	"sync"
 
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/pool"
 )
 
 // Helper implements Session without Round, and can therefore be embedded in the first round of a protocol

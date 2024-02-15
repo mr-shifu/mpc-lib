@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 

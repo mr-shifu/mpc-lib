@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/math/polynomial"
-	"github.com/mr-shifu/mpc-lib/pkg/math/sample"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
-	"github.com/mr-shifu/mpc-lib/pkg/protocol"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 

@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/mr-shifu/mpc-lib/pkg/party"
+	"github.com/mr-shifu/mpc-lib/core/party"
 )
 
 // PartyIDs returns a party.IDSlice (sorted) with IDs represented as simple strings.

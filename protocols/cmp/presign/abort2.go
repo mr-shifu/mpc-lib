@@ -3,10 +3,10 @@ package presign
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zklog "github.com/mr-shifu/mpc-lib/core/zk/log"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zklog "github.com/mr-shifu/mpc-lib/pkg/zk/log"
 )
 
 var _ round.Round = (*abort2)(nil)

@@ -3,17 +3,17 @@ package presign
 import (
 	"crypto/rand"
 
+	"github.com/mr-shifu/mpc-lib/core/elgamal"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/pedersen"
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	zkencelg "github.com/mr-shifu/mpc-lib/core/zk/encelg"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/math/sample"
-	"github.com/mr-shifu/mpc-lib/pkg/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
-	zkencelg "github.com/mr-shifu/mpc-lib/pkg/zk/encelg"
 )
 
 var _ round.Round = (*presign1)(nil)

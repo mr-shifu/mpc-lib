@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
 )
 
 // DeriveScalar uses a public point, chaining value, and index, to derive a scalar and chaining value.

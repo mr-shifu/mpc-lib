@@ -4,17 +4,17 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/elgamal"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
+	zkaffp "github.com/mr-shifu/mpc-lib/core/zk/affp"
+	zkencelg "github.com/mr-shifu/mpc-lib/core/zk/encelg"
 	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zkaffg "github.com/mr-shifu/mpc-lib/pkg/zk/affg"
-	zkaffp "github.com/mr-shifu/mpc-lib/pkg/zk/affp"
-	zkencelg "github.com/mr-shifu/mpc-lib/pkg/zk/encelg"
 )
 
 var _ round.Round = (*presign2)(nil)

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	sch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/pool"
-	sch "github.com/mr-shifu/mpc-lib/pkg/zk/sch"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 

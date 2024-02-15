@@ -1,7 +1,7 @@
 package round
 
 import (
-	"github.com/mr-shifu/mpc-lib/pkg/party"
+	"github.com/mr-shifu/mpc-lib/core/party"
 )
 
 // Content represents the message, either broadcast or P2P returned by a round

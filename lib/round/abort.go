@@ -1,6 +1,6 @@
 package round
 
-import "github.com/mr-shifu/mpc-lib/pkg/party"
+import "github.com/mr-shifu/mpc-lib/core/party"
 
 // Abort is an empty round containing a list of parties who misbehaved.
 type Abort struct {

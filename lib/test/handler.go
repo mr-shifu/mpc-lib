@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/protocol"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 )
 
 // HandlerLoop blocks until the handler has finished. The result of the execution is given by Handler.Result().

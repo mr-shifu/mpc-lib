@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/math/sample"
-	"github.com/mr-shifu/mpc-lib/pkg/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/pedersen"
-	zkaffg "github.com/mr-shifu/mpc-lib/pkg/zk/affg"
-	zkaffp "github.com/mr-shifu/mpc-lib/pkg/zk/affp"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/pedersen"
+	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
+	zkaffp "github.com/mr-shifu/mpc-lib/core/zk/affp"
 )
 
 // ProveAffG returns the necessary messages for the receiver of the

@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
 	"golang.org/x/sync/errgroup"
 )
 

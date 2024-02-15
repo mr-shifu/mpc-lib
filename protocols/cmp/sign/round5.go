@@ -3,10 +3,10 @@ package sign
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/ecdsa"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
 )
 
 var _ round.Round = (*round5)(nil)

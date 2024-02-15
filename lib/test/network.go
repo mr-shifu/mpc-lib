@@ -3,8 +3,8 @@ package test
 import (
 	"sync"
 
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	"github.com/mr-shifu/mpc-lib/pkg/protocol"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 )
 
 // Network simulates a point-to-point network between different parties using Go channels.

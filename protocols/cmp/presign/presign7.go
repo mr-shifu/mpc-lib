@@ -3,14 +3,14 @@ package presign
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/ecdsa"
+	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zkelog "github.com/mr-shifu/mpc-lib/core/zk/elog"
+	zklog "github.com/mr-shifu/mpc-lib/core/zk/log"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zkelog "github.com/mr-shifu/mpc-lib/pkg/zk/elog"
-	zklog "github.com/mr-shifu/mpc-lib/pkg/zk/log"
 )
 
 var _ round.Round = (*presign7)(nil)

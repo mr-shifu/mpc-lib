@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/party"
+	zkelog "github.com/mr-shifu/mpc-lib/core/zk/elog"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/party"
-	zkelog "github.com/mr-shifu/mpc-lib/pkg/zk/elog"
 )
 
 var _ round.Round = (*presign6)(nil)
