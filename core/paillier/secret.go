@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	ErrPrimeBadLength = errors.New("prime factor is not the right length")
-	ErrNotBlum        = errors.New("prime factor is not equivalent to 3 (mod 4)")
-	ErrNotSafePrime   = errors.New("supposed prime factor is not a safe prime")
-	ErrPrimeNil       = errors.New("prime is nil")
+	ErrPrimeBadLength   = errors.New("prime factor is not the right length")
+	ErrNotBlum          = errors.New("prime factor is not equivalent to 3 (mod 4)")
+	ErrNotSafePrime     = errors.New("supposed prime factor is not a safe prime")
+	ErrPrimeNil         = errors.New("prime is nil")
+	ErrEmptyEncodedData = errors.New("encoded secret has empty data")
 )
 
 // SecretKey is the secret key corresponding to a Public Paillier Key.
@@ -153,6 +154,64 @@ func (sk SecretKey) GeneratePedersen() (*pedersen.Parameters, *saferith.Nat) {
 	s, t, lambda := sample.Pedersen(rand.Reader, sk.phi, sk.n.Modulus)
 	ped := pedersen.New(sk.n, s, t)
 	return ped, lambda
+}
+
+func (sk SecretKey) MarshalBinary() ([]byte, error) {
+	pbs, err := sk.p.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	qbs, err := sk.q.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, 0)
+	buf = append(buf, uint8(len(pbs)))
+	buf = append(buf, pbs...)
+	buf = append(buf, uint8(len(qbs)))
+	buf = append(buf, qbs...)
+
+	return buf, nil
+}
+
+func (sk *SecretKey) UnmarshalBinary(data []byte) error {
+	if len(data) == 0 {
+		return ErrEmptyEncodedData
+	}
+
+	pLen := int(data[0])
+	if pLen == 0 {
+		return ErrEmptyEncodedData
+	}
+
+	p := new(saferith.Nat)
+	if err := p.UnmarshalBinary(data[1 : pLen+1]); err != nil {
+		return err
+	}
+
+	qLen := int(data[pLen+1])
+	if qLen == 0 {
+		return ErrEmptyEncodedData
+	}
+
+	q := new(saferith.Nat)
+	if err := q.UnmarshalBinary(data[pLen+2 : pLen+2+qLen]); err != nil {
+		return err
+	}
+
+	new_sk := NewSecretKeyFromPrimes(p, q)
+
+	sk = &SecretKey{
+		p:        new_sk.p,
+		q:        new_sk.q,
+		phi:      new_sk.phi,
+		phiInv:   new_sk.phiInv,
+		PublicKey: new_sk.PublicKey,
+	}
+
+	return nil
 }
 
 // ValidatePrime checks whether p is a suitable prime for Paillier.
