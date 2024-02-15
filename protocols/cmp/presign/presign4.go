@@ -139,7 +139,7 @@ func (broadcast4) RoundNumber() round.Number { return 4 }
 func (r *presign4) BroadcastContent() round.BroadcastContent {
 	return &broadcast4{
 		DeltaShare: r.Group().NewScalar(),
-		ElGamalChi: elgamal.Empty(r.Group()),
+		ElGamalChi: elgamal.NewCiphertext(r.Group()),
 	}
 }
 

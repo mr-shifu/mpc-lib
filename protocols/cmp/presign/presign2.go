@@ -237,7 +237,7 @@ func (broadcast2) RoundNumber() round.Number { return 2 }
 // BroadcastContent implements round.BroadcastRound.
 func (r *presign2) BroadcastContent() round.BroadcastContent {
 	return &broadcast2{
-		Z: elgamal.Empty(r.Group()),
+		Z: elgamal.NewCiphertext(r.Group()),
 	}
 }
 
