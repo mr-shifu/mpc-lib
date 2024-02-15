@@ -4,11 +4,15 @@ import (
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
 type PaillierKeyManager interface {
 	// GenerateKey generates a new Paillier key pair.
 	GenerateKey() (PaillierKey, error)
+
+	// Derive Pedersen Key from Paillier Key prime factors
+	DerivePedersenKey(ski []byte) (pedersen.PedersenKey, error)
 
 	// GetKey returns a Paillier key by its SKI.
 	GetKey(ski []byte) (PaillierKey, error)

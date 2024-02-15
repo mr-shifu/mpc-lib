@@ -18,6 +18,13 @@ type PedersenKey struct {
 	publicKey *pedersencore.Parameters // n, s, t
 }
 
+func NewPedersenKey(s *saferith.Nat, p *pedersencore.Parameters) PedersenKey {
+	return PedersenKey{
+		secretKey: s,
+		publicKey: p,
+	}
+}
+
 // Bytes returns the byte representation of the key.
 func (k *PedersenKey) Bytes() ([]byte, error) {
 	skb, err := k.secretKey.MarshalBinary()
