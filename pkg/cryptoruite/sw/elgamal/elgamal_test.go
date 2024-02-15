@@ -1,0 +1,51 @@
+package elgamal
+
+import (
+	"crypto/rand"
+	"testing"
+
+	"github.com/mr-shifu/mpc-lib/core/elgamal"
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestElgamal(t *testing.T) {
+	// create a new in-memory keystore
+	ks := keystore.NewInMemoryKeystore()
+
+	// create a new ElGamal key manager
+	mgr := NewElgamalKeyManager(ks, &Config{Group: curve.Secp256k1{}})
+
+	// generate a new ElGamal key pair
+	key, err := mgr.GenerateKeyPair()
+	assert.NoError(t, err)
+	keyBytes, err := key.Bytes()
+	assert.NoError(t, err)
+	assert.NotNil(t, keyBytes)
+
+	// get SKI from the key
+	ski := key.SKI()
+	assert.NotNil(t, ski)
+
+	// retreive the key from the keystore
+	newKey := mgr.GetKey(ski)
+	newKeyBytes, err := newKey.Bytes()
+	assert.NoError(t, err)
+	assert.NotNil(t, newKeyBytes)
+	assert.Equal(t, key.Private(), newKey.Private())
+	assert.Equal(t, keyBytes, newKeyBytes)
+
+	// Encrypt a random message with the public key
+	msg := sample.Scalar(rand.Reader, curve.Secp256k1{})
+	ct, nonce := mgr.Encrypt(ski, msg)
+	assert.NotNil(t, ct)
+	assert.NotNil(t, nonce)
+
+	// validate ciphertext
+	ciphertext := elgamal.NewCiphertext(curve.Secp256k1{})
+	ciphertext.UnmarshalBinary(ct)
+	v := ciphertext.Valid()
+	assert.True(t, v)
+}
