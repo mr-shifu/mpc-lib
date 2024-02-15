@@ -2,6 +2,7 @@ package paillier
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -167,10 +168,16 @@ func (sk SecretKey) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
+	pl := make([]byte, 2)
+	binary.LittleEndian.PutUint16(pl, uint16(len(pbs)))
+
+	ql := make([]byte, 2)
+	binary.LittleEndian.PutUint16(ql, uint16(len(qbs)))
+
 	buf := make([]byte, 0)
-	buf = append(buf, uint8(len(pbs)))
+	buf = append(buf, pl...)
 	buf = append(buf, pbs...)
-	buf = append(buf, uint8(len(qbs)))
+	buf = append(buf, ql...)
 	buf = append(buf, qbs...)
 
 	return buf, nil
@@ -181,35 +188,34 @@ func (sk *SecretKey) UnmarshalBinary(data []byte) error {
 		return ErrEmptyEncodedData
 	}
 
-	pLen := int(data[0])
+	plb := data[:2]
+	pLen := binary.LittleEndian.Uint16(plb)
 	if pLen == 0 {
 		return ErrEmptyEncodedData
 	}
-
 	p := new(saferith.Nat)
-	if err := p.UnmarshalBinary(data[1 : pLen+1]); err != nil {
+	if err := p.UnmarshalBinary(data[2 : pLen+2]); err != nil {
 		return err
 	}
 
-	qLen := int(data[pLen+1])
+	qlb := data[pLen+2 : pLen+4]
+	qLen := binary.LittleEndian.Uint16(qlb)
 	if qLen == 0 {
 		return ErrEmptyEncodedData
 	}
 
 	q := new(saferith.Nat)
-	if err := q.UnmarshalBinary(data[pLen+2 : pLen+2+qLen]); err != nil {
+	if err := q.UnmarshalBinary(data[pLen+4 : pLen+4+qLen]); err != nil {
 		return err
 	}
 
 	new_sk := NewSecretKeyFromPrimes(p, q)
 
-	sk = &SecretKey{
-		p:        new_sk.p,
-		q:        new_sk.q,
-		phi:      new_sk.phi,
-		phiInv:   new_sk.phiInv,
-		PublicKey: new_sk.PublicKey,
-	}
+	sk.p = new_sk.p
+	sk.q = new_sk.q
+	sk.phi = new_sk.phi
+	sk.phiInv = new_sk.phiInv
+	sk.PublicKey = new_sk.PublicKey
 
 	return nil
 }

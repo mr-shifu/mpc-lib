@@ -2,6 +2,7 @@ package paillier
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
@@ -25,7 +26,11 @@ func (k *PaillierKey) Bytes() ([]byte, error) {
 
 	// write public key encoded into buffer
 	buf := make([]byte, 0)
-	buf = append(buf, uint8(len(nb)))
+
+	nl := make([]byte, 2)
+	binary.LittleEndian.PutUint16(nl, uint16(len(nb)))
+
+	buf = append(buf, nl...)
 	buf = append(buf, nb...)
 
 	// if secret key exists then encode secret key params (P, Q)
@@ -38,7 +43,9 @@ func (k *PaillierKey) Bytes() ([]byte, error) {
 	}
 
 	// write secret key encoded into buffer
-	buf = append(buf, uint8(len(skb)))
+	sl := make([]byte, 2)
+	binary.LittleEndian.PutUint16(sl, uint16(len(skb)))
+	buf = append(buf, sl...)
 	buf = append(buf, skb...)
 
 	return buf, nil
@@ -78,27 +85,33 @@ func (k *PaillierKey) ParamN() *saferith.Modulus {
 
 // fromBytes returns a Paillier key from its binary encoded data.
 func fromBytes(data []byte) (PaillierKey, error) {
-	nl := int(data[0])
-	nb := data[1 : nl+1]
+	nlb := data[:2]
+	nl := binary.LittleEndian.Uint16(nlb)
+	if nl == 0 {
+		return PaillierKey{}, nil
+	}
+	nb := data[2 : nl+2]
 
 	// decode public key Modulus N
 	n := new(saferith.Modulus)
 	if err := n.UnmarshalBinary(nb); err != nil {
 		return PaillierKey{}, err
 	}
+	pk := pailliercore.NewPublicKey(n)
 
 	// if secret key exists then decode secret key params (P, Q)
-	sl := int(data[nl+1])
+	slb := data[nl+2 : nl+4]
+	sl := binary.LittleEndian.Uint16(slb)
 	if sl == 0 {
 		return PaillierKey{publicKey: pailliercore.NewPublicKey(n)}, nil
 	}
 
 	// decode secret key params (P, Q)
-	sb := data[nl+2 : nl+2+sl]
+	sb := data[nl+4 : nl+4+sl]
 	sk := new(pailliercore.SecretKey)
 	if err := sk.UnmarshalBinary(sb); err != nil {
 		return PaillierKey{}, err
 	}
 
-	return PaillierKey{sk, pailliercore.NewPublicKey(n)}, nil
+	return PaillierKey{sk, pk}, nil
 }
