@@ -93,6 +93,9 @@ type Scalar interface {
 	ActOnBase() Point
 
 	IsOverHalfOrder() bool
+
+	UnmarshalBinary(data []byte) error
+	MarshalBinary() ([]byte, error)
 }
 
 // Point represents an element of our Elliptic Curve group.
@@ -138,6 +141,9 @@ type Point interface {
 	//
 	// If you choose not to implement this method, simply return nil.
 	XScalar() Scalar
+
+	UnmarshalBinary(data []byte) error
+	MarshalBinary() ([]byte, error)
 }
 
 // MakeInt converts a scalar into an Int.
