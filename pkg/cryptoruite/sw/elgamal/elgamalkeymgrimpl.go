@@ -1,11 +1,10 @@
 package elgamal
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 
-	"github.com/mr-shifu/mpc-lib/core/elgamal"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
@@ -51,31 +50,30 @@ func (mgr *ElgamalKeyManager) GenerateKeyPair() (ElgamalKey, error) {
 	return key, nil
 }
 
-func (mgr *ElgamalKeyManager) GetKey(ski []byte) ElgamalKey {
+func (mgr *ElgamalKeyManager) GetKey(ski []byte) (ElgamalKey, error) {
 	// get the key from the keystore
 	keyID := hex.EncodeToString(ski)
 	decoded, err := mgr.keystore.Get(keyID)
 	if err != nil {
-		return ElgamalKey{}
+		return ElgamalKey{}, err
 	}
 
 	// decode the key
 	k, err := fromBytes(decoded)
 	if err != nil {
-		return ElgamalKey{}
+		return ElgamalKey{}, err
 	}
 
-	return k
+	return k, err
 }
 
-func (mgr *ElgamalKeyManager) Encrypt(ski []byte, message curve.Scalar) ([]byte, curve.Scalar) {
-	k := mgr.GetKey(ski)
-	ct, nonce := elgamal.Encrypt(k.publicKey, message)
-
-	var buf bytes.Buffer
-	if _, err := ct.WriteTo(&buf); err != nil {
-		return nil, nil
+func (mgr *ElgamalKeyManager) Encrypt(ski []byte, message curve.Scalar) ([]byte, curve.Scalar, error) {
+	k, err := mgr.GetKey(ski)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	return buf.Bytes(), nonce
+	if k == (ElgamalKey{}) {
+		return nil, nil, errors.New("key not found")
+	}
+	return k.Encrypt(message)
 }

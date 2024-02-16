@@ -1,9 +1,11 @@
 package elgamal
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/elgamal"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 )
 
@@ -57,6 +59,17 @@ func (key *ElgamalKey) PublicKey() ElgamalKey {
 	return ElgamalKey{nil, key.publicKey, key.group}
 }
 
+func (key *ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
+	ct, nonce := elgamal.Encrypt(key.publicKey, message)
+
+	var buf bytes.Buffer
+	if _, err := ct.WriteTo(&buf); err != nil {
+		return nil, nil, err
+	}
+
+	return buf.Bytes(), nonce, nil
+}
+
 func fromBytes(data []byte) (ElgamalKey, error) {
 	if len(data) < 2 {
 		return ElgamalKey{}, ErrInvalidKey
@@ -78,7 +91,7 @@ func fromBytes(data []byte) (ElgamalKey, error) {
 		return ElgamalKey{}, ErrInvalidKey
 	}
 	pk := group.NewPoint()
-	if err := pk.UnmarshalBinary(data[2+gnLen:2+gnLen+pkLen]); err != nil {
+	if err := pk.UnmarshalBinary(data[2+gnLen : 2+gnLen+pkLen]); err != nil {
 		return ElgamalKey{}, err
 	}
 

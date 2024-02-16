@@ -30,7 +30,8 @@ func TestElgamal(t *testing.T) {
 	assert.NotNil(t, ski)
 
 	// retreive the key from the keystore
-	newKey := mgr.GetKey(ski)
+	newKey, err := mgr.GetKey(ski)
+	assert.NoError(t, err)
 	newKeyBytes, err := newKey.Bytes()
 	assert.NoError(t, err)
 	assert.NotNil(t, newKeyBytes)
@@ -39,7 +40,8 @@ func TestElgamal(t *testing.T) {
 
 	// Encrypt a random message with the public key
 	msg := sample.Scalar(rand.Reader, curve.Secp256k1{})
-	ct, nonce := mgr.Encrypt(ski, msg)
+	ct, nonce, err := mgr.Encrypt(ski, msg)
+	assert.NoError(t, err)
 	assert.NotNil(t, ct)
 	assert.NotNil(t, nonce)
 
