@@ -3,6 +3,7 @@ package polynomial
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
@@ -59,6 +60,62 @@ func (p *Polynomial) Constant() curve.Scalar {
 // Degree is the highest power of the Polynomial.
 func (p *Polynomial) Degree() uint32 {
 	return uint32(len(p.coefficients)) - 1
+}
+
+func (p *Polynomial) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 0)
+
+	// 1. Group name
+	gn := p.group.Name()
+	data = append(data, byte(len(gn)))
+	data = append(data, gn...)
+
+	// 2. Degree
+	data = append(data, byte(p.Degree()))
+
+	// 3. Coefficients
+	for _, c := range p.coefficients {
+		b, err := c.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, uint8(len(b)))
+		data = append(data, b...)
+	}
+
+	return data, nil
+}
+
+func (p *Polynomial) UnmarshalBinary(data []byte) (error) {
+	// 1. Group name
+	gnlen := int(data[0])
+	gn := string(data[1 : 1+gnlen])
+	var group curve.Curve
+	if gn == "secp256k1" {
+		group = curve.Secp256k1{}
+	} else {
+		return errors.New("unsupported curve")
+	}
+	p.group = group
+
+	// 2. Degree
+	degree := int(data[1+gnlen])
+
+	// 3. Coefficients
+	p.coefficients = make([]curve.Scalar, degree+1)
+	offset := 1 + gnlen + 1
+	for i := 0; i <= degree; i++ {
+		blen := int(data[offset])
+		offset++
+		c := group.NewScalar()
+		if err := c.UnmarshalBinary(data[offset : offset+blen]); err != nil {
+			return err
+		}
+		p.coefficients[i] = c
+		offset += blen
+	}
+
+	return nil
 }
 
 type PolynomialSerialized struct {
