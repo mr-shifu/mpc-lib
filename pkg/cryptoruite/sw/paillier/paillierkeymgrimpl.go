@@ -98,7 +98,7 @@ func (mgr *PaillierKeyManager) Encode(ski []byte, m *saferith.Int) (*pailliercor
 		return nil, nil
 	}
 
-	return key.publicKey.Enc(m)
+	return key.Encode(m)
 }
 
 // EncryptWithNonce returns the encryption of `message` as ciphertext and nonce passed to function.
@@ -108,7 +108,7 @@ func (mgr *PaillierKeyManager) EncWithNonce(ski []byte, m *saferith.Int, nonce *
 		return nil
 	}
 
-	return key.publicKey.EncWithNonce(m, nonce)
+	return key.EncWithNonce(m, nonce)
 }
 
 // Decrypt returns the decryption of `ct` as ciphertext.
@@ -118,7 +118,7 @@ func (mgr *PaillierKeyManager) Decode(ski []byte, ct *pailliercore.Ciphertext) (
 		return nil, err
 	}
 
-	return key.secretKey.Dec(ct)
+	return key.Decode(ct)
 }
 
 // DecryptWithNonce returns the decryption of `ct` as ciphertext and nonce.
@@ -128,7 +128,7 @@ func (mgr *PaillierKeyManager) DecodeWithNonce(ski []byte, ct *pailliercore.Ciph
 		return nil, nil, err
 	}
 
-	return key.secretKey.DecWithRandomness(ct)
+	return key.DecodeWithNonce(ct)
 }
 
 // ValidateCiphertexts returns true if all ciphertexts are valid.
@@ -138,5 +138,5 @@ func (mgr *PaillierKeyManager) ValidateCiphertexts(ski []byte, cts ...*paillierc
 		return false, err
 	}
 
-	return key.secretKey.ValidateCiphertexts(cts...), nil
+	return key.ValidateCiphertexts(cts...)
 }
