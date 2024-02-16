@@ -76,6 +76,16 @@ func (k *PedersenKey) PublicKey() PedersenKey {
 	}
 }
 
+// Commit returns the commitment of the given value.
+func (k *PedersenKey) Commit(x, y *saferith.Int) *saferith.Nat {
+	return k.publicKey.Commit(x, y)
+}
+
+// Verify returns true if the given commitment is valid.
+func (k *PedersenKey) Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool {
+	return k.publicKey.Verify(a, b, e, S, T)
+}
+
 func fromBytes(data []byte) (PedersenKey, error) {
 	if len(data) == 0 {
 		return PedersenKey{}, ErrEmptyEncodedData

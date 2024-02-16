@@ -14,6 +14,12 @@ type PedersenKey interface {
 
 	// PublicKey returns the corresponding public key part of Pedersen Key.
 	PublicKey() PedersenKey
+
+	// Commit returns the commitment of the given value.
+	Commit(x, y *saferith.Int) *saferith.Nat
+
+	// Verify returns true if the given commitment is valid.
+	Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool
 }
 
 type PedersenKeyManger interface {

@@ -57,7 +57,7 @@ func (mgr *PedersenKeyManager) Commit(ski []byte, x, y *saferith.Int) *saferith.
 	if err != nil {
 		return nil
 	}
-	return key.publicKey.Commit(x, y)
+	return key.Commit(x, y)
 }
 
 // Verify returns true if the given commitment is valid.
@@ -66,5 +66,5 @@ func (mgr *PedersenKeyManager) Verify(ski []byte, a, b, e *saferith.Int, S, T *s
 	if err != nil {
 		return false
 	}
-	return key.publicKey.Verify(a, b, e, S, T)
+	return key.Verify(a, b, e, S, T)
 }
