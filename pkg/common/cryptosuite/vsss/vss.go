@@ -14,6 +14,12 @@ type VssKey interface {
 
 	// PublicKey returns the corresponding Exponents of coefficients.
 	Exponents() (VssKey, error)
+
+	// Evaluate evaluates polynomial at a scalar using coefficients.
+	Evaluate(index curve.Scalar) (curve.Scalar, error)
+
+	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
+	EvaluateByExponents(index curve.Scalar) (curve.Point, error)
 }
 
 type VssKeyManager interface {

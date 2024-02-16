@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 )
 
@@ -71,6 +72,18 @@ func (k VssKey) Exponents() (VssKey, error) {
 	return VssKey{
 		exponents: k.exponents,
 	}, nil
+}
+
+// Evaluate evaluates polynomial at a scalar using coefficients.
+func (k VssKey) Evaluate(index curve.Scalar) (curve.Scalar, error) {
+	// evaluate polynomial at a scalar using coefficients
+	return k.secrets.Evaluate(index), nil
+}
+
+// EvaluateByExponents evaluates polynomial using exponents of coefficients.
+func (k VssKey) EvaluateByExponents(index curve.Scalar) (curve.Point, error) {
+	// evaluate polynomial using exponents of coefficients
+	return k.exponents.Evaluate(index), nil
 }
 
 func fromBytes(data []byte) (VssKey, error) {
