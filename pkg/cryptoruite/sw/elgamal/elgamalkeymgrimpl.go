@@ -8,6 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	cs_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 )
 
 type Config struct {
@@ -26,7 +27,7 @@ func NewElgamalKeyManager(store keystore.Keystore, cfg *Config) *ElgamalKeyManag
 	}
 }
 
-func (mgr *ElgamalKeyManager) GenerateKeyPair() (ElgamalKey, error) {
+func (mgr *ElgamalKeyManager) GenerateKey() (cs_elgamal.ElgamalKey, error) {
 	// Generate a new ElGamal key pair
 	sk, pk := sample.ScalarPointPair(rand.Reader, mgr.cfg.Group)
 
@@ -50,7 +51,7 @@ func (mgr *ElgamalKeyManager) GenerateKeyPair() (ElgamalKey, error) {
 	return key, nil
 }
 
-func (mgr *ElgamalKeyManager) GetKey(ski []byte) (ElgamalKey, error) {
+func (mgr *ElgamalKeyManager) GetKey(ski []byte) (cs_elgamal.ElgamalKey, error) {
 	// get the key from the keystore
 	keyID := hex.EncodeToString(ski)
 	decoded, err := mgr.keystore.Get(keyID)

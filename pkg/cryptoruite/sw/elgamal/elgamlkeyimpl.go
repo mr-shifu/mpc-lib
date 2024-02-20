@@ -7,6 +7,7 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/elgamal"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	cs_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 )
 
 var (
@@ -19,7 +20,7 @@ type ElgamalKey struct {
 	group     curve.Curve
 }
 
-func (key *ElgamalKey) Bytes() ([]byte, error) {
+func (key ElgamalKey) Bytes() ([]byte, error) {
 	sk, err := key.secretKey.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func (key *ElgamalKey) Bytes() ([]byte, error) {
 	return buf, nil
 }
 
-func (key *ElgamalKey) SKI() []byte {
+func (key ElgamalKey) SKI() []byte {
 	raw, err := key.publicKey.MarshalBinary()
 	if err != nil {
 		return nil
@@ -51,15 +52,15 @@ func (key *ElgamalKey) SKI() []byte {
 	return hash.Sum(nil)
 }
 
-func (key *ElgamalKey) Private() bool {
+func (key ElgamalKey) Private() bool {
 	return key.secretKey != nil
 }
 
-func (key *ElgamalKey) PublicKey() ElgamalKey {
+func (key ElgamalKey) PublicKey() cs_elgamal.ElgamalKey {
 	return ElgamalKey{nil, key.publicKey, key.group}
 }
 
-func (key *ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
+func (key ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
 	ct, nonce := elgamal.Encrypt(key.publicKey, message)
 
 	var buf bytes.Buffer
