@@ -7,7 +7,7 @@ type KeyRepository interface {
 	Import(ID string, key interface{}) error
 
 	// Get returns the all keys' metadata by related to MPC Key ID.
-	GetAll(ID string) ([]interface{}, error)
+	GetAll(ID string) (map[string]interface{}, error)
 
 	// Delete deletes all keys' metadata by related to MPC Key ID.
 	DeleteAll(ID string) error
