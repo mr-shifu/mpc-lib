@@ -22,7 +22,7 @@ type PedersenKey interface {
 	Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool
 }
 
-type PedersenKeyManger interface {
+type PedersenKeyManager interface {
 	// GenerateKey generates a new Pedersen key pair.
 	GenerateKey() (PedersenKey, error)
 

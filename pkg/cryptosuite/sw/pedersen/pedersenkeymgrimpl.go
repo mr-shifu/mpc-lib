@@ -6,25 +6,26 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
 type PedersenKeyManager struct {
 	ks keystore.Keystore
 }
 
-func NewPedersenKeymanger(ks keystore.Keystore) *PedersenKeyManager {
+func NewPedersenKeymanager(ks keystore.Keystore) *PedersenKeyManager {
 	return &PedersenKeyManager{
 		ks: ks,
 	}
 }
 
 // GenerateKey generates a new Pedersen key pair.
-func (mgr *PedersenKeyManager) GenerateKey() (PedersenKey, error) {
-	return PedersenKey{}, errors.New("not implemented")
+func (mgr *PedersenKeyManager) GenerateKey() (cs_pedersen.PedersenKey, error) {
+	return nil, errors.New("not implemented")
 }
 
 // ImportKey imports a Pedersen key.
-func (mgr *PedersenKeyManager) ImportKey(key PedersenKey) error {
+func (mgr *PedersenKeyManager) ImportKey(key cs_pedersen.PedersenKey) error {
 	// encode key to binary
 	kb, err := key.Bytes()
 	if err != nil {
@@ -40,7 +41,7 @@ func (mgr *PedersenKeyManager) ImportKey(key PedersenKey) error {
 }
 
 // GetKey returns a Pedersen key by its SKI.
-func (mgr *PedersenKeyManager) GetKey(ski []byte) (PedersenKey, error) {
+func (mgr *PedersenKeyManager) GetKey(ski []byte) (cs_pedersen.PedersenKey, error) {
 	// retreive key from keystore
 	kb, err := mgr.ks.Get(hex.EncodeToString(ski))
 	if err != nil {
