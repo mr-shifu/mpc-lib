@@ -51,6 +51,25 @@ func (mgr *ElgamalKeyManager) GenerateKey() (cs_elgamal.ElgamalKey, error) {
 	return key, nil
 }
 
+func (mgr *ElgamalKeyManager) ImportKey(data []byte) (cs_elgamal.ElgamalKey, error) {
+	// decode the key
+	k, err := fromBytes(data)
+	if err != nil {
+		return ElgamalKey{}, err
+	}
+
+	// get key SKI and encode it to hex string as keyID
+	ski := k.SKI()
+	keyID := hex.EncodeToString(ski)
+
+	// import the decoded key to the keystore with keyID
+	if err := mgr.keystore.Import(keyID, data); err != nil {
+		return ElgamalKey{}, err
+	}
+
+	return k, err
+}
+
 func (mgr *ElgamalKeyManager) GetKey(ski []byte) (cs_elgamal.ElgamalKey, error) {
 	// get the key from the keystore
 	keyID := hex.EncodeToString(ski)
