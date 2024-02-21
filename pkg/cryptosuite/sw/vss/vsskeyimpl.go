@@ -7,6 +7,7 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	cs_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 )
 
 type VssKey struct {
@@ -14,7 +15,7 @@ type VssKey struct {
 	exponents *polynomial.Exponent
 }
 
-func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) VssKey {
+func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) cs_vss.VssKey {
 	return VssKey{
 		secrets:   secrets,
 		exponents: exponents,
@@ -65,7 +66,7 @@ func (k VssKey) Private() bool {
 }
 
 // PublicKey returns the corresponding Exponents of coefficients.
-func (k VssKey) Exponents() (VssKey, error) {
+func (k VssKey) Exponents() (cs_vss.VssKey, error) {
 	if k.exponents == nil {
 		return VssKey{}, errors.New("no exponents")
 	}

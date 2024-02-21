@@ -1,6 +1,9 @@
 package vss
 
-import "github.com/mr-shifu/mpc-lib/core/math/curve"
+import (
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+)
 
 type VssKey interface {
 	// Bytes returns the byte representation of the vss coefficients.
@@ -28,7 +31,7 @@ type VssKeyManager interface {
 	GenerateSecrets(secret curve.Scalar, degree int) (VssKey, error)
 
 	// ImportSecrets imports exponents of coefficients and returns VssKey.
-	ImportSecrets(exponents []curve.Point) (VssKey, error)
+	ImportSecrets(exponents *polynomial.Exponent) (VssKey, error)
 
 	// GetSecrets returns VssKey of coefficients.
 	GetSecrets(ski []byte) (VssKey, error)
