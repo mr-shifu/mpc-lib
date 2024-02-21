@@ -5,7 +5,9 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptoruite/sw/pedersen"
+	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pool"
@@ -23,7 +25,7 @@ func NewPaillierKeyManager(store keystore.Keystore, pl *pool.Pool) *PaillierKeyM
 }
 
 // GenerateKey generates a new Paillier key pair.
-func (mgr *PaillierKeyManager) GenerateKey() (PaillierKey, error) {
+func (mgr *PaillierKeyManager) GenerateKey() (cs_paillier.PaillierKey, error) {
 	// generate a new Paillier key pair
 	pk, sk := pailliercore.KeyGen(mgr.pl)
 	key := PaillierKey{sk, pk}
@@ -47,18 +49,19 @@ func (mgr *PaillierKeyManager) GenerateKey() (PaillierKey, error) {
 }
 
 // Derive Pedersen Key from Paillier Key prime factors
-func (mgr *PaillierKeyManager) DerivePedersenKey(ski []byte) (pedersen.PedersenKey, error) {
+func (mgr *PaillierKeyManager) DerivePedersenKey(ski []byte) (cs_pedersen.PedersenKey, error) {
 	key, err := mgr.GetKey(ski)
 	if err != nil {
-		return pedersen.PedersenKey{}, err
+		return nil, err
 	}
 
-	pk, sk := key.secretKey.GeneratePedersen()
+	k := key.(PaillierKey)
+	pk, sk := k.secretKey.GeneratePedersen()
 	return pedersen.NewPedersenKey(sk, pk), nil
 }
 
 // GetKey returns a Paillier key by its SKI.
-func (mgr *PaillierKeyManager) GetKey(ski []byte) (PaillierKey, error) {
+func (mgr *PaillierKeyManager) GetKey(ski []byte) (cs_paillier.PaillierKey, error) {
 	// get the key from the keystore
 	keyID := hex.EncodeToString(ski)
 	decoded, err := mgr.keystore.Get(keyID)
@@ -76,7 +79,7 @@ func (mgr *PaillierKeyManager) GetKey(ski []byte) (PaillierKey, error) {
 }
 
 // ImportKey imports a Paillier key from its byte representation.
-func (mgr *PaillierKeyManager) ImportKey(key PaillierKey) error {
+func (mgr *PaillierKeyManager) ImportKey(key cs_paillier.PaillierKey) error {
 	// encode the key into binary
 	kb, err := key.Bytes()
 	if err != nil {
@@ -138,5 +141,5 @@ func (mgr *PaillierKeyManager) ValidateCiphertexts(ski []byte, cts ...*paillierc
 		return false, err
 	}
 
-	return key.ValidateCiphertexts(cts...)
+	return key.ValidateCiphertexts(cts...), nil
 }

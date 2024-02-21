@@ -36,7 +36,7 @@ type PaillierKey interface {
 	Decode(ct *pailliercore.Ciphertext) (*saferith.Int, error)
 
 	// DecryptWithNonce returns the decryption of `ct` as ciphertext and nonce.
-	DecodeWithNonce(ct *pailliercore.Ciphertext) (*saferith.Int, error)
+	DecodeWithNonce(ct *pailliercore.Ciphertext) (*saferith.Int, *saferith.Nat, error)
 
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
 	ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool
@@ -65,10 +65,10 @@ type PaillierKeyManager interface {
 	Decode(ski []byte, ct *pailliercore.Ciphertext) (*saferith.Int, error)
 
 	// DecryptWithNonce returns the decryption of `ct` as ciphertext and nonce.
-	DecodeWithNonce(ski []byte, ct *pailliercore.Ciphertext) (*saferith.Int, error)
+	DecodeWithNonce(ski []byte, ct *pailliercore.Ciphertext) (*saferith.Int, *saferith.Nat, error)
 
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
-	ValidateCiphertexts(ski []byte, cts ...*pailliercore.Ciphertext) bool
+	ValidateCiphertexts(ski []byte, cts ...*pailliercore.Ciphertext) (bool, error)
 }
 
 
