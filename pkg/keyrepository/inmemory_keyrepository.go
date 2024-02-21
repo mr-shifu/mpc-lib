@@ -10,7 +10,7 @@ type Key struct {
 	PartyID string
 }
 
-type Keys map[string]Key 
+type Keys map[string]Key
 
 type KeyRepository struct {
 	lock sync.RWMutex
@@ -25,12 +25,17 @@ func NewKeyRepository() *KeyRepository {
 	}
 }
 
-func (kr *KeyRepository) Import(ID string, key Key) error {
+func (kr *KeyRepository) Import(ID string, key interface{}) error {
 	kr.lock.Lock()
 	defer kr.lock.Unlock()
 
+	k, ok := key.(Key)
+	if !ok {
+		return errors.New("invalid key")
+	}
+
 	// verify if the key is valid
-	if key.PartyID == "" {
+	if k.PartyID == "" {
 		return errors.New("invalud partyID")
 	}
 
@@ -38,11 +43,11 @@ func (kr *KeyRepository) Import(ID string, key Key) error {
 		kr.keys[ID] = make(map[string]Key)
 	}
 
-	kr.keys[ID][key.PartyID] = key
+	kr.keys[ID][k.PartyID] = k
 	return nil
 }
 
-func (kr *KeyRepository) GetAll(ID string) ([]Key, error) {
+func (kr *KeyRepository) GetAll(ID string) (map[string]interface{}, error) {
 	kr.lock.RLock()
 	defer kr.lock.RUnlock()
 
@@ -51,11 +56,11 @@ func (kr *KeyRepository) GetAll(ID string) ([]Key, error) {
 		return nil, errors.New("key not found")
 	}
 
-	var keys []Key
-	for _, key := range ks {
-		keys = append(keys, key)
+	result := make(map[string]interface{})
+	for partyID, key := range ks {
+		result[partyID] = key
 	}
-	return keys, nil
+	return result, nil
 }
 
 func (kr *KeyRepository) DeleteAll(ID string) error {
