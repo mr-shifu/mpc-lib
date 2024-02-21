@@ -21,10 +21,8 @@ type ElgamalKey struct {
 }
 
 func (key ElgamalKey) Bytes() ([]byte, error) {
-	sk, err := key.secretKey.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	
+	
 	pk, err := key.publicKey.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -36,8 +34,15 @@ func (key ElgamalKey) Bytes() ([]byte, error) {
 	buf = append(buf, []byte(gn)...)
 	buf = append(buf, uint8(len(pk)))
 	buf = append(buf, pk...)
-	buf = append(buf, uint8(len(sk)))
-	buf = append(buf, sk...)
+
+	if key.Private() {
+		sk, err := key.secretKey.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, uint8(len(sk)))
+		buf = append(buf, sk...)
+	}
 
 	return buf, nil
 }
