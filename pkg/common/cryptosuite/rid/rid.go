@@ -28,7 +28,7 @@ type RIDManager interface {
 	GetKey(keyID string) (RID, error)
 
 	// modifies the receiver by taking the XOR with the argument.
-	XOR(keyID string, message []byte) ([]byte, error)
+	XOR(keyID string, message []byte) (RID, error)
 
 	// Validate ensure that the RID is the correct length and is not identically 0.
 	Validate(keyID string) error
