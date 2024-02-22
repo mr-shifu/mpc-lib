@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	comm_keyrepository "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
 )
@@ -69,4 +70,25 @@ func (e *PaillierKeyManager) GetKey(keyID string, partyID string) (comm_paillier
 	ski := keyData.SKI
 
 	return e.km.GetKey(ski)
+}
+
+func (e *PaillierKeyManager) DerivePedersenKey(keyID string, partyID string) (comm_pedersen.PedersenKey, error) {
+	keys, err := e.kr.GetAll(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	k, ok := keys[partyID]
+	if !ok {
+		return nil, errors.New("key not found")
+	}
+
+	keyData, ok := k.(keyrepository.Key)
+	if !ok {
+		return nil, errors.New("key not found")
+	}
+
+	ski := keyData.SKI
+
+	return e.km.DerivePedersenKey(ski)
 }
