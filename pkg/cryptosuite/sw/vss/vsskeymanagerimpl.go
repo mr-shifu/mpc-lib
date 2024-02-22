@@ -52,8 +52,13 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 	return vssKey, nil
 }
 
-// ImportSecrets imports exponents of coefficients and returns VssKey.
-func (mgr *VssKeyManager) ImportSecrets(exponents *polynomial.Exponent) (cs_vss.VssKey, error) {
+// ImportSecrets imports exponents of coefficients in []byte format and returns VssKey.
+func (mgr *VssKeyManager) ImportSecrets(data []byte) (cs_vss.VssKey, error) {
+	exponents := polynomial.NewEmptyExponent(mgr.group)
+	if err := exponents.UnmarshalBinary(data); err != nil {
+		return nil, err
+	}
+
 	// get coefficients from keystore
 	key := NewVssKey(nil, exponents)
 
