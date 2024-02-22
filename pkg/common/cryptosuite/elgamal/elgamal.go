@@ -19,7 +19,7 @@ type ElgamalKey interface {
 	Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error)
 }
 
-type ElgamalKeyManger interface {
+type ElgamalKeyManager interface {
 	// GenerateKey generates a new Elgamal key pair.
 	GenerateKey() (ElgamalKey, error)
 

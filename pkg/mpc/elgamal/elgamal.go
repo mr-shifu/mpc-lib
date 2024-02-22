@@ -9,7 +9,7 @@ import (
 )
 
 type ElgamalKeyManager struct {
-	km comm_elgamal.ElgamalKeyManger
+	km comm_elgamal.ElgamalKeyManager
 	kr comm_keyrepository.KeyRepository
 }
 
@@ -18,7 +18,7 @@ type ElgamalKeyData struct {
 	SKI     []byte
 }
 
-func NewElgamal(km comm_elgamal.ElgamalKeyManger, kr comm_keyrepository.KeyRepository) *ElgamalKeyManager {
+func NewElgamal(km comm_elgamal.ElgamalKeyManager, kr comm_keyrepository.KeyRepository) *ElgamalKeyManager {
 	return &ElgamalKeyManager{km, kr}
 }
 
