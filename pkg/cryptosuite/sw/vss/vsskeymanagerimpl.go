@@ -30,17 +30,16 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 	// Generate exponents of coefficients
 	exponents := polynomial.NewPolynomialExponent(secrets)
 
+	vssKey := NewVssKey(secrets, exponents)
+
 	// get SKI from binary encoded exponents
-	ski, err := exponents.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	ski := vssKey.SKI()
 
 	// encode ski to hex string as keyID
 	keyID := hex.EncodeToString(ski)
 
 	// encode secrets to binary
-	vb, err := secrets.MarshalBinary()
+	vb, err := vssKey.Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -50,22 +49,19 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 		return nil, err
 	}
 
-	return VssKey{secrets, exponents}, nil
+	return vssKey, nil
 }
 
 // ImportSecrets imports exponents of coefficients and returns VssKey.
 func (mgr *VssKeyManager) ImportSecrets(exponents *polynomial.Exponent) (cs_vss.VssKey, error) {
+	// get coefficients from keystore
+	key := NewVssKey(nil, exponents)
+
 	// get SKI from binary encoded exponents
-	ski, err := exponents.MarshalBinary()
-	if err != nil {
-		return VssKey{}, err
-	}
+	ski := key.SKI()
 
 	// encode ski to hex string as keyID
 	keyID := hex.EncodeToString(ski)
-
-	// get coefficients from keystore
-	key := NewVssKey(nil, exponents)
 
 	// decode binary to polynomial
 	kb, err := key.Bytes()
