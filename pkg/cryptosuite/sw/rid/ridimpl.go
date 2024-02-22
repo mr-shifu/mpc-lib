@@ -2,10 +2,12 @@ package rid
 
 import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	cs_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 )
 
 type RID struct {
 	secret types.RID
+	keyID  string
 }
 
 // Bytes returns the byte representation of the key.
@@ -15,7 +17,7 @@ func (r *RID) Bytes() ([]byte, error) {
 
 // SKI returns the serialized key identifier.
 func (r *RID) SKI() []byte {
-	return nil
+	return []byte(r.keyID)
 }
 
 // Private returns true if the key is private.
@@ -24,8 +26,8 @@ func (r *RID) Private() bool {
 }
 
 // PublicKey returns the corresponding public key part of RID Key.
-func (r *RID) PublicKey() RID {
-	return RID{}
+func (r *RID) PublicKey() cs_rid.RID {
+	return nil
 }
 
 // Validate ensure that the RID is the correct length and is not identically 0.
