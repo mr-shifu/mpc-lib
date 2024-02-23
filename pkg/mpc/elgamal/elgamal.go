@@ -4,18 +4,13 @@ import (
 	"errors"
 
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 	comm_keyrepository "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
-	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
 )
 
 type ElgamalKeyManager struct {
 	km comm_elgamal.ElgamalKeyManager
 	kr comm_keyrepository.KeyRepository
-}
-
-type ElgamalKeyData struct {
-	PartyID string
-	SKI     []byte
 }
 
 func NewElgamal(km comm_elgamal.ElgamalKeyManager, kr comm_keyrepository.KeyRepository) *ElgamalKeyManager {
@@ -30,7 +25,10 @@ func (e *ElgamalKeyManager) GenerateKey(keyID string, partyID string) (comm_elga
 
 	ski := key.SKI()
 
-	if err := e.kr.Import(keyID, ElgamalKeyData{partyID, ski}); err != nil {
+	if err := e.kr.Import(keyID, keyrepository.KeyData{
+		PartyID: partyID,
+		SKI:     ski,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -43,7 +41,10 @@ func (e *ElgamalKeyManager) ImportKey(keyID string, partyID string, data []byte)
 		return nil, err
 	}
 
-	if err := e.kr.Import(keyID, ElgamalKeyData{partyID, key.SKI()}); err != nil {
+	if err := e.kr.Import(keyID, keyrepository.KeyData{
+		PartyID: partyID,
+		SKI:     key.SKI(),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -61,12 +62,7 @@ func (e *ElgamalKeyManager) GetKey(keyID string, partyID string) (comm_elgamal.E
 		return nil, errors.New("key not found")
 	}
 
-	keyData, ok := k.(keyrepository.Key)
-	if !ok {
-		return nil, errors.New("key not found")
-	}
+	
 
-	ski := keyData.SKI
-
-	return e.km.GetKey(ski)
+	return e.km.GetKey(k.SKI)
 }

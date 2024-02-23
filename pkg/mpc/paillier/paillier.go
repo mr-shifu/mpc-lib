@@ -5,21 +5,15 @@ import (
 
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
-	comm_keyrepository "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
-	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 )
 
 type PaillierKeyManager struct {
 	km comm_paillier.PaillierKeyManager
-	kr comm_keyrepository.KeyRepository
+	kr keyrepository.KeyRepository
 }
 
-type ElgamalKeyData struct {
-	PartyID string
-	SKI     []byte
-}
-
-func NewElgamal(km comm_paillier.PaillierKeyManager, kr comm_keyrepository.KeyRepository) *PaillierKeyManager {
+func NewPaillierKeyManager(km comm_paillier.PaillierKeyManager, kr keyrepository.KeyRepository) *PaillierKeyManager {
 	return &PaillierKeyManager{km, kr}
 }
 
@@ -29,9 +23,10 @@ func (e *PaillierKeyManager) GenerateKey(keyID string, partyID string) (comm_pai
 		return nil, err
 	}
 
-	ski := key.SKI()
-
-	if err := e.kr.Import(keyID, ElgamalKeyData{partyID, ski}); err != nil {
+	if err := e.kr.Import(keyID, keyrepository.KeyData{
+		PartyID: partyID,
+		SKI:     key.SKI(),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -44,7 +39,10 @@ func (e *PaillierKeyManager) ImportKey(keyID string, partyID string, data []byte
 		return nil, err
 	}
 
-	if err := e.kr.Import(keyID, ElgamalKeyData{partyID, key.SKI()}); err != nil {
+	if err := e.kr.Import(keyID, keyrepository.KeyData{
+		PartyID: partyID,
+		SKI:     key.SKI(),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -62,14 +60,7 @@ func (e *PaillierKeyManager) GetKey(keyID string, partyID string) (comm_paillier
 		return nil, errors.New("key not found")
 	}
 
-	keyData, ok := k.(keyrepository.Key)
-	if !ok {
-		return nil, errors.New("key not found")
-	}
-
-	ski := keyData.SKI
-
-	return e.km.GetKey(ski)
+	return e.km.GetKey(k.SKI)
 }
 
 func (e *PaillierKeyManager) DerivePedersenKey(keyID string, partyID string) (comm_pedersen.PedersenKey, error) {
@@ -83,12 +74,10 @@ func (e *PaillierKeyManager) DerivePedersenKey(keyID string, partyID string) (co
 		return nil, errors.New("key not found")
 	}
 
-	keyData, ok := k.(keyrepository.Key)
-	if !ok {
-		return nil, errors.New("key not found")
+	key, err := e.km.GetKey(k.SKI)
+	if err != nil {
+		return nil, err
 	}
 
-	ski := keyData.SKI
-
-	return e.km.DerivePedersenKey(ski)
+	return key.DerivePedersenKey(k.SKI)
 }

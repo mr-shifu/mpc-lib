@@ -4,21 +4,15 @@ import (
 	"errors"
 
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
-	comm_keyrepository "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
-	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 )
 
 type PedersenKeyManager struct {
 	km comm_pedersen.PedersenKeyManager
-	kr comm_keyrepository.KeyRepository
+	kr keyrepository.KeyRepository
 }
 
-type ElgamalKeyData struct {
-	PartyID string
-	SKI     []byte
-}
-
-func NewElgamal(km comm_pedersen.PedersenKeyManager, kr comm_keyrepository.KeyRepository) *PedersenKeyManager {
+func NewPedersenKeyManager(km comm_pedersen.PedersenKeyManager, kr keyrepository.KeyRepository) *PedersenKeyManager {
 	return &PedersenKeyManager{km, kr}
 }
 
@@ -28,7 +22,10 @@ func (e *PedersenKeyManager) ImportKey(keyID string, partyID string, data []byte
 		return nil, err
 	}
 
-	if err := e.kr.Import(keyID, ElgamalKeyData{partyID, key.SKI()}); err != nil {
+	if err := e.kr.Import(keyID, keyrepository.KeyData{
+		PartyID: partyID,
+		SKI:     key.SKI(),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -46,12 +43,5 @@ func (e *PedersenKeyManager) GetKey(keyID string, partyID string) (comm_pedersen
 		return nil, errors.New("key not found")
 	}
 
-	keyData, ok := k.(keyrepository.Key)
-	if !ok {
-		return nil, errors.New("key not found")
-	}
-
-	ski := keyData.SKI
-
-	return e.km.GetKey(ski)
+	return e.km.GetKey(k.SKI)
 }
