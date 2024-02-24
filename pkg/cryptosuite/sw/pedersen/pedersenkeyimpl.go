@@ -15,25 +15,25 @@ var (
 )
 
 type PedersenKey struct {
-	secretKey *saferith.Nat            // lambda
-	publicKey *pedersencore.Parameters // n, s, t
+	secret *saferith.Nat            // lambda
+	public *pedersencore.Parameters // n, s, t
 }
 
 func NewPedersenKey(s *saferith.Nat, p *pedersencore.Parameters) PedersenKey {
 	return PedersenKey{
-		secretKey: s,
-		publicKey: p,
+		secret: s,
+		public: p,
 	}
 }
 
 // Bytes returns the byte representation of the key.
 func (k PedersenKey) Bytes() ([]byte, error) {
-	skb, err := k.secretKey.MarshalBinary()
+	skb, err := k.secret.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	pkb, err := k.publicKey.MarshalBiinary()
+	pkb, err := k.public.MarshalBiinary()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (k PedersenKey) Bytes() ([]byte, error) {
 
 // SKI returns the serialized key identifier.
 func (k PedersenKey) SKI() []byte {
-	pbs, err := k.publicKey.MarshalBiinary()
+	pbs, err := k.public.MarshalBiinary()
 	if err != nil {
 		return nil
 	}
@@ -66,25 +66,29 @@ func (k PedersenKey) SKI() []byte {
 
 // Private returns true if the key is private.
 func (k PedersenKey) Private() bool {
-	return k.secretKey != nil
+	return k.secret != nil
 }
 
-// PublicKey returns the corresponding public key part of Pedersen Key.
+// Public returns the corresponding public key part of Pedersen Key.
 func (k PedersenKey) PublicKey() cs_pedersen.PedersenKey {
 	return PedersenKey{
-		secretKey: nil,
-		publicKey: k.publicKey,
+		secret: nil,
+		public: k.public,
 	}
+}
+
+func (k PedersenKey) PublicKeyRaw() *pedersencore.Parameters {
+	return k.public
 }
 
 // Commit returns the commitment of the given value.
 func (k PedersenKey) Commit(x, y *saferith.Int) *saferith.Nat {
-	return k.publicKey.Commit(x, y)
+	return k.public.Commit(x, y)
 }
 
 // Verify returns true if the given commitment is valid.
 func (k PedersenKey) Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool {
-	return k.publicKey.Verify(a, b, e, S, T)
+	return k.public.Verify(a, b, e, S, T)
 }
 
 func fromBytes(data []byte) (PedersenKey, error) {
@@ -113,7 +117,7 @@ func fromBytes(data []byte) (PedersenKey, error) {
 	}
 
 	return PedersenKey{
-		secretKey: s,
-		publicKey: p,
+		secret: s,
+		public: p,
 	}, nil
 }

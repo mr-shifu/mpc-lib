@@ -1,6 +1,16 @@
 package pedersen
 
-import "github.com/cronokirby/saferith"
+import (
+	"math/big"
+
+	"github.com/cronokirby/saferith"
+	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
+	"github.com/mr-shifu/mpc-lib/lib/params"
+)
+
+type Proof struct {
+	As, Zs [params.StatParam]*big.Int
+}
 
 type PedersenKey interface {
 	// Bytes returns the byte representation of the key.
@@ -14,6 +24,9 @@ type PedersenKey interface {
 
 	// PublicKey returns the corresponding public key part of Pedersen Key.
 	PublicKey() PedersenKey
+
+	// PublicKeyRaw returns the corresponding public key part of Pedersen Key.
+	PublicKeyRaw() *pedersencore.Parameters
 
 	// Commit returns the commitment of the given value.
 	Commit(x, y *saferith.Int) *saferith.Nat
