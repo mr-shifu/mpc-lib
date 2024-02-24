@@ -1,6 +1,8 @@
 package paillier
 
 import (
+	"math/big"
+
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
@@ -38,6 +40,12 @@ type PaillierKey interface {
 	// DecryptWithNonce returns the decryption of `ct` as ciphertext and nonce.
 	DecodeWithNonce(ct *pailliercore.Ciphertext) (*saferith.Int, *saferith.Nat, error)
 
+	// Sample returns a random number in [1, N-1] and its corresponding big.Int.
+	Sample(t *saferith.Nat) (*saferith.Nat, *big.Int)
+
+	// Derive Pedersen Key from Paillier Key prime factors
+	DerivePedersenKey(ski []byte) (pedersen.PedersenKey, error)
+
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
 	ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool
 }
@@ -45,9 +53,6 @@ type PaillierKey interface {
 type PaillierKeyManager interface {
 	// GenerateKey generates a new Paillier key pair.
 	GenerateKey() (PaillierKey, error)
-
-	// Derive Pedersen Key from Paillier Key prime factors
-	DerivePedersenKey(ski []byte) (pedersen.PedersenKey, error)
 
 	// GetKey returns a Paillier key by its SKI.
 	GetKey(ski []byte) (PaillierKey, error)
@@ -70,5 +75,3 @@ type PaillierKeyManager interface {
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
 	ValidateCiphertexts(ski []byte, cts ...*pailliercore.Ciphertext) (bool, error)
 }
-
-

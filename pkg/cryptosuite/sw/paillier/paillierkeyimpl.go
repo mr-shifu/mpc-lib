@@ -1,14 +1,19 @@
 package paillier
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"math/big"
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/pool"
 	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
-
+	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
 type PaillierKey struct {
@@ -106,8 +111,27 @@ func (k PaillierKey) DecodeWithNonce(ct *pailliercore.Ciphertext) (*saferith.Int
 }
 
 // ValidateCiphertexts returns true if all ciphertexts are valid.
-func (k PaillierKey) ValidateCiphertexts(cts ...*pailliercore.Ciphertext) (bool) {
+func (k PaillierKey) ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool {
 	return k.secretKey.ValidateCiphertexts(cts...)
+}
+
+// Derive Pedersen Key from Paillier Key prime factors
+func (k PaillierKey) DerivePedersenKey(ski []byte) (cs_pedersen.PedersenKey, error) {
+	pk, sk := k.secretKey.GeneratePedersen()
+	return pedersen.NewPedersenKey(sk, pk), nil
+}
+
+// Sample returns a random number in [1, N-1] and its multiplication by t; (a, A = t^a mod N).
+func (k PaillierKey) Sample(t *saferith.Nat) (*saferith.Nat, *big.Int) {
+	phi := saferith.ModulusFromNat(k.secretKey.Phi())
+
+	lockedRand := pool.NewLockedReader(rand.Reader)
+
+	a := sample.ModN(lockedRand, phi)
+
+	A := k.Modulus().Exp(t, a).Big()
+
+	return a, A
 }
 
 // fromBytes returns a Paillier key from its binary encoded data.

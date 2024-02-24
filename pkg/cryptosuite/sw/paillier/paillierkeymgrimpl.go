@@ -6,9 +6,7 @@ import (
 
 	"github.com/cronokirby/saferith"
 	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
-	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pool"
@@ -47,18 +45,6 @@ func (mgr *PaillierKeyManager) GenerateKey() (cs_paillier.PaillierKey, error) {
 	}
 
 	return key, nil
-}
-
-// Derive Pedersen Key from Paillier Key prime factors
-func (mgr *PaillierKeyManager) DerivePedersenKey(ski []byte) (cs_pedersen.PedersenKey, error) {
-	key, err := mgr.GetKey(ski)
-	if err != nil {
-		return nil, err
-	}
-
-	k := key.(PaillierKey)
-	pk, sk := k.secretKey.GeneratePedersen()
-	return pedersen.NewPedersenKey(sk, pk), nil
 }
 
 // GetKey returns a Paillier key by its SKI.
