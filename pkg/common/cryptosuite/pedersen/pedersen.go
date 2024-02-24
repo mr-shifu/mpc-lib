@@ -1,18 +1,12 @@
 package pedersen
 
 import (
-	"math/big"
-
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	"github.com/mr-shifu/mpc-lib/core/pool"
-	"github.com/mr-shifu/mpc-lib/lib/params"
+	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 )
-
-type Proof struct {
-	As, Zs [params.StatParam]*big.Int
-}
 
 type PedersenKey interface {
 	// Bytes returns the byte representation of the key.
@@ -37,10 +31,10 @@ type PedersenKey interface {
 	Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool
 
 	// NewProof returns Proof for Pedersen params s, t, lambd.
-	NewProof(hash *hash.Hash, pl *pool.Pool) *Proof
+	NewProof(hash *hash.Hash, pl *pool.Pool) *zkprm.Proof
 
 	// VerifyProof returns true if the given proof is valid.
-	VerifyProof(hash *hash.Hash, pl *pool.Pool, p *Proof) bool
+	VerifyProof(hash *hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool
 }
 
 type PedersenKeyManager interface {

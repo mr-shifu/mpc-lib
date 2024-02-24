@@ -4,8 +4,11 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
@@ -48,6 +51,12 @@ type PaillierKey interface {
 
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
 	ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool
+
+	// NewZKModProof returns a new ZKMod proof of paillier key params.
+	NewZKModProof(hash *hash.Hash, pl *pool.Pool) *zkmod.Proof
+
+	// VerifyZKMod verifies a ZKMod proof of paillier key params.
+	VerifyZKMod(p *zkmod.Proof, hash *hash.Hash, pl *pool.Pool) bool
 }
 
 type PaillierKeyManager interface {
