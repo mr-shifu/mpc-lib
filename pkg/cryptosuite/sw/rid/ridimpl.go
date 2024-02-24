@@ -30,6 +30,11 @@ func (r *RID) PublicKey() cs_rid.RID {
 	return nil
 }
 
+// Raw returns the byte representation of the key.
+func (r *RID) Raw() []byte {
+	return r.secret
+}
+
 // Validate ensure that the RID is the correct length and is not identically 0.
 func (r *RID) Validate() error {
 	return r.secret.Validate()

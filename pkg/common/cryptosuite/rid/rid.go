@@ -13,6 +13,9 @@ type RID interface {
 	// PublicKey returns the corresponding public key part of RID Key.
 	PublicKey() RID
 
+	// Raw returns the byte representation of the key.
+	Raw() []byte
+
 	// Validate ensure that the RID is the correct length and is not identically 0.
 	Validate() error
 }
