@@ -75,6 +75,13 @@ func (k VssKey) Exponents() (cs_vss.VssKey, error) {
 	}, nil
 }
 
+func (k VssKey) ExponentsRaw() (*polynomial.Exponent, error) {
+	if k.exponents == nil {
+		return nil, errors.New("no exponents")
+	}
+	return k.exponents, nil
+}
+
 // Evaluate evaluates polynomial at a scalar using coefficients.
 func (k VssKey) Evaluate(index curve.Scalar) (curve.Scalar, error) {
 	// evaluate polynomial at a scalar using coefficients

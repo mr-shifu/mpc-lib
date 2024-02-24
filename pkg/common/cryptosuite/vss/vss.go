@@ -2,6 +2,7 @@ package vss
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 )
 
 type VssKey interface {
@@ -14,8 +15,11 @@ type VssKey interface {
 	// Private returns true if the key is private.
 	Private() bool
 
-	// PublicKey returns the corresponding Exponents of coefficients.
+	// Exponents returns the corresponding Exponents of coefficients.
 	Exponents() (VssKey, error)
+
+	// ExponentsRaw returns the corresponding Raw Exponents of coefficients.
+	ExponentsRaw() (*polynomial.Exponent, error)
 
 	// Evaluate evaluates polynomial at a scalar using coefficients.
 	Evaluate(index curve.Scalar) (curve.Scalar, error)
