@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,7 +12,7 @@ func TestImportKeys(t *testing.T) {
 	kr := NewKeyRepository()
 
 	keyID := "1"
-	keys := []Key{
+	keys := []keyrepository.KeyData{
 		{
 			SKI:     []byte("ski"),
 			PartyID: "Party1",

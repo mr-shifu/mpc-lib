@@ -3,14 +3,11 @@ package keyrepository
 import (
 	"errors"
 	"sync"
+
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 )
 
-type Key struct {
-	SKI     []byte
-	PartyID string
-}
-
-type Keys map[string]Key
+type Keys map[string]keyrepository.KeyData
 
 type KeyRepository struct {
 	lock sync.RWMutex
@@ -25,29 +22,24 @@ func NewKeyRepository() *KeyRepository {
 	}
 }
 
-func (kr *KeyRepository) Import(ID string, key interface{}) error {
+func (kr *KeyRepository) Import(ID string, key keyrepository.KeyData) error {
 	kr.lock.Lock()
 	defer kr.lock.Unlock()
 
-	k, ok := key.(Key)
-	if !ok {
-		return errors.New("invalid key")
-	}
-
 	// verify if the key is valid
-	if k.PartyID == "" {
+	if key.PartyID == "" {
 		return errors.New("invalud partyID")
 	}
 
 	if _, ok := kr.keys[ID]; !ok {
-		kr.keys[ID] = make(map[string]Key)
+		kr.keys[ID] = make(map[string]keyrepository.KeyData)
 	}
 
-	kr.keys[ID][k.PartyID] = k
+	kr.keys[ID][key.PartyID] = key
 	return nil
 }
 
-func (kr *KeyRepository) GetAll(ID string) (map[string]interface{}, error) {
+func (kr *KeyRepository) GetAll(ID string) (map[string]keyrepository.KeyData, error) {
 	kr.lock.RLock()
 	defer kr.lock.RUnlock()
 
@@ -56,7 +48,7 @@ func (kr *KeyRepository) GetAll(ID string) (map[string]interface{}, error) {
 		return nil, errors.New("key not found")
 	}
 
-	result := make(map[string]interface{})
+	result := make(map[string]keyrepository.KeyData)
 	for partyID, key := range ks {
 		result[partyID] = key
 	}
