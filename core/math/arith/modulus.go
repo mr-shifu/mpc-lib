@@ -2,7 +2,6 @@ package arith
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 
 	"github.com/cronokirby/saferith"
@@ -41,6 +40,15 @@ func ModulusFromN(n *saferith.Modulus) *Modulus {
 	return &Modulus{
 		Modulus: n,
 	}
+}
+
+// ModulusPhi returns a new Modulus from phi = (p-1)⋅(q-1).
+func (n *Modulus) ModulusPhi() *saferith.Modulus {
+	oneNat := new(saferith.Nat).SetUint64(1)
+	pMinus1 := new(saferith.Nat).Sub(n.p.Nat(), oneNat, -1)
+	qMinus1 := new(saferith.Nat).Sub(n.q.Nat(), oneNat, -1)
+	phi := new(saferith.Nat).Mul(pMinus1, qMinus1, -1)
+	return saferith.ModulusFromNat(phi)
 }
 
 // ModulusFromFactors creates the necessary cached values to accelerate
@@ -185,78 +193,6 @@ func (n *Modulus) UnmarshalBinary(data []byte) error {
 	n.q = q
 	n.pInv = pinv
 	n.pNat = pnat
-
-	return nil
-}
-
-type ModulusSerilized struct {
-	Modulus []byte
-	P       []byte
-	Q       []byte
-	PNat    []byte
-	PInv    []byte
-}
-
-func (n *Modulus) Serialize() ([]byte, error) {
-	var ns ModulusSerilized
-	ns.Modulus = n.Modulus.Bytes()
-	if n.p != nil {
-		ns.P = n.p.Bytes()
-	}
-	if n.q != nil {
-		ns.Q = n.q.Bytes()
-	}
-	if n.pNat != nil {
-		ns.PNat = n.pNat.Bytes()
-	}
-	if n.pInv != nil {
-		ns.PInv = n.pInv.Bytes()
-	}
-	return json.Marshal(ns)
-}
-
-func (n *Modulus) Deserialize(data []byte) error {
-	var ns ModulusSerilized
-	err := json.Unmarshal(data, &ns)
-	if err != nil {
-		return err
-	}
-	n.Modulus = new(saferith.Modulus)
-	if err := n.Modulus.UnmarshalBinary(ns.Modulus); err != nil {
-		return err
-	}
-
-	if ns.P != nil {
-		if err := n.p.UnmarshalBinary(ns.P); err != nil {
-			return err
-		}
-	} else {
-		n.p = nil
-	}
-
-	if ns.Q != nil {
-		if err := n.q.UnmarshalBinary(ns.Q); err != nil {
-			return err
-		}
-	} else {
-		n.q = nil
-	}
-
-	if ns.PInv != nil {
-		if err := n.pInv.UnmarshalBinary(ns.PInv); err != nil {
-			return err
-		}
-	} else {
-		n.pInv = nil
-	}
-
-	if ns.PNat != nil {
-		if err := n.pNat.UnmarshalBinary(ns.PNat); err != nil {
-			return err
-		}
-	} else {
-		n.pNat = nil
-	}
 
 	return nil
 }
