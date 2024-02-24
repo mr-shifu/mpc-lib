@@ -2,7 +2,6 @@ package pedersen
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -141,17 +140,17 @@ func (p Parameters) MarshalBiinary() ([]byte, error) {
 
 func (p *Parameters) UnmarshalBiinary(data []byte) error {
 	nl := binary.LittleEndian.Uint16(data[:2])
-	data = data[2:nl+2]
+	data = data[2 : nl+2]
 	nb := data[:nl]
 	data = data[nl:]
 
 	sl := binary.LittleEndian.Uint16(data[nl+2 : nl+4])
-	data = data[nl+4:nl+4+sl]
+	data = data[nl+4 : nl+4+sl]
 	sb := data[:sl]
 	data = data[sl:]
 
-	tl := binary.LittleEndian.Uint16(data[nl+4+sl:nl+4+sl+2])
-	data = data[nl+4+sl+2:nl+4+sl+2+tl]
+	tl := binary.LittleEndian.Uint16(data[nl+4+sl : nl+4+sl+2])
+	data = data[nl+4+sl+2 : nl+4+sl+2+tl]
 	tb := data[:tl]
 
 	n := arith.NewEmptyModulus()
@@ -198,52 +197,4 @@ func (p *Parameters) WriteTo(w io.Writer) (int64, error) {
 // Domain implements hash.WriterToWithDomain, and separates this type within hash.Hash.
 func (Parameters) Domain() string {
 	return "Pedersen Parameters"
-}
-
-type parameterSerialized struct {
-	N    []byte
-	S, T []byte
-}
-
-func (p *Parameters) Serialize() ([]byte, error) {
-	nb, err := p.n.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	sb := p.s.Bytes()
-	tb := p.t.Bytes()
-
-	ps := parameterSerialized{
-		N: nb,
-		S: sb,
-		T: tb,
-	}
-
-	return json.Marshal(ps)
-}
-
-func (p *Parameters) Deserialize(data []byte) error {
-	var ps parameterSerialized
-	if err := json.Unmarshal(data, &ps); err != nil {
-		return err
-	}
-	n := arith.NewEmptyModulus()
-	if err := n.Deserialize(ps.N); err != nil {
-		return err
-	}
-	p.n = n
-
-	var s saferith.Nat
-	if err := s.UnmarshalBinary(ps.S); err != nil {
-		return err
-	}
-	p.s = &s
-
-	var t saferith.Nat
-	if err := t.UnmarshalBinary(ps.T); err != nil {
-		return err
-	}
-	p.t = &t
-
-	return nil
 }

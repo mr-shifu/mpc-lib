@@ -9,16 +9,15 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
-	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/params"
-	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
 // NewProof generates a proof that:
 // s = t^lambda (mod N).
-func (k PedersenKey) NewProof(hash *hash.Hash, pl *pool.Pool) *cs_pedersen.Proof {
+func (k PedersenKey) NewProof(hash *hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	n := k.public.NArith()
 	phi := n.ModulusPhi()
 
@@ -49,17 +48,17 @@ func (k PedersenKey) NewProof(hash *hash.Hash, pl *pool.Pool) *cs_pedersen.Proof
 		Zs[i] = z.Big()
 	}
 
-	return &cs_pedersen.Proof{
+	return &zkprm.Proof{
 		As: As,
 		Zs: Zs,
 	}
 }
 
-func (k PedersenKey) VerifyProof(hash *hash.Hash, pl *pool.Pool, p *cs_pedersen.Proof) bool {
+func (k PedersenKey) VerifyProof(hash *hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
 	if p == nil {
 		return false
 	}
-	if err := pedersen.ValidateParameters(k.public.N(), k.public.S(), k.public.T()); err != nil {
+	if err := pedersencore.ValidateParameters(k.public.N(), k.public.S(), k.public.T()); err != nil {
 		return false
 	}
 
