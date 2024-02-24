@@ -4,7 +4,9 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/hash"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
+	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/params"
 )
 
@@ -33,6 +35,12 @@ type PedersenKey interface {
 
 	// Verify returns true if the given commitment is valid.
 	Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool
+
+	// NewProof returns Proof for Pedersen params s, t, lambd.
+	NewProof(hash *hash.Hash, pl *pool.Pool) *Proof
+
+	// VerifyProof returns true if the given proof is valid.
+	VerifyProof(hash *hash.Hash, pl *pool.Pool, p *Proof) bool
 }
 
 type PedersenKeyManager interface {
