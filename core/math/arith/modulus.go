@@ -1,10 +1,10 @@
 package arith
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/fxamacker/cbor/v2"
 )
 
 var (
@@ -102,97 +102,41 @@ func (n Modulus) hasFactorization() bool {
 	return n.p != nil && n.q != nil && n.pNat != nil && n.pInv != nil
 }
 
+type rawModulus struct {
+	Modulus *saferith.Modulus
+	// n = p⋅p
+	P, Q *saferith.Modulus
+	// pInv = p⁻¹ (mod q)
+	PNat, PInv *saferith.Nat
+}
+
 func (n *Modulus) MarshalBinary() ([]byte, error) {
-	nb, err := n.Modulus.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	pb, err := n.p.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	qb, err := n.q.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	pinvb, err := n.pInv.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	pnatb, err := n.pNat.MarshalBinary()
-	if err != nil {
-		return nil, err
+	rawN := rawModulus{
+		Modulus: n.Modulus,
+		P:       n.p,
+		Q:       n.q,
+		PNat:    n.pNat,
+		PInv:    n.pInv,
 	}
 
-	nlb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(nlb, uint16(len(nb)))
-
-	plb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(plb, uint16(len(pb)))
-
-	qlb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(qlb, uint16(len(qb)))
-
-	pinvlb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(pinvlb, uint16(len(pinvb)))
-
-	pnatlb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(pnatlb, uint16(len(pnatb)))
-
-	buf := make(([]byte), 0)
-	buf = append(buf, nlb...)
-	buf = append(buf, nb...)
-	buf = append(buf, plb...)
-	buf = append(buf, pb...)
-	buf = append(buf, qlb...)
-	buf = append(buf, qb...)
-	buf = append(buf, pinvlb...)
-	buf = append(buf, pinvb...)
-	buf = append(buf, pnatlb...)
-	buf = append(buf, pnatb...)
-
-	return buf, nil
+	return cbor.Marshal(&rawN)
 }
 
 func (n *Modulus) UnmarshalBinary(data []byte) error {
 	if len(data) == 0 {
 		return ErrEmptyEncodedData
 	}
-	nl := binary.LittleEndian.Uint16(data[:2])
-	nb := new(saferith.Modulus)
-	if err := nb.UnmarshalBinary(data[2 : 2+nl]); err != nil {
+
+	var rawN rawModulus
+	if err := cbor.Unmarshal(data, &rawN); err != nil {
 		return err
 	}
 
-	pl := binary.LittleEndian.Uint16(data[2+nl : 4+nl])
-	p := new(saferith.Modulus)
-	if err := p.UnmarshalBinary(data[4+nl : 4+nl+pl]); err != nil {
-		return err
-	}
-
-	ql := binary.LittleEndian.Uint16(data[4+nl+pl : 6+nl+pl])
-	q := new(saferith.Modulus)
-	if err := q.UnmarshalBinary(data[6+nl+pl : 6+nl+pl+ql]); err != nil {
-		return err
-	}
-
-	pinvl := binary.LittleEndian.Uint16(data[6+nl+pl+ql : 8+nl+pl+ql])
-	pinv := new(saferith.Nat)
-	if err := pinv.UnmarshalBinary(data[8+nl+pl+ql : 8+nl+pl+ql+pinvl]); err != nil {
-		return err
-	}
-
-	pnatl := binary.LittleEndian.Uint16(data[8+nl+pl+ql+pinvl : 10+nl+pl+ql+pinvl])
-	pnat := new(saferith.Nat)
-	if err := pnat.UnmarshalBinary(data[10+nl+pl+ql+pinvl : 10+nl+pl+ql+pinvl+pnatl]); err != nil {
-		return err
-	}
-
-	n.Modulus = nb
-	n.p = p
-	n.q = q
-	n.pInv = pinv
-	n.pNat = pnat
+	n.Modulus = rawN.Modulus
+	n.p = rawN.P
+	n.q = rawN.Q
+	n.pNat = rawN.PNat
+	n.pInv = rawN.PInv
 
 	return nil
 }
