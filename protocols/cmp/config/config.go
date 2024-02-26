@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -148,15 +147,16 @@ func (p *Public) WriteTo(w io.Writer) (total int64, err error) {
 	}
 
 	// write ElGamal
-	data, err = p.ElGamal.MarshalBinary()
-	if err != nil {
-		return
-	}
-	n, err = w.Write(data)
-	total += int64(n)
-	if err != nil {
-		return
-	}
+	// TODO: implement ElGamal serialization
+	// data, err = p.ElGamal.MarshalBinary()
+	// if err != nil {
+	// 	return
+	// }
+	// n, err = w.Write(data)
+	// total += int64(n)
+	// if err != nil {
+	// 	return
+	// }
 
 	n64, err := p.Paillier.WriteTo(w)
 	total += n64
@@ -283,147 +283,4 @@ type configSerialized struct {
 	RID       types.RID
 	ChainKey  types.RID
 	Public    map[party.ID][]byte
-}
-
-func NewEmptyConfig(g curve.Curve) *Config {
-	return &Config{
-		Group:  g,
-		Public: make(map[party.ID]*Public),
-	}
-}
-func (c *Config) Serialize() (ser []byte, err error) {
-	cs := configSerialized{
-		ID:        c.ID,
-		Threshold: c.Threshold,
-		RID:       c.RID,
-		ChainKey:  c.ChainKey,
-		Public:    make(map[party.ID][]byte),
-	}
-
-	cs.ECDSA, err = c.ECDSA.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	cs.ElGamal, err = c.ElGamal.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	cs.Paillier, err = c.Paillier.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	for id, pub := range c.Public {
-		ps, err := pub.Serialize()
-		if err != nil {
-			return nil, err
-		}
-		cs.Public[id] = ps
-	}
-
-	return json.Marshal(cs)
-}
-func (c *Config) Deserialize(data []byte) error {
-	var cs configSerialized
-	if err := json.Unmarshal(data, &cs); err != nil {
-		return err
-	}
-
-	c.ID = cs.ID
-	c.Threshold = cs.Threshold
-	c.RID = cs.RID
-	c.ChainKey = cs.ChainKey
-
-	var ec curve.Secp256k1Scalar
-	if err := ec.UnmarshalBinary(cs.ECDSA); err != nil {
-		return err
-	}
-	c.ECDSA = &ec
-
-	var eg curve.Secp256k1Scalar
-	if err := eg.UnmarshalBinary(cs.ElGamal); err != nil {
-		return err
-	}
-	c.ElGamal = &eg
-
-	var psk paillier.SecretKey
-	if err := psk.Deserialize(cs.Paillier); err != nil {
-		return err
-	}
-	c.Paillier = &psk
-
-	for id, ps := range cs.Public {
-		var pk Public
-		if err := pk.Deserialize(ps); err != nil {
-			return err
-		}
-		c.Public[id] = &pk
-	}
-
-	return nil
-}
-
-type publicSerialized struct {
-	ECDSA    []byte
-	ElGamal  []byte
-	Paillier []byte
-	Pedersen []byte
-}
-
-func (p *Public) Serialize() (ser []byte, err error) {
-	var ps publicSerialized
-
-	ps.ECDSA, err = p.ECDSA.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	ps.ElGamal, err = p.ElGamal.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	ps.Paillier, err = p.Paillier.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	ps.Pedersen, err = p.Pedersen.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	return json.Marshal(ps)
-}
-func (p *Public) Deserialize(data []byte) error {
-	var ps publicSerialized
-	err := json.Unmarshal(data, &ps)
-	if err != nil {
-		return err
-	}
-
-	var ec curve.Secp256k1Point
-	if err := ec.UnmarshalBinary(ps.ECDSA); err != nil {
-		return err
-	}
-	p.ECDSA = &ec
-
-	var eg curve.Secp256k1Point
-	if err := eg.UnmarshalBinary(ps.ElGamal); err != nil {
-		return err
-	}
-	p.ElGamal = &eg
-
-	var paillierKey paillier.PublicKey
-	if err := paillierKey.Deserialize(ps.Paillier); err != nil {
-		return err
-	}
-	p.Paillier = &paillierKey
-
-	var pedersenParams pedersen.Parameters
-	if err := pedersenParams.Deserialize(ps.Pedersen); err != nil {
-		return err
-	}
-	p.Pedersen = &pedersenParams
-
-	return nil
 }
