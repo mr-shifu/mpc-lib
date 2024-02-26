@@ -32,7 +32,7 @@ func EmptyConfig(group curve.Curve) *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func Keygen(group curve.Curve, selfID party.ID, participants []party.ID, threshold int, pl *pool.Pool) protocol.StartFunc {
+func Keygen(keyID string, group curve.Curve, selfID party.ID, participants []party.ID, threshold int, pl *pool.Pool) protocol.StartFunc {
 	info := round.Info{
 		ProtocolID:       "cmp/keygen-threshold",
 		FinalRoundNumber: keygen.Rounds,
@@ -41,13 +41,14 @@ func Keygen(group curve.Curve, selfID party.ID, participants []party.ID, thresho
 		Threshold:        threshold,
 		Group:            group,
 	}
-	return keygen.Start(info, pl, nil)
+	mpckg := keygen.NewMPCKeygen()
+	return mpckg.Start(keyID, info, pl, nil)
 }
 
 // Refresh allows the parties to refresh all existing cryptographic keys from a previously generated Config.
 // The group's ECDSA public key remains the same, but any previous shares are rendered useless.
 // Returns *cmp.Config if successful.
-func Refresh(config *Config, pl *pool.Pool) protocol.StartFunc {
+func Refresh(keyID string, config *Config, pl *pool.Pool) protocol.StartFunc {
 	info := round.Info{
 		ProtocolID:       "cmp/refresh-threshold",
 		FinalRoundNumber: keygen.Rounds,
@@ -56,7 +57,8 @@ func Refresh(config *Config, pl *pool.Pool) protocol.StartFunc {
 		Threshold:        config.Threshold,
 		Group:            config.Group,
 	}
-	return keygen.Start(info, pl, config)
+	mpckg := keygen.NewMPCKeygen()
+	return mpckg.Start(keyID, info, pl, config)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

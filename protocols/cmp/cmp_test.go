@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/ecdsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
@@ -18,7 +19,10 @@ import (
 
 func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
 	defer wg.Done()
-	h, err := protocol.NewMultiHandler(Keygen(curve.Secp256k1{}, id, ids, threshold, pl), nil)
+
+	keyID := uuid.New().String()
+
+	h, err := protocol.NewMultiHandler(Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
 	r, err := h.Result()
@@ -26,7 +30,8 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c := r.(*Config)
 
-	h, err = protocol.NewMultiHandler(Refresh(c, pl), nil)
+
+	h, err = protocol.NewMultiHandler(Refresh(keyID, c, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -145,9 +150,10 @@ func TestStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			keyID := uuid.New().String()
 			c.Threshold = tt.threshold
 			var err error
-			_, err = Keygen(group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
+			_, err = Keygen(keyID, group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 
