@@ -28,27 +28,27 @@ func NewPedersenKey(s *saferith.Nat, p *pedersencore.Parameters) PedersenKey {
 
 // Bytes returns the byte representation of the key.
 func (k PedersenKey) Bytes() ([]byte, error) {
-	skb, err := k.secret.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
 	pkb, err := k.public.MarshalBiinary()
 	if err != nil {
 		return nil, err
 	}
-
-	slb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(slb, uint16(len(skb)))
-
 	plb := make([]byte, 2)
 	binary.LittleEndian.PutUint16(plb, uint16(len(pkb)))
 
 	buf := make([]byte, 0)
 	buf = append(buf, plb...)
 	buf = append(buf, pkb...)
-	buf = append(buf, slb...)
-	buf = append(buf, skb...)
+
+	if k.Private() {
+		skb, err := k.secret.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		slb := make([]byte, 2)
+		binary.LittleEndian.PutUint16(slb, uint16(len(skb)))
+		buf = append(buf, slb...)
+		buf = append(buf, skb...)
+	}
 
 	return buf, nil
 }
@@ -109,7 +109,10 @@ func fromBytes(data []byte) (PedersenKey, error) {
 	slb := data[pLen+2 : pLen+4]
 	sLen := binary.LittleEndian.Uint16(slb)
 	if sLen == 0 {
-		return PedersenKey{}, ErrEmptyEncodedData
+		return PedersenKey{
+			secret: nil,
+			public: p,
+		}, nil
 	}
 	s := new(saferith.Nat)
 	if err := s.UnmarshalBinary(data[pLen+4 : pLen+4+sLen]); err != nil {
