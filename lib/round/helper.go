@@ -16,6 +16,8 @@ import (
 // Helper implements Session without Round, and can therefore be embedded in the first round of a protocol
 // in order to satisfy the Session interface.
 type Helper struct {
+	KeyID string
+
 	info Info
 
 	// Pool allows us to parallelize certain operations
@@ -40,7 +42,7 @@ type Helper struct {
 // When used, it should be unique for each execution of the protocol.
 // It could be a simple counter which is incremented after execution,  or a common random string.
 // `auxInfo` is a variable list of objects which should be included in the session's hash state.
-func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.WriterToWithDomain) (*Helper, error) {
+func NewSession(keyID string, info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.WriterToWithDomain) (*Helper, error) {
 	partyIDs := party.NewIDSlice(info.PartyIDs)
 	if !partyIDs.Valid() {
 		return nil, errors.New("session: partyIDs invalid")
@@ -114,6 +116,7 @@ func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.Writ
 
 	return &Helper{
 		info:          info,
+		KeyID:         keyID,
 		Pool:          pl,
 		partyIDs:      partyIDs,
 		otherPartyIDs: partyIDs.Remove(info.SelfID),
