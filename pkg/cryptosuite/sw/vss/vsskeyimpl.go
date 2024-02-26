@@ -24,27 +24,33 @@ func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) c
 
 // Bytes returns the byte representation of the vss coefficients.
 func (k VssKey) Bytes() ([]byte, error) {
-	sb, err := k.secrets.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	gn := k.exponents.Group().Name()
+	gnl := len(gn)
 
 	eb, err := k.exponents.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-
-	slb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(slb, uint16(len(sb)))
-
 	elb := make([]byte, 2)
 	binary.LittleEndian.PutUint16(elb, uint16(len(eb)))
 
 	buf := make([]byte, 0)
-	buf = append(buf, slb...)
-	buf = append(buf, sb...)
+	buf = append(buf, byte(gnl))
+	buf = append(buf, gn...)
 	buf = append(buf, elb...)
 	buf = append(buf, eb...)
+
+	if k.Private() {
+		sb, err := k.secrets.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		slb := make([]byte, 2)
+		binary.LittleEndian.PutUint16(slb, uint16(len(sb)))
+
+		buf = append(buf, slb...)
+		buf = append(buf, sb...)
+	}
 
 	return buf, nil
 }
@@ -95,17 +101,34 @@ func (k VssKey) EvaluateByExponents(index curve.Scalar) (curve.Point, error) {
 }
 
 func fromBytes(data []byte) (VssKey, error) {
-	// read secrets length
-	secretsLen := binary.LittleEndian.Uint16(data[:2])
-	secrets := &polynomial.Polynomial{}
-	if err := secrets.UnmarshalBinary(data[2 : secretsLen+2]); err != nil {
-		return VssKey{}, err
+	// read group
+	gnlen := uint16(data[0])
+	gn := string(data[1 : 1+gnlen])
+	var group curve.Curve
+	if gn == "secp256k1" {
+		group = curve.Secp256k1{}
+	} else {
+		return VssKey{}, errors.New("unsupported curve")
 	}
 
 	// read exponents length
-	exponentsLen := binary.LittleEndian.Uint16(data[secretsLen+2 : secretsLen+4])
-	exponents := &polynomial.Exponent{}
-	if err := exponents.UnmarshalBinary(data[secretsLen+4 : secretsLen+4+exponentsLen]); err != nil {
+	exponentsLen := binary.LittleEndian.Uint16(data[1+gnlen : 1+gnlen+2])
+	exponents := polynomial.EmptyExponent(group)
+	if err := exponents.UnmarshalBinary(data[1+gnlen+2 : 1+gnlen+2+exponentsLen]); err != nil {
+		return VssKey{}, err
+	}
+
+	// read secrets length
+	secretsLen := binary.LittleEndian.Uint16(data[1+gnlen+2+exponentsLen : 1+gnlen+2+exponentsLen+2])
+	if secretsLen == 0 {
+		return VssKey{
+			secrets:   nil,
+			exponents: exponents,
+		}, nil
+
+	}
+	secrets := polynomial.NewEmptyPolynomial(group, exponents.Degree())
+	if err := secrets.UnmarshalBinary(data[1+gnlen+2+exponentsLen+2 : 1+gnlen+2+exponentsLen+2+secretsLen]); err != nil {
 		return VssKey{}, err
 	}
 
