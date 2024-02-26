@@ -1,12 +1,9 @@
 package keygen
 
 import (
-	"encoding/json"
 	"errors"
 
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
-	"github.com/mr-shifu/mpc-lib/core/pool"
 	sch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -89,55 +86,3 @@ func (r *round5) BroadcastContent() round.BroadcastContent {
 
 // Number implements round.Round.
 func (round5) Number() round.Number { return 5 }
-
-type round5Serialized struct {
-	Round4             []byte
-	UpdatedConfig      []byte
-	MessageBroadcasted map[party.ID]bool
-}
-
-func NewEmptyRound5(g curve.Curve, pl *pool.Pool) *round5 {
-	return &round5{
-		round4:             NewEmptyRound4(g, pl),
-		UpdatedConfig:      config.NewEmptyConfig(g),
-		MessageBroadcasted: make(map[party.ID]bool),
-	}
-}
-func (r *round5) Serialize() (ser []byte, err error) {
-	rs := round5Serialized{
-		MessageBroadcasted: r.MessageBroadcasted,
-	}
-
-	rs.Round4, err = r.round4.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	rs.UpdatedConfig, err = r.UpdatedConfig.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	return json.Marshal(rs)
-}
-func (r *round5) Deserialize(data []byte) error {
-	var rs round5Serialized
-	if err := json.Unmarshal(data, &rs); err != nil {
-		return err
-	}
-
-	if err := r.round4.Deserialize(rs.Round4); err != nil {
-		return err
-	}
-
-	if err := r.UpdatedConfig.Deserialize(rs.UpdatedConfig); err != nil {
-		return err
-	}
-
-	r.MessageBroadcasted = rs.MessageBroadcasted
-
-	return nil
-}
-func (r *round5) Equal(other round.Round) bool {
-	return true
-}
