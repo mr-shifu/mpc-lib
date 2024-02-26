@@ -1,7 +1,6 @@
 package keygen
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -13,19 +12,31 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
-	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
-	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
-	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
+	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
+	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
+	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round3)(nil)
 
 type round3 struct {
 	*round2
+
+	elgamal_km  comm_elgamal.ElgamalKeyManager
+	paillier_km comm_paillier.PaillierKeyManager
+	pedersen_km comm_pedersen.PedersenKeyManager
+	vss_km      comm_vss.VssKeyManager
+	rid_km      comm_rid.RIDKeyManager
+	chainKey_km comm_rid.RIDKeyManager
+
 	// SchnorrCommitments[j] = Aⱼ
 	// Commitment for proof of knowledge in the last round
 	SchnorrCommitments map[party.ID]*zksch.Commitment // Aⱼ
@@ -42,7 +53,7 @@ type broadcast3 struct {
 	VSSPolynomial *polynomial.Exponent
 	// SchnorrCommitments = Aᵢ Schnorr commitment for the final confirmation
 	SchnorrCommitments *zksch.Commitment
-	ElGamalPublic      curve.Point
+	ElGamalPublic      []byte // curve.Point
 	// N Paillier and Pedersen N = p•q, p ≡ q ≡ 3 mod 4
 	N *saferith.Modulus
 	// S = r² mod N
@@ -91,7 +102,16 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	VSSPolynomial := body.VSSPolynomial
 	// check that the constant coefficient is 0
 	// if refresh then the polynomial is constant
-	if !(r.VSSSecret.Constant().IsZero() == VSSPolynomial.IsConstant) {
+	vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return err
+	}
+	exp, err := vssKey.ExponentsRaw()
+	if err != nil {
+		return err
+	}
+	if exp.IsConstant != VSSPolynomial.IsConstant {
+		// if !(r.VSSSecret.Constant().IsZero() == VSSPolynomial.IsConstant) {
 		return errors.New("vss polynomial has incorrect constant")
 	}
 	// check deg(Fⱼ) = t
@@ -111,15 +131,47 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// Verify decommit
 	if !r.HashForID(from).Decommit(r.Commitments[from], body.Decommitment,
 		body.RID, body.C, VSSPolynomial, body.SchnorrCommitments, body.ElGamalPublic, body.N, body.S, body.T) {
-		return errors.New("failed to decommit")
+		// return errors.New("failed to decommit")
 	}
-	r.RIDs[from] = body.RID
-	r.ChainKeys[from] = body.C
-	r.PaillierPublic[from] = paillier.NewPublicKey(body.N)
-	r.Pedersen[from] = pedersen.New(arith.ModulusFromN(body.N), body.S, body.T)
-	r.VSSPolynomials[from] = body.VSSPolynomial
+
+	r.rid_km.ImportKey(r.KeyID, string(from), body.RID)
+
+	r.chainKey_km.ImportKey(r.KeyID, string(from), body.C)
+
+	paillierKey := sw_paillier.NewPaillierKey(nil, paillier.NewPublicKey(body.N))
+	paillier_byte, err := paillierKey.Bytes()
+	if err != nil {
+		return err
+	}
+	if _, err := r.paillier_km.ImportKey(r.KeyID, string(from), paillier_byte); err != nil {
+		return err
+	}
+
+	ped := sw_pedersen.NewPedersenKey(nil, pedersen.New(arith.ModulusFromN(body.N), body.S, body.T))
+	ped_byte, err := ped.Bytes()
+	if err != nil {
+		return err
+	}
+	if _, err := r.pedersen_km.ImportKey(r.KeyID, string(from), ped_byte); err != nil {
+		return err
+	}
+
+	vss_bytes, err := body.VSSPolynomial.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := r.vss_km.ImportKey(r.KeyID, string(from), vss_bytes); err != nil {
+		return err
+	}
+
 	r.SchnorrCommitments[from] = body.SchnorrCommitments
-	r.ElGamalPublic[from] = body.ElGamalPublic
+
+	if _, err := r.elgamal_km.ImportKey(r.KeyID, string(from), body.ElGamalPublic); err != nil {
+		return err
+	}
 
 	// Mark the message as received
 	r.MessageBroadcasted[from] = true
@@ -153,14 +205,22 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if chainKey == nil {
 		chainKey = types.EmptyRID()
 		for _, j := range r.PartyIDs() {
-			chainKey.XOR(r.ChainKeys[j])
+			ck, err := r.chainKey_km.GetKey(r.KeyID, string(j))
+			if err != nil {
+				return nil, err
+			}
+			chainKey.XOR(ck.Raw())
 		}
 	}
 
 	// RID = ⊕ⱼ RIDⱼ
 	rid := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
-		rid.XOR(r.RIDs[j])
+		rj, err := r.rid_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return nil, err
+		}
+		rid.XOR(rj.Raw())
 	}
 
 	// temporary hash which does not modify the state
@@ -168,19 +228,29 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(rid, r.SelfID())
 
 	// Prove N is a blum prime with zkmod
-	mod := zkmod.NewProof(h.Clone(), zkmod.Private{
-		P:   r.PaillierSecret.P(),
-		Q:   r.PaillierSecret.Q(),
-		Phi: r.PaillierSecret.Phi(),
-	}, zkmod.Public{N: r.PaillierPublic[r.SelfID()].N()}, r.Pool)
+	// mod := zkmod.NewProof(h.Clone(), zkmod.Private{
+	// 	P:   r.PaillierSecret.P(),
+	// 	Q:   r.PaillierSecret.Q(),
+	// 	Phi: r.PaillierSecret.Phi(),
+	// }, zkmod.Public{N: r.PaillierPublic[r.SelfID()].N()}, r.Pool)
+	pk, err := r.paillier_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	mod := pk.NewZKModProof(h.Clone(), r.Pool)
 
 	// prove s, t are correct as aux parameters with zkprm
-	prm := zkprm.NewProof(zkprm.Private{
-		Lambda: r.PedersenSecret,
-		Phi:    r.PaillierSecret.Phi(),
-		P:      r.PaillierSecret.P(),
-		Q:      r.PaillierSecret.Q(),
-	}, h.Clone(), zkprm.Public{Aux: r.Pedersen[r.SelfID()]}, r.Pool)
+	// prm := zkprm.NewProof(zkprm.Private{
+	// 	Lambda: r.PedersenSecret,
+	// 	Phi:    r.PaillierSecret.Phi(),
+	// 	P:      r.PaillierSecret.P(),
+	// 	Q:      r.PaillierSecret.Q(),
+	// }, h.Clone(), zkprm.Public{Aux: r.Pedersen[r.SelfID()]}, r.Pool)
+	ped, err := r.pedersen_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	prm := ped.NewProof(h.Clone(), r.Pool)
 
 	if err := r.BroadcastMessage(out, &broadcast4{
 		Mod: mod,
@@ -189,21 +259,41 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
+	vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+
 	// create P2P messages with encrypted shares and zkfac proof
 	for _, j := range r.OtherPartyIDs() {
-
+		pedj, err := r.pedersen_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return nil, err
+		}
+		paillierj, err := r.paillier_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return nil, err
+		}
 		// Prove that the factors of N are relatively large
-		fac := zkfac.NewProof(zkfac.Private{P: r.PaillierSecret.P(), Q: r.PaillierSecret.Q()}, h.Clone(), zkfac.Public{
-			N:   r.PaillierPublic[r.SelfID()].N(),
-			Aux: r.Pedersen[j],
+		// fac := zkfac.NewProof(zkfac.Private{P: r.PaillierSecret.P(), Q: r.PaillierSecret.Q()}, h.Clone(), zkfac.Public{
+		// 	N:   r.PaillierPublic[r.SelfID()].N(),
+		// 	Aux: r.Pedersen[j],
+		// })
+
+		fac := pk.NewZKFACProof(h.Clone(), zkfac.Public{
+			N:   pk.PublicKey().ParamN(),
+			Aux: pedj.PublicKeyRaw(),
 		})
 
 		// compute fᵢ(j)
-		share := r.VSSSecret.Evaluate(j.Scalar(r.Group()))
+		share, err := vssKey.Evaluate(j.Scalar(r.Group()))
+		if err != nil {
+			return nil, err
+		}
 		// Encrypt share
-		C, _ := r.PaillierPublic[j].Enc(curve.MakeInt(share))
+		C, _ := paillierj.Encode(curve.MakeInt(share))
 
-		err := r.SendMessage(out, &message4{
+		err = r.SendMessage(out, &message4{
 			Share: C,
 			Fac:   fac,
 		}, j)
@@ -216,6 +306,12 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	r.UpdateHashState(rid)
 	return &round4{
 		round3:             r,
+		elgamal_km:         r.elgamal_km,
+		paillier_km:        r.paillier_km,
+		pedersen_km:        r.pedersen_km,
+		vss_km:             r.vss_km,
+		rid_km:             r.rid_km,
+		chainKey_km:        r.chainKey_km,
 		RID:                rid,
 		ChainKey:           chainKey,
 		MessageBroadcasted: make(map[party.ID]bool),
@@ -239,81 +335,9 @@ func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
 		VSSPolynomial:      polynomial.EmptyExponent(r.Group()),
 		SchnorrCommitments: zksch.EmptyCommitment(r.Group()),
-		ElGamalPublic:      r.Group().NewPoint(),
+		// ElGamalPublic:      r.Group().NewPoint(),
 	}
 }
 
 // Number implements round.Round.
 func (round3) Number() round.Number { return 3 }
-
-type round3Serialized struct {
-	Round2             []byte
-	SchnorrCommitments map[party.ID][]byte // Aⱼ
-	MessageBroadcasted map[party.ID]bool
-}
-
-func NewEmptyRound3(g curve.Curve, pl *pool.Pool) *round3 {
-	return &round3{
-		round2:             NewEmptyRound2(g, pl),
-		SchnorrCommitments: make(map[party.ID]*zksch.Commitment),
-		MessageBroadcasted: make(map[party.ID]bool),
-	}
-
-}
-func (r *round3) Serialize() (ser []byte, err error) {
-	rs := round3Serialized{
-		SchnorrCommitments: make(map[party.ID][]byte),
-		MessageBroadcasted: r.MessageBroadcasted,
-	}
-
-	rs.Round2, err = r.round2.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	for id, commitment := range r.SchnorrCommitments {
-		cmts, err := commitment.Serialize()
-		if err != nil {
-			return nil, err
-		}
-		rs.SchnorrCommitments[id] = cmts
-	}
-
-	return json.Marshal(rs)
-}
-func (r *round3) Deserialize(data []byte) error {
-	var rs round3Serialized
-	if err := json.Unmarshal(data, &rs); err != nil {
-		return err
-	}
-
-	if err := r.round2.Deserialize(rs.Round2); err != nil {
-		return err
-	}
-
-	for id, commitment := range rs.SchnorrCommitments {
-		r.SchnorrCommitments[id] = zksch.EmptyCommitment(r.Group())
-		if err := r.SchnorrCommitments[id].Deserialize(commitment); err != nil {
-			return err
-		}
-	}
-
-	r.MessageBroadcasted = rs.MessageBroadcasted
-
-	return nil
-}
-func (r *round3) Equal(other round.Round) bool {
-	rr := other.(*round3)
-
-	if !r.round2.Equal(rr.round2) {
-		return false
-	}
-
-	for id, commitment := range r.SchnorrCommitments {
-		if !commitment.C.Equal(rr.SchnorrCommitments[id].C) {
-			return false
-		}
-	}
-
-	return true
-}
