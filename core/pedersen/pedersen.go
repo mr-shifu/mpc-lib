@@ -140,18 +140,13 @@ func (p Parameters) MarshalBiinary() ([]byte, error) {
 
 func (p *Parameters) UnmarshalBiinary(data []byte) error {
 	nl := binary.LittleEndian.Uint16(data[:2])
-	data = data[2 : nl+2]
-	nb := data[:nl]
-	data = data[nl:]
+	nb := data[2 : 2+nl]
 
-	sl := binary.LittleEndian.Uint16(data[nl+2 : nl+4])
-	data = data[nl+4 : nl+4+sl]
-	sb := data[:sl]
-	data = data[sl:]
+	sl := binary.LittleEndian.Uint16(data[2+nl : 2+nl+2])
+	sb := data[2+nl+2 : 2+nl+2+sl]
 
-	tl := binary.LittleEndian.Uint16(data[nl+4+sl : nl+4+sl+2])
-	data = data[nl+4+sl+2 : nl+4+sl+2+tl]
-	tb := data[:tl]
+	tl := binary.LittleEndian.Uint16(data[2+nl+2+sl : 2+nl+2+sl+2])
+	tb := data[2+nl+2+sl+2 : 2+nl+2+sl+2+tl]
 
 	n := arith.NewEmptyModulus()
 	if err := n.UnmarshalBinary(nb); err != nil {
