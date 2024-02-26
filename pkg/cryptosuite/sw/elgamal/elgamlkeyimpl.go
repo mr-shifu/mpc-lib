@@ -65,6 +65,10 @@ func (key ElgamalKey) PublicKey() cs_elgamal.ElgamalKey {
 	return ElgamalKey{nil, key.publicKey, key.group}
 }
 
+func (key ElgamalKey) PublicKeyRaw() curve.Point {
+	return key.publicKey
+}
+
 func (key ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
 	ct, nonce := elgamal.Encrypt(key.publicKey, message)
 

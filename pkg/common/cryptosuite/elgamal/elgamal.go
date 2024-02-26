@@ -15,6 +15,8 @@ type ElgamalKey interface {
 	// PublicKey returns the corresponding public key part of Elgamal Key.
 	PublicKey() ElgamalKey
 
+	PublicKeyRaw() curve.Point
+
 	// Encrypt returns the encryption of `message` as ciphertext and nonce.
 	Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error)
 }
