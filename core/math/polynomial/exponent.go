@@ -92,6 +92,10 @@ func (p *Exponent) evaluateClassic(x curve.Scalar) curve.Point {
 	return result
 }
 
+func (p *Exponent) Group() curve.Curve {
+	return p.group
+}
+
 // Degree returns the degree t of the polynomial.
 func (p *Exponent) Degree() int {
 	if p.IsConstant {
