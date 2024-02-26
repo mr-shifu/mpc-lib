@@ -34,10 +34,6 @@ type Round interface {
 
 	// Number returns the current round number.
 	Number() Number
-
-	Serialize() ([]byte, error)
-	Deserialize([]byte) error
-	Equal(Round) bool
 }
 
 // BroadcastRound extends Round in that it expects a broadcast message before the p2p message.
