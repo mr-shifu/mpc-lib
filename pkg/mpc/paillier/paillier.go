@@ -79,5 +79,5 @@ func (e *PaillierKeyManager) DerivePedersenKey(keyID string, partyID string) (co
 		return nil, err
 	}
 
-	return key.DerivePedersenKey(k.SKI)
+	return key.DerivePedersenKey()
 }
