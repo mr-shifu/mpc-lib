@@ -3,7 +3,6 @@ package paillier
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -247,65 +246,5 @@ func ValidatePrime(p *saferith.Nat) error {
 	if !pMinus1Div2.Big().ProbablyPrime(1) {
 		return ErrNotSafePrime
 	}
-	return nil
-}
-
-type secretKeySerialized struct {
-	PublicKey []byte
-	// p, q such that N = p⋅q
-	P, Q []byte
-	// phi = ϕ = (p-1)(q-1)
-	Phi []byte
-	// phiInv = ϕ⁻¹ mod N
-	PhiInv []byte
-}
-
-func (sk SecretKey) Serialize() ([]byte, error) {
-	pks, err := sk.PublicKey.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	ss := secretKeySerialized{
-		PublicKey: pks,
-		P:         sk.p.Bytes(),
-		Q:         sk.q.Bytes(),
-		Phi:       sk.phi.Bytes(),
-		PhiInv:    sk.phiInv.Bytes(),
-	}
-
-	return json.Marshal(ss)
-}
-func (sk *SecretKey) Deserialize(data []byte) error {
-	var ss secretKeySerialized
-	if err := json.Unmarshal(data, &ss); err != nil {
-		return err
-	}
-	var pk PublicKey
-	if err := pk.Deserialize(ss.PublicKey); err != nil {
-		return err
-	}
-	sk.PublicKey = &pk
-	var p saferith.Nat
-	if err := p.UnmarshalBinary(ss.P); err != nil {
-		return err
-	}
-	sk.p = &p
-	var q saferith.Nat
-	if err := q.UnmarshalBinary(ss.Q); err != nil {
-		return err
-	}
-	sk.q = &q
-	var phi saferith.Nat
-	if err := phi.UnmarshalBinary(ss.Phi); err != nil {
-		return err
-	}
-	sk.phi = &phi
-	var phiInv saferith.Nat
-	if err := phiInv.UnmarshalBinary(ss.PhiInv); err != nil {
-		return err
-	}
-	sk.phiInv = &phiInv
-
 	return nil
 }

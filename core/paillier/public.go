@@ -2,7 +2,6 @@ package paillier
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -156,59 +155,4 @@ func (pk *PublicKey) Modulus() *arith.Modulus {
 // public key was generated from a secret key.
 func (pk *PublicKey) ModulusSquared() *arith.Modulus {
 	return pk.nSquared
-}
-
-type publicKeySerialized struct {
-	N, NSquared, NPlusOne, NNat []byte
-}
-
-func (pk *PublicKey) Serialize() ([]byte, error) {
-	nb, err := pk.n.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	natb := pk.nNat.Bytes()
-	poneb := pk.nPlusOne.Bytes()
-	nsb, err := pk.nSquared.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	pks := publicKeySerialized{
-		N:        nb,
-		NNat:     natb,
-		NPlusOne: poneb,
-		NSquared: nsb,
-	}
-
-	return json.Marshal(pks)
-}
-
-func (pk *PublicKey) Deserialize(data []byte) error {
-	var pks publicKeySerialized
-	if err := json.Unmarshal(data, &pks); err != nil {
-		return err
-	}
-	n := arith.NewEmptyModulus()
-	if err := n.Deserialize(pks.N); err != nil {
-		return err
-	}
-	pk.n = n
-	var nNat saferith.Nat
-	if err := nNat.UnmarshalBinary(pks.NNat); err != nil {
-		return err
-	}
-	pk.nNat = &nNat
-	var nPlusOne saferith.Nat
-	if err := nPlusOne.UnmarshalBinary(pks.NPlusOne); err != nil {
-		return err
-	}
-	pk.nPlusOne = &nPlusOne
-	nSquared := arith.NewEmptyModulus()
-	if err := nSquared.Deserialize(pks.NSquared); err != nil {
-		return err
-	}
-	pk.nSquared = nSquared
-
-	return nil
 }
