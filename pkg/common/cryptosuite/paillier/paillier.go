@@ -60,6 +60,12 @@ type PaillierKey interface {
 
 	// VerifyZKMod verifies a ZKMod proof of paillier key params.
 	VerifyZKMod(p *zkmod.Proof, hash *hash.Hash, pl *pool.Pool) bool
+
+	// NewZKFACProof returns a new ZKFAC proof of paillier key params N and other party's pedersen params.
+	NewZKFACProof(hash *hash.Hash, public zkfac.Public) *zkfac.Proof
+
+	// VerifyZKFAC verifies a ZKFAC proof of paillier key params.
+	VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash *hash.Hash) bool
 }
 
 type PaillierKeyManager interface {
