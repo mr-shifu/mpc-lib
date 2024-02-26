@@ -8,6 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
@@ -24,6 +25,8 @@ type PaillierKey interface {
 
 	// PublicKey returns the corresponding public key part of Elgamal Key.
 	PublicKey() PaillierKey
+
+	PublicKeyRaw() *pailliercore.PublicKey
 
 	// Modulus returns an arith.Modulus for N.
 	Modulus() *arith.Modulus
@@ -47,7 +50,7 @@ type PaillierKey interface {
 	Sample(t *saferith.Nat) (*saferith.Nat, *big.Int)
 
 	// Derive Pedersen Key from Paillier Key prime factors
-	DerivePedersenKey(ski []byte) (pedersen.PedersenKey, error)
+	DerivePedersenKey() (pedersen.PedersenKey, error)
 
 	// ValidateCiphertexts returns true if all ciphertexts are valid.
 	ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool

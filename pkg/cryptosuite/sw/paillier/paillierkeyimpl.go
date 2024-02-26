@@ -21,12 +21,16 @@ type PaillierKey struct {
 	publicKey *pailliercore.PublicKey
 }
 
+func NewPaillierKey(sk *pailliercore.SecretKey, pk *pailliercore.PublicKey) PaillierKey {
+	return PaillierKey{sk, pk}
+}
+
 // Bytes returns the binary encoded of N param of public key secret key params (P, Q) if exists.
 // The encoded data is structured as follows:
 // | N length | N | SecretKey Length | P Length | P | Q length | Q |
 func (k PaillierKey) Bytes() ([]byte, error) {
 	// encode public key Modulus N
-	nb, err := k.publicKey.Modulus().MarshalBinary()
+	nb, err := k.publicKey.N().MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +84,10 @@ func (k PaillierKey) PublicKey() cs_paillier.PaillierKey {
 	return PaillierKey{nil, k.publicKey}
 }
 
+func (k PaillierKey) PublicKeyRaw() *pailliercore.PublicKey {
+	return k.publicKey
+}
+
 // Modulus returns the modulus of the key.
 func (k PaillierKey) Modulus() *arith.Modulus {
 	return k.publicKey.Modulus()
@@ -112,11 +120,11 @@ func (k PaillierKey) DecodeWithNonce(ct *pailliercore.Ciphertext) (*saferith.Int
 
 // ValidateCiphertexts returns true if all ciphertexts are valid.
 func (k PaillierKey) ValidateCiphertexts(cts ...*pailliercore.Ciphertext) bool {
-	return k.secretKey.ValidateCiphertexts(cts...)
+	return k.publicKey.ValidateCiphertexts(cts...)
 }
 
 // Derive Pedersen Key from Paillier Key prime factors
-func (k PaillierKey) DerivePedersenKey(ski []byte) (cs_pedersen.PedersenKey, error) {
+func (k PaillierKey) DerivePedersenKey() (cs_pedersen.PedersenKey, error) {
 	pk, sk := k.secretKey.GeneratePedersen()
 	return pedersen.NewPedersenKey(sk, pk), nil
 }
