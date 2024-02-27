@@ -86,16 +86,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	r.pedersen_km.ImportKey(r.KeyID, string(r.SelfID()), pedersen_kb)
-	// PaillierSecret := paillier.NewSecretKey(nil)
-	// SelfPaillierPublic := PaillierSecret.PublicKey
-	// SelfPedersenPublic, PedersenSecret := PaillierSecret.GeneratePedersen()
 
 	// generate ElGamal key
 	elgamlKey, err := r.elgamal_km.GenerateKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
-	// ElGamalSecret, ElGamalPublic := sample.ScalarPointPair(rand.Reader, r.Group())
 
 	// save our own share already so we are consistent with what we receive from others
 	vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
@@ -106,10 +102,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	// SelfShare := r.VSSSecret.Evaluate(r.SelfID().Scalar(r.Group()))
-
-	// set Fᵢ(X) = fᵢ(X)•G
-	// SelfVSSPolynomial := polynomial.NewPolynomialExponent(r.VSSSecret)
 
 	// generate Schnorr randomness
 	SchnorrRand := zksch.NewRandomness(rand.Reader, r.Group(), nil)
@@ -120,19 +112,10 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	// SelfRID, err := types.NewRID(rand.Reader)
-	// if err != nil {
-	// 	return r, errors.New("failed to sample Rho")
-	// }
-
 	chainKey, err := r.chainKey_km.GenerateKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
-	// chainKey, err := types.NewRID(rand.Reader)
-	// if err != nil {
-	// 	return r, errors.New("failed to sample c")
-	// }
 
 	// commit to data in message 2
 	// TODO Hash func must be fixed to handle cryptosuite keys
@@ -144,10 +127,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
-	// if err != nil {
-	// 	return nil, err
-	// }
 	vssKey_bytes, err := vssKey.Bytes()
 	if err != nil {
 		return nil, err
