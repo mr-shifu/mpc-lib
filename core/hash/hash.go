@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -153,42 +152,4 @@ func (hash *Hash) Fork(data ...interface{}) *Hash {
 	newHash := hash.Clone()
 	_ = newHash.WriteAny(data...)
 	return newHash
-}
-
-type HashSerialized struct {
-	State [][]byte
-}
-
-func (hash *Hash) Serialize() ([]byte, error) {
-	hs := HashSerialized{
-		State: make([][]byte, len(hash.state)),
-	}
-
-	for i := range hash.state {
-		sb, err := json.Marshal(hash.state[i])
-		if err != nil {
-			return nil, err
-		}
-		hs.State[i] = sb
-	}
-
-	return json.Marshal(hs)
-}
-
-func (hash *Hash) Deserialize(data []byte) error {
-	var hs HashSerialized
-	if err := json.Unmarshal(data, &hs); err != nil {
-		return err
-	}
-
-	hash.state = make([]BytesWithDomain, len(hs.State))
-	for i := range hs.State {
-		if err := json.Unmarshal(hs.State[i], &hash.state[i]); err != nil {
-			return err
-		}
-	}
-
-	hash.restoreFromState()
-
-	return nil
 }
