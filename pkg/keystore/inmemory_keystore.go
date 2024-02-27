@@ -3,6 +3,8 @@ package keystore
 import (
 	"errors"
 	"sync"
+
+	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
 var (
@@ -45,4 +47,8 @@ func (store *InMemoryKeystore) Delete(keyID string) error {
 
 	delete(store.keys, keyID)
 	return nil
+}
+
+func (store *InMemoryKeystore) WithKeyID(keyID string) keystore.KeyLinkedStore {
+	return NewInMemoryKeyLinkedStore(keyID, store)
 }
