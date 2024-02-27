@@ -40,6 +40,7 @@ type round3 struct {
 	// SchnorrCommitments[j] = Aⱼ
 	// Commitment for proof of knowledge in the last round
 	SchnorrCommitments map[party.ID]*zksch.Commitment // Aⱼ
+
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
 }
@@ -312,8 +313,6 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		vss_km:             r.vss_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		RID:                rid,
-		ChainKey:           chainKey,
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessagesForwarded:  make(map[party.ID]bool),
 	}, nil
