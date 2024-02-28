@@ -225,7 +225,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// temporary hash which does not modify the state
-	h := r.Hash()
+	h := r.Hash().Clone()
 	_ = h.WriteAny(rid, r.SelfID())
 
 	// Prove N is a blum prime with zkmod
@@ -275,11 +275,6 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Prove that the factors of N are relatively large
-		// fac := zkfac.NewProof(zkfac.Private{P: r.PaillierSecret.P(), Q: r.PaillierSecret.Q()}, h.Clone(), zkfac.Public{
-		// 	N:   r.PaillierPublic[r.SelfID()].N(),
-		// 	Aux: r.Pedersen[j],
-		// })
 
 		fac := pk.NewZKFACProof(h.Clone(), zkfac.Public{
 			N:   pk.PublicKey().ParamN(),
@@ -313,6 +308,8 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		vss_km:             r.vss_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
+		RID:                rid,
+		ChainKey:           chainKey,
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessagesForwarded:  make(map[party.ID]bool),
 	}, nil
