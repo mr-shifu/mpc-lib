@@ -13,6 +13,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/zeebo/blake3"
 )
 
@@ -22,12 +23,16 @@ type Hash struct {
 	store keystore.KeyLinkedStore
 }
 
-func New(store keystore.KeyLinkedStore, initialData ...core_hash.WriterToWithDomain) *Hash {
+func New(store keystore.KeyLinkedStore, initialData ...core_hash.WriterToWithDomain) comm_hash.Hash {
 	hash := &Hash{h: blake3.New(), store: store}
+	_, _ = hash.h.WriteString("CMP-BLAKE")
+	for _, d := range initialData {
+		_ = hash.WriteAny(d)
+	}
 	return hash
 }
 
-func Restore(store keystore.KeyLinkedStore) (*Hash, error) {
+func Restore(store keystore.KeyLinkedStore) (comm_hash.Hash, error) {
 	hash := &Hash{h: blake3.New(), store: store}
 
 	ss, err := hash.store.Get()
@@ -129,5 +134,16 @@ func (hash *Hash) updateState(toBeWritten core_hash.BytesWithDomain) error {
 	if err != nil {
 		return err
 	}
-	return hash.store.Import(ss)
+	if hash.store != nil {
+		return hash.store.Import(ss)
+	}
+	return nil
+}
+
+func (hash *Hash) Clone() comm_hash.Hash {
+	return &Hash{
+		h:     hash.h.Clone(),
+		state: hash.state,
+		store: nil,
+	}
 }

@@ -3,7 +3,7 @@ package hash
 import (
 	"io"
 
-	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
 )
 
 type Hash interface {
@@ -11,10 +11,9 @@ type Hash interface {
 	Sum() []byte
 	WriteAny(...interface{}) error
 	Clone() Hash
-	Fork(...interface{}) Hash
 }
 
 type HashManager interface {
-	NewHasher(keyID string, data ...interface{}) Hash
-	RestoreHasher(keyID, store keystore.KeyLinkedStore) (Hash, error)
+	NewHasher(keyID string, data ...core_hash.WriterToWithDomain) Hash
+	RestoreHasher(keyID string) (Hash, error)
 }
