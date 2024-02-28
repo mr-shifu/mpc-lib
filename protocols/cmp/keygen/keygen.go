@@ -79,7 +79,8 @@ func NewMPCKeygen() *MPCKeygen {
 
 	vss_kr := inmem_keyrepo.NewKeyRepository()
 	vss_ks := keystore.NewInMemoryKeystore()
-	vss_km := sw_vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	vss_ss := sw_vss.NewInMemoryVSSShareStore()
+	vss_km := sw_vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
 	vss := mpc_vss.NewVSS(vss_km, vss_kr)
 
 	rid_kr := inmem_keyrepo.NewKeyRepository()

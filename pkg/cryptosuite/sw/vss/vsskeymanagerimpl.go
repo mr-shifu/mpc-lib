@@ -13,12 +13,14 @@ import (
 type VssKeyManager struct {
 	group curve.Curve
 	ks    keystore.Keystore
+	st    cs_vss.VSSShareStore
 }
 
-func NewVssKeyManager(store keystore.Keystore, g curve.Curve) *VssKeyManager {
+func NewVssKeyManager(store keystore.Keystore, st cs_vss.VSSShareStore, g curve.Curve) *VssKeyManager {
 	return &VssKeyManager{
 		group: g,
 		ks:    store,
+		st:    st,
 	}
 }
 
@@ -30,9 +32,9 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 	// Generate exponents of coefficients
 	exponents := polynomial.NewPolynomialExponent(secrets)
 
-	vssKey := NewVssKey(secrets, exponents)
-
+	
 	// get SKI from binary encoded exponents
+	vssKey := NewVssKey(secrets, exponents, nil)
 	ski := vssKey.SKI()
 
 	// encode ski to hex string as keyID
@@ -49,6 +51,11 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 		return nil, err
 	}
 
+	sharestore, err := mgr.st.WithSKI(ski)
+	if err != nil {
+		return nil, err
+	}
+	vssKey.WithShareStore(sharestore)
 	return vssKey, nil
 }
 
@@ -60,7 +67,7 @@ func (mgr *VssKeyManager) ImportSecrets(data []byte) (cs_vss.VssKey, error) {
 	}
 
 	// get coefficients from keystore
-	key := NewVssKey(nil, exponents)
+	key := NewVssKey(nil, exponents, nil)
 
 	// get SKI from binary encoded exponents
 	ski := key.SKI()
@@ -71,13 +78,19 @@ func (mgr *VssKeyManager) ImportSecrets(data []byte) (cs_vss.VssKey, error) {
 	// decode binary to polynomial
 	kb, err := key.Bytes()
 	if err != nil {
-		return VssKey{}, err
+		return nil, err
 	}
 
 	// store coefficients and exponents in keystore
 	if err = mgr.ks.Import(keyID, kb); err != nil {
-		return VssKey{}, err
+		return nil, err
 	}
+
+	sharestore, err := mgr.st.WithSKI(ski)
+	if err != nil {
+		return nil, err
+	}
+	key.WithShareStore(sharestore)
 
 	return key, nil
 }
@@ -90,11 +103,21 @@ func (mgr *VssKeyManager) GetSecrets(ski []byte) (cs_vss.VssKey, error) {
 	// get coefficients from keystore
 	vb, err := mgr.ks.Get(keyID)
 	if err != nil {
-		return VssKey{}, err
+		return nil, err
 	}
 
 	// decode binary to polynomial
-	return fromBytes(vb)
+	vssKey, err := fromBytes(vb)
+	if err != nil {
+		return nil, err
+	}
+	sharestore, err := mgr.st.WithSKI(ski)
+	if err != nil {
+		return nil, err
+	}
+	vssKey.WithShareStore(sharestore)
+
+	return &vssKey, nil
 }
 
 // Evaluate evaluates polynomial at a scalar using coefficients.

@@ -5,6 +5,24 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 )
 
+type VSSShareStore interface {
+	// GetShare returns a share (x, f(x)) for a given index.
+	Get(ski []byte, index curve.Scalar) (curve.Point, error)
+
+	// ImportShare imports a share (x, f(x)) and stores it.
+	Import(ski []byte, index curve.Scalar, share curve.Point) error
+
+	WithSKI(ski []byte) (LinkedVSSShareStore, error)
+}
+
+type LinkedVSSShareStore interface {
+	// GetShare returns a share (x, f(x)) for a given index.
+	Get(index curve.Scalar) (curve.Point, error)
+
+	// ImportShare imports a share (x, f(x)) and stores it.
+	Import(index curve.Scalar, share curve.Point) error
+}
+
 type VssKey interface {
 	// Bytes returns the byte representation of the vss coefficients.
 	Bytes() ([]byte, error)
@@ -26,6 +44,14 @@ type VssKey interface {
 
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
 	EvaluateByExponents(index curve.Scalar) (curve.Point, error)
+
+	WithShareStore(ss LinkedVSSShareStore)
+
+	// ImportShare imports a share (x, f(x)) and stores it.
+	ImportShare(index curve.Scalar, share curve.Point) error
+
+	// GetShare returns a share (x, f(x)) for a given index.
+	GetShare(index curve.Scalar) (curve.Point, error)
 }
 
 type VssKeyManager interface {
