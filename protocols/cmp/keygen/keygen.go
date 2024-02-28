@@ -31,6 +31,9 @@ import (
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
 
+	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+
 	inmem_keyrepo "github.com/mr-shifu/mpc-lib/pkg/keyrepository"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -45,6 +48,7 @@ type MPCKeygen struct {
 	vss_km      comm_vss.VssKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
+	hash_mgr    comm_hash.HashManager
 	// keys              map[string]round.Info
 	// roundStates       map[string]int
 }
@@ -82,6 +86,9 @@ func NewMPCKeygen() *MPCKeygen {
 	chainKey_km := sw_rid.NewRIDManager(chainKey_ks)
 	chainKey := mpc_rid.NewRIDKeyManager(chainKey_km, chainKey_kr)
 
+	hash_ks := keystore.NewInMemoryKeystore()
+	hash_mgr := sw_hash.NewHashManager(hash_ks)
+
 	return &MPCKeygen{
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
@@ -89,6 +96,7 @@ func NewMPCKeygen() *MPCKeygen {
 		vss_km:      vss,
 		rid_km:      rid,
 		chainKey_km: chainKey,
+		hash_mgr:    hash_mgr,
 	}
 
 }
@@ -96,12 +104,13 @@ func NewMPCKeygen() *MPCKeygen {
 func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *config.Config) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
 		// m.keys[keyID] = info
+		h := m.hash_mgr.NewHasher(keyID)
 
 		var helper *round.Helper
 		if c == nil {
-			helper, err = round.NewSession(keyID, info, sessionID, pl)
+			helper, err = round.NewSession(keyID, info, sessionID, pl, h)
 		} else {
-			helper, err = round.NewSession(keyID, info, sessionID, pl, c)
+			helper, err = round.NewSession(keyID, info, sessionID, pl, h, c)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
