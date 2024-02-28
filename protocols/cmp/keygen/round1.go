@@ -12,6 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
+	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
@@ -23,6 +24,7 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
+	mpc_ks      comm_mpc_ks.MPCKeystore
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
@@ -155,6 +157,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	nextRound := &round2{
 		round1:             r,
+		mpc_ks:             r.mpc_ks,
 		elgamal_km:         r.elgamal_km,
 		paillier_km:        r.paillier_km,
 		pedersen_km:        r.pedersen_km,

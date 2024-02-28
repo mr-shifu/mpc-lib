@@ -6,6 +6,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	sch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -13,6 +14,8 @@ var _ round.Round = (*round5)(nil)
 
 type round5 struct {
 	*round4
+	mpc_ks comm_mpc_ks.MPCKeystore
+
 	UpdatedConfig *config.Config
 
 	// Number of Broacasted Messages received

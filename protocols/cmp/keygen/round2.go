@@ -7,6 +7,7 @@ import (
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
+	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
@@ -18,6 +19,7 @@ var _ round.Round = (*round2)(nil)
 type round2 struct {
 	*round1
 
+	mpc_ks      comm_mpc_ks.MPCKeystore
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
@@ -157,6 +159,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	return &round3{
 		round2:             r,
+		mpc_ks:             r.mpc_ks,
 		elgamal_km:         r.elgamal_km,
 		paillier_km:        r.paillier_km,
 		pedersen_km:        r.pedersen_km,

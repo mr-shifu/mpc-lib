@@ -19,6 +19,7 @@ import (
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
+	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
@@ -30,6 +31,7 @@ var _ round.Round = (*round3)(nil)
 type round3 struct {
 	*round2
 
+	mpc_ks      comm_mpc_ks.MPCKeystore
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
@@ -201,6 +203,11 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	mpckey, err := r.mpc_ks.Get(r.KeyID)
+	if err != nil {
+		return nil, err
+	}
+
 	// c = ⊕ⱼ cⱼ
 	chainKey := r.PreviousChainKey
 	if chainKey == nil {
@@ -222,6 +229,12 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return nil, err
 		}
 		rid.XOR(rj.Raw())
+	}
+
+	mpckey.ChainKey = chainKey
+	mpckey.RID = rid
+	if err := r.mpc_ks.Update(mpckey); err != nil {
+		return nil, err
 	}
 
 	// temporary hash which does not modify the state
@@ -302,14 +315,13 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	r.UpdateHashState(rid)
 	return &round4{
 		round3:             r,
+		mpc_ks:             r.mpc_ks,
 		elgamal_km:         r.elgamal_km,
 		paillier_km:        r.paillier_km,
 		pedersen_km:        r.pedersen_km,
 		vss_km:             r.vss_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		RID:                rid,
-		ChainKey:           chainKey,
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessagesForwarded:  make(map[party.ID]bool),
 	}, nil

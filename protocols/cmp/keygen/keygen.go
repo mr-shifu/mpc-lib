@@ -34,6 +34,9 @@ import (
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 
+	comm_mpckey "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
+
 	inmem_keyrepo "github.com/mr-shifu/mpc-lib/pkg/keyrepository"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -49,12 +52,15 @@ type MPCKeygen struct {
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 	hash_mgr    comm_hash.HashManager
+	mpc_ks      comm_mpckey.MPCKeystore
 	// keys              map[string]round.Info
 	// roundStates       map[string]int
 }
 
 func NewMPCKeygen() *MPCKeygen {
 	pl := pool.NewPool(2)
+
+	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
 	elgamal_kr := inmem_keyrepo.NewKeyRepository()
 	elgamal_ks := keystore.NewInMemoryKeystore()
@@ -90,6 +96,7 @@ func NewMPCKeygen() *MPCKeygen {
 	hash_mgr := sw_hash.NewHashManager(hash_ks)
 
 	return &MPCKeygen{
+		mpc_ks:      mpc_ks,
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
 		pedersen_km: pedersen,
@@ -143,11 +150,25 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
+		mpckey := comm_mpckey.MPCKey{
+			ID:        keyID,
+			Group:     group,
+			Threshold: helper.Threshold(),
+			SelfID:    helper.SelfID(),
+			PartyIDs:  helper.PartyIDs(),
+			RID:       nil,
+			ChainKey:  nil,
+		}
+		if err := m.mpc_ks.Import(mpckey); err != nil {
+			return nil, fmt.Errorf("keygen: %w", err)
+		}
+
 		// set key round number
 		// m.roundStates[keyID] = 1
 
 		return &round1{
 			Helper:      helper,
+			mpc_ks:      m.mpc_ks,
 			elgamal_km:  m.elgamal_km,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
