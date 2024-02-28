@@ -2,12 +2,11 @@ package zksch
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"io"
 
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 // Randomness = a ← ℤₚ.
@@ -33,7 +32,7 @@ type Proof struct {
 }
 
 // NewProof generates a Schnorr proof of knowledge of exponent for public, using the Fiat-Shamir transform.
-func NewProof(hash *hash.Hash, public curve.Point, private curve.Scalar, gen curve.Point) *Proof {
+func NewProof(hash hash.Hash, public curve.Point, private curve.Scalar, gen curve.Point) *Proof {
 	group := private.Curve()
 
 	a := NewRandomness(rand.Reader, group, gen)
@@ -57,14 +56,14 @@ func NewRandomness(rand io.Reader, group curve.Curve, gen curve.Point) *Randomne
 	}
 }
 
-func challenge(hash *hash.Hash, group curve.Curve, commitment *Commitment, public, gen curve.Point) (e curve.Scalar, err error) {
+func challenge(hash hash.Hash, group curve.Curve, commitment *Commitment, public, gen curve.Point) (e curve.Scalar, err error) {
 	err = hash.WriteAny(commitment.C, public, gen)
 	e = sample.Scalar(hash.Digest(), group)
 	return
 }
 
 // Prove creates a Response = Randomness + H(..., Commitment, public)•secret (mod p).
-func (r *Randomness) Prove(hash *hash.Hash, public curve.Point, secret curve.Scalar, gen curve.Point) *Response {
+func (r *Randomness) Prove(hash hash.Hash, public curve.Point, secret curve.Scalar, gen curve.Point) *Response {
 	if gen == nil {
 		gen = public.Curve().NewBasePoint()
 	}
@@ -87,7 +86,7 @@ func (r *Randomness) Commitment() *Commitment {
 }
 
 // Verify checks that Response•G = Commitment + H(..., Commitment, public)•Public.
-func (z *Response) Verify(hash *hash.Hash, public curve.Point, commitment *Commitment, gen curve.Point) bool {
+func (z *Response) Verify(hash hash.Hash, public curve.Point, commitment *Commitment, gen curve.Point) bool {
 	if gen == nil {
 		gen = public.Curve().NewBasePoint()
 	}
@@ -108,7 +107,7 @@ func (z *Response) Verify(hash *hash.Hash, public curve.Point, commitment *Commi
 }
 
 // Verify checks that Proof.Response•G = Proof.Commitment + H(..., Proof.Commitment, Public)•Public.
-func (p *Proof) Verify(hash *hash.Hash, public, gen curve.Point) bool {
+func (p *Proof) Verify(hash hash.Hash, public, gen curve.Point) bool {
 	if !p.IsValid() {
 		return false
 	}
@@ -164,82 +163,4 @@ func EmptyResponse(group curve.Curve) *Response {
 
 func EmptyCommitment(group curve.Curve) *Commitment {
 	return &Commitment{C: group.NewPoint()}
-}
-
-type randomnessSerialized struct {
-	A          []byte
-	Commitment []byte
-}
-type commitmentSerialzed struct {
-	C []byte
-}
-
-func (r *Randomness) Serialize() (ser []byte, err error) {
-	rs := randomnessSerialized{}
-	rs.A, err = r.a.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := r.commitment.C.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	cs := commitmentSerialzed{C: c}
-	css, err := json.Marshal(cs)
-	if err != nil {
-		return nil, err
-	}
-	rs.Commitment = css
-
-	return json.Marshal(rs)
-}
-
-func (r *Randomness) Deserialize(data []byte) error {
-	var rs randomnessSerialized
-	if err := json.Unmarshal(data, &rs); err != nil {
-		return err
-	}
-	var a curve.Secp256k1Scalar
-	if err := a.UnmarshalBinary(rs.A); err != nil {
-		return err
-	}
-	r.a = &a
-
-	var cs commitmentSerialzed
-	if err := json.Unmarshal(rs.Commitment, &cs); err != nil {
-		return err
-	}
-	var C curve.Secp256k1Point
-	if err := C.UnmarshalBinary(cs.C); err != nil {
-		return err
-	}
-	r.commitment.C = &C
-
-	return nil
-}
-
-type commitmentSerialized struct {
-	C []byte
-}
-
-func (c *Commitment) Serialize() (ser []byte, err error) {
-	var cs commitmentSerialzed
-	cs.C, err = c.C.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(cs)
-}
-func (c *Commitment) Deserialize(data []byte) error {
-	var cs commitmentSerialzed
-	if err := json.Unmarshal(data, &cs); err != nil {
-		return err
-	}
-	var C curve.Secp256k1Point
-	if err := C.UnmarshalBinary(cs.C); err != nil {
-		return err
-	}
-	c.C = &C
-	return nil
 }

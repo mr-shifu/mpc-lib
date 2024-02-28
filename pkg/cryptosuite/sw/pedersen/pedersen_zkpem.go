@@ -6,18 +6,18 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/params"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 // NewProof generates a proof that:
 // s = t^lambda (mod N).
-func (k PedersenKey) NewProof(hash *hash.Hash, pl *pool.Pool) *zkprm.Proof {
+func (k PedersenKey) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	n := k.public.NArith()
 	phi := n.ModulusPhi()
 
@@ -54,7 +54,7 @@ func (k PedersenKey) NewProof(hash *hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	}
 }
 
-func (k PedersenKey) VerifyProof(hash *hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
+func (k PedersenKey) VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
 	if p == nil {
 		return false
 	}
@@ -106,7 +106,7 @@ func (k PedersenKey) VerifyProof(hash *hash.Hash, pl *pool.Pool, p *zkprm.Proof)
 	return true
 }
 
-func challenge(hash *hash.Hash, public *pedersencore.Parameters, A [params.StatParam]*big.Int) (es []bool, err error) {
+func challenge(hash hash.Hash, public *pedersencore.Parameters, A [params.StatParam]*big.Int) (es []bool, err error) {
 	err = hash.WriteAny(public)
 	for _, a := range A {
 		_ = hash.WriteAny(a)

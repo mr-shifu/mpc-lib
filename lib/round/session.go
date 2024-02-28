@@ -3,7 +3,7 @@ package round
 import (
 	"encoding/json"
 
-	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 )
@@ -50,7 +50,7 @@ type Session interface {
 	// Group returns the group used for this protocol execution.
 	Group() curve.Curve
 	// Hash returns a cloned hash function with the current hash state.
-	Hash() *hash.Hash
+	Hash() hash.Hash
 	// ProtocolID is an identifier for this protocol.
 	ProtocolID() string
 	// FinalRoundNumber is the number of rounds before the output round.

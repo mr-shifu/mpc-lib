@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/pool"
@@ -14,7 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/params"
 )
 
-func (k PaillierKey) NewZKModProof(hash *hash.Hash, pl *pool.Pool) *zkmod.Proof {
+func (k PaillierKey) NewZKModProof(hash hash.Hash, pl *pool.Pool) *zkmod.Proof {
 	n := k.publicKey.N()
 	p := k.secretKey.P()
 	q := k.secretKey.Q()
@@ -62,7 +62,7 @@ func (k PaillierKey) NewZKModProof(hash *hash.Hash, pl *pool.Pool) *zkmod.Proof 
 	}
 }
 
-func (k PaillierKey) VerifyZKMod(p *zkmod.Proof, hash *hash.Hash, pl *pool.Pool) bool {
+func (k PaillierKey) VerifyZKMod(p *zkmod.Proof, hash hash.Hash, pl *pool.Pool) bool {
 	if p == nil {
 		return false
 	}
@@ -193,11 +193,11 @@ func fourthRootExponent(phi *saferith.Nat) *saferith.Nat {
 	return e
 }
 
-func challenge(hash *hash.Hash, n *saferith.Modulus, w *big.Int) (es []*saferith.Nat, err error) {
-	err = hash.WriteAny(n, w)
+func challenge(h hash.Hash, n *saferith.Modulus, w *big.Int) (es []*saferith.Nat, err error) {
+	err = h.WriteAny(n, w)
 	es = make([]*saferith.Nat, params.StatParam)
 	for i := range es {
-		es[i] = sample.ModN(hash.Digest(), n)
+		es[i] = sample.ModN(h.Digest(), n)
 	}
 	return
 }

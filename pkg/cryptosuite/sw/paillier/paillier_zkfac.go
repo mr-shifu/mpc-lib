@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 )
 
-func (k PaillierKey) NewZKFACProof(hash *hash.Hash, public zkfac.Public) *zkfac.Proof {
+func (k PaillierKey) NewZKFACProof(hash hash.Hash, public zkfac.Public) *zkfac.Proof {
 	Nhat := public.Aux.NArith()
 
 	// Figure 28, point 1.
@@ -73,7 +73,7 @@ func (k PaillierKey) NewZKFACProof(hash *hash.Hash, public zkfac.Public) *zkfac.
 	}
 }
 
-func (k PaillierKey) VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash *hash.Hash) bool {
+func (k PaillierKey) VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash hash.Hash) bool {
 	if p == nil {
 		return false
 	}
@@ -113,7 +113,7 @@ func (k PaillierKey) VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash *hash
 	return arith.IsInIntervalLEpsPlus1RootN(p.Z1) && arith.IsInIntervalLEpsPlus1RootN(p.Z2)
 }
 
-func zkfac_challenge(hash *hash.Hash, public zkfac.Public, commitment zkfac.Commitment) (*saferith.Int, error) {
+func zkfac_challenge(hash hash.Hash, public zkfac.Public, commitment zkfac.Commitment) (*saferith.Int, error) {
 	err := hash.WriteAny(public.N, public.Aux, commitment.P, commitment.Q, commitment.A, commitment.B, commitment.T)
 	if err != nil {
 		return nil, err

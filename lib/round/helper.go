@@ -1,16 +1,17 @@
 package round
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"sync"
 
-	"github.com/mr-shifu/mpc-lib/core/hash"
+	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 // Helper implements Session without Round, and can therefore be embedded in the first round of a protocol
@@ -31,7 +32,7 @@ type Helper struct {
 	// ssid the unique identifier for this protocol execution
 	ssid []byte
 
-	hash *hash.Hash
+	hash hash.Hash
 
 	mtx sync.Mutex
 }
@@ -42,7 +43,7 @@ type Helper struct {
 // When used, it should be unique for each execution of the protocol.
 // It could be a simple counter which is incremented after execution,  or a common random string.
 // `auxInfo` is a variable list of objects which should be included in the session's hash state.
-func NewSession(keyID string, info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.WriterToWithDomain) (*Helper, error) {
+func NewSession(keyID string, info Info, sessionID []byte, pl *pool.Pool, h hash.Hash, auxInfo ...core_hash.WriterToWithDomain) (*Helper, error) {
 	partyIDs := party.NewIDSlice(info.PartyIDs)
 	if !partyIDs.Valid() {
 		return nil, errors.New("session: partyIDs invalid")
@@ -63,56 +64,47 @@ func NewSession(keyID string, info Info, sessionID []byte, pl *pool.Pool, auxInf
 		return nil, fmt.Errorf("session: threshold %d is invalid for number of parties %d", info.Threshold, n)
 	}
 
-	// ToDo handle passing sessionID and auxInfo fields
-	h, err := NewHasher(info, nil, partyIDs, nil)
-	if err != nil {
-		return nil, err
+	if sessionID != nil {
+		if err := h.WriteAny(&core_hash.BytesWithDomain{
+			TheDomain: "Session ID",
+			Bytes:     sessionID,
+		}); err != nil {
+			return nil, fmt.Errorf("session: %w", err)
+		}
 	}
 
-	// var err error
-	// h := hash.New()
+	if err := h.WriteAny(&core_hash.BytesWithDomain{
+		TheDomain: "Protocol ID",
+		Bytes:     []byte(info.ProtocolID),
+	}); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
 
-	// if sessionID != nil {
-	// 	if err = h.WriteAny(&hash.BytesWithDomain{
-	// 		TheDomain: "Session ID",
-	// 		Bytes:     sessionID,
-	// 	}); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
+	if info.Group != nil {
+		if err := h.WriteAny(&core_hash.BytesWithDomain{
+			TheDomain: "Group Name",
+			Bytes:     []byte(info.Group.Name()),
+		}); err != nil {
+			return nil, fmt.Errorf("session: %w", err)
+		}
+	}
 
-	// if err = h.WriteAny(&hash.BytesWithDomain{
-	// 	TheDomain: "Protocol ID",
-	// 	Bytes:     []byte(info.ProtocolID),
-	// }); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
+	if err := h.WriteAny(partyIDs); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
 
-	// if info.Group != nil {
-	// 	if err = h.WriteAny(&hash.BytesWithDomain{
-	// 		TheDomain: "Group Name",
-	// 		Bytes:     []byte(info.Group.Name()),
-	// 	}); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
+	if err := h.WriteAny(types.ThresholdWrapper(info.Threshold)); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
 
-	// if err = h.WriteAny(partyIDs); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
-
-	// if err = h.WriteAny(types.ThresholdWrapper(info.Threshold)); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
-
-	// for _, a := range auxInfo {
-	// 	if a == nil {
-	// 		continue
-	// 	}
-	// 	if err = h.WriteAny(a); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
+	for _, a := range auxInfo {
+		if a == nil {
+			continue
+		}
+		if err := h.WriteAny(a); err != nil {
+			return nil, fmt.Errorf("session: %w", err)
+		}
+	}
 
 	return &Helper{
 		info:          info,
@@ -126,7 +118,7 @@ func NewSession(keyID string, info Info, sessionID []byte, pl *pool.Pool, auxInf
 }
 
 // HashForID returns a clone of the hash.Hash for this session, initialized with the given id.
-func (h *Helper) HashForID(id party.ID) *hash.Hash {
+func (h *Helper) HashForID(id party.ID) hash.Hash {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 
@@ -139,7 +131,7 @@ func (h *Helper) HashForID(id party.ID) *hash.Hash {
 }
 
 // UpdateHashState writes additional data to the hash state.
-func (h *Helper) UpdateHashState(value hash.WriterToWithDomain) {
+func (h *Helper) UpdateHashState(value core_hash.WriterToWithDomain) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	_ = h.hash.WriteAny(value)
@@ -180,7 +172,7 @@ func (h *Helper) SendMessage(out chan<- *Message, content Content, to party.ID) 
 }
 
 // Hash returns copy of the hash function of this protocol execution.
-func (h *Helper) Hash() *hash.Hash {
+func (h *Helper) Hash() hash.Hash {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	return h.hash.Clone()
@@ -231,115 +223,3 @@ func (h *Helper) N() int { return len(h.info.PartyIDs) }
 
 // Group returns the curve used for this protocol.
 func (h *Helper) Group() curve.Curve { return h.info.Group }
-
-func NewHasher(info Info, sessionID []byte, partyIDs party.IDSlice, auxInfo ...hash.WriterToWithDomain) (*hash.Hash, error) {
-	// var err error
-	h := hash.New()
-
-	// if sessionID != nil {
-	// 	if err = h.WriteAny(&hash.BytesWithDomain{
-	// 		TheDomain: "Session ID",
-	// 		Bytes:     sessionID,
-	// 	}); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
-
-	// if err = h.WriteAny(&hash.BytesWithDomain{
-	// 	TheDomain: "Protocol ID",
-	// 	Bytes:     []byte(info.ProtocolID),
-	// }); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
-
-	// if info.Group != nil {
-	// 	if err = h.WriteAny(&hash.BytesWithDomain{
-	// 		TheDomain: "Group Name",
-	// 		Bytes:     []byte(info.Group.Name()),
-	// 	}); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
-
-	// if err = h.WriteAny(partyIDs); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
-
-	// if err = h.WriteAny(types.ThresholdWrapper(info.Threshold)); err != nil {
-	// 	return nil, fmt.Errorf("session: %w", err)
-	// }
-
-	// for _, a := range auxInfo {
-	// 	if a == nil {
-	// 		continue
-	// 	}
-	// 	if err = h.WriteAny(a); err != nil {
-	// 		return nil, fmt.Errorf("session: %w", err)
-	// 	}
-	// }
-
-	return h, nil
-}
-
-type HelperSerialized struct {
-	Info          []byte
-	PartyIDs      party.IDSlice
-	OtherPartyIDs party.IDSlice
-	Ssid          []byte
-	Hash          []byte
-}
-
-func NewEmptyHelper(g curve.Curve, pl *pool.Pool) *Helper {
-	info := NewEmptyInfo(g)
-	return &Helper{
-		info: info,
-		hash: hash.New(),
-		Pool: pl,
-	}
-}
-func (h *Helper) Serialize() ([]byte, error) {
-	is, err := h.info.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	hashser, err := h.hash.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	hs := HelperSerialized{
-		Info:          is,
-		PartyIDs:      h.partyIDs,
-		OtherPartyIDs: h.otherPartyIDs,
-		Ssid:          h.ssid,
-		Hash:          hashser,
-	}
-	return json.Marshal(hs)
-}
-func (h *Helper) Deserialize(data []byte) error {
-	var hs HelperSerialized
-	if err := json.Unmarshal(data, &hs); err != nil {
-		return err
-	}
-	var info Info
-	if err := h.info.Deserialze(hs.Info, &info); err != nil {
-		return err
-	}
-
-	hash := hash.New()
-	if err := hash.Deserialize(hs.Hash); err != nil {
-		return err
-	}
-
-	h.info.PartyIDs = info.PartyIDs
-	h.info.ProtocolID = info.ProtocolID
-	h.info.SelfID = info.SelfID
-	h.info.Threshold = info.Threshold
-	h.info.FinalRoundNumber = info.FinalRoundNumber
-
-	h.partyIDs = hs.PartyIDs
-	h.otherPartyIDs = hs.OtherPartyIDs
-	h.ssid = hs.Ssid
-	h.hash = hash
-
-	return nil
-}

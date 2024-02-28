@@ -2,7 +2,7 @@ package pedersen
 
 import (
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
@@ -31,10 +31,10 @@ type PedersenKey interface {
 	Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool
 
 	// NewProof returns Proof for Pedersen params s, t, lambd.
-	NewProof(hash *hash.Hash, pl *pool.Pool) *zkprm.Proof
+	NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof
 
 	// VerifyProof returns true if the given proof is valid.
-	VerifyProof(hash *hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool
+	VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool
 }
 
 type PedersenKeyManager interface {
