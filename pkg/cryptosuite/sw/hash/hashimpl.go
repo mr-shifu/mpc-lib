@@ -2,6 +2,7 @@ package hash
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding"
 	"encoding/binary"
 	"errors"
@@ -12,8 +13,9 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	"github.com/mr-shifu/mpc-lib/lib/params"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/zeebo/blake3"
 )
 
@@ -146,4 +148,55 @@ func (hash *Hash) Clone() comm_hash.Hash {
 		state: hash.state,
 		store: nil,
 	}
+}
+
+// Commit creates a commitment to data, and returns a commitment hash, and a decommitment string such that
+// commitment = h(data, decommitment).
+func (hash *Hash) Commit(data ...interface{}) (core_hash.Commitment, core_hash.Decommitment, error) {
+	var err error
+	decommitment := core_hash.Decommitment(make([]byte, params.SecBytes))
+
+	if _, err = rand.Read(decommitment); err != nil {
+		return nil, nil, fmt.Errorf("hash.Commit: failed to generate decommitment: %w", err)
+	}
+
+	h := hash.Clone()
+
+	for _, item := range data {
+		if err = h.WriteAny(item); err != nil {
+			return nil, nil, fmt.Errorf("hash.Commit: failed to write data: %w", err)
+		}
+	}
+
+	_ = h.WriteAny(decommitment)
+
+	commitment := h.Sum()
+
+	return commitment, decommitment, nil
+}
+
+// Decommit verifies that the commitment corresponds to the data and decommitment such that
+// commitment = h(data, decommitment).
+func (hash *Hash) Decommit(c core_hash.Commitment, d core_hash.Decommitment, data ...interface{}) bool {
+	var err error
+	if err = c.Validate(); err != nil {
+		return false
+	}
+	if err = d.Validate(); err != nil {
+		return false
+	}
+
+	h := hash.Clone()
+
+	for _, item := range data {
+		if err = h.WriteAny(item); err != nil {
+			return false
+		}
+	}
+
+	_ = h.WriteAny(d)
+
+	computedCommitment := h.Sum()
+
+	return bytes.Equal(computedCommitment, c)
 }

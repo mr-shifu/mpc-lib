@@ -11,6 +11,8 @@ type Hash interface {
 	Sum() []byte
 	WriteAny(...interface{}) error
 	Clone() Hash
+	Commit(data ...interface{}) (core_hash.Commitment, core_hash.Decommitment, error)
+	Decommit(c core_hash.Commitment, d core_hash.Decommitment, data ...interface{}) bool
 }
 
 type HashManager interface {
