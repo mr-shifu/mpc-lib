@@ -3,10 +3,13 @@ package round_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 )
 
 func TestNewSession(t *testing.T) {
@@ -99,6 +102,12 @@ func TestNewSession(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			keyID := uuid.New().String()
+
+			hs := keystore.NewInMemoryKeystore()
+			hash_mgr := hash.NewHashManager(hs)
+			h := hash_mgr.NewHasher(keyID)
+
 			info := round.Info{
 				ProtocolID:       "TEST",
 				FinalRoundNumber: tt.roundNumber,
@@ -107,7 +116,7 @@ func TestNewSession(t *testing.T) {
 				Threshold:        tt.threshold,
 				Group:            tt.group,
 			}
-			_, err := round.NewSession(info, nil, nil)
+			_, err := round.NewSession(keyID, info, nil, nil, h)
 			if tt.wantErr == (err == nil) {
 				t.Error(err)
 			}
