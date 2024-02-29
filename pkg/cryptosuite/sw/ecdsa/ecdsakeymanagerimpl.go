@@ -8,6 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
 type Config struct {
@@ -15,11 +16,12 @@ type Config struct {
 }
 
 type ECDSAKeyManager struct {
-	keystore keystore.Keystore
-	cfg      *Config
+	keystore     keystore.Keystore
+	schnorrstore keystore.Keystore
+	cfg          *Config
 }
 
-func NewECDSAKeyManager(store keystore.Keystore, cfg *Config) *ECDSAKeyManager {
+func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore, cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
 		keystore: store,
 		cfg:      cfg,
@@ -31,7 +33,7 @@ func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 	sk, pk := sample.ScalarPointPair(rand.Reader, mgr.cfg.Group)
 
 	// serialize key to store to the keystore
-	key := ECDSAKey{sk, pk, mgr.cfg.Group}
+	key := NewECDSAKey(sk, pk, mgr.cfg.Group)
 	decoded, err := key.Bytes()
 	if err != nil {
 		return ECDSAKey{}, err
@@ -47,26 +49,28 @@ func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 	}
 
 	// return the key pair
-	return key, nil
+	return key.withZKSchnorr(
+		zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID)),
+	), nil
 }
 
-func (mgr *ECDSAKeyManager) ImportKey(data []byte) (comm_ecdsa.ECDSAKey, error) {
+func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) error {
 	// decode the key
-	k, err := fromBytes(data)
+	kb, err := key.Bytes()
 	if err != nil {
-		return ECDSAKey{}, err
+		return err
 	}
 
 	// get key SKI and encode it to hex string as keyID
-	ski := k.SKI()
+	ski := key.SKI()
 	keyID := hex.EncodeToString(ski)
 
 	// import the decoded key to the keystore with keyID
-	if err := mgr.keystore.Import(keyID, data); err != nil {
-		return ECDSAKey{}, err
+	if err := mgr.keystore.Import(keyID, kb); err != nil {
+		return err
 	}
 
-	return k, err
+	return nil
 }
 
 func (mgr *ECDSAKeyManager) GetKey(ski []byte) (comm_ecdsa.ECDSAKey, error) {
@@ -83,5 +87,7 @@ func (mgr *ECDSAKeyManager) GetKey(ski []byte) (comm_ecdsa.ECDSAKey, error) {
 		return ECDSAKey{}, err
 	}
 
-	return k, err
+	return k.withZKSchnorr(
+		zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID)),
+	), err
 }

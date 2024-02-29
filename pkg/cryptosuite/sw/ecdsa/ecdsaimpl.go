@@ -6,6 +6,7 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
 var (
@@ -21,6 +22,12 @@ type ECDSAKey struct {
 
 	// group
 	group curve.Curve
+
+	zks *zksch.ZKSchnorr
+}
+
+func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey {
+	return ECDSAKey{priv, pub, group, nil}
 }
 
 func (key ECDSAKey) Bytes() ([]byte, error) {
@@ -63,11 +70,20 @@ func (key ECDSAKey) Private() bool {
 }
 
 func (key ECDSAKey) PublicKey() comm_ecdsa.ECDSAKey {
-	return ECDSAKey{nil, key.pub, key.group}
+	return NewECDSAKey(nil, key.pub, key.group)
+}
+
+func (key ECDSAKey) Group() curve.Curve {
+	return key.group
 }
 
 func (key ECDSAKey) PublicKeyRaw() curve.Point {
 	return key.pub
+}
+
+func (key ECDSAKey) withZKSchnorr(zks *zksch.ZKSchnorr) ECDSAKey {
+	key.zks = zks
+	return key
 }
 
 func fromBytes(data []byte) (ECDSAKey, error) {
@@ -104,5 +120,5 @@ func fromBytes(data []byte) (ECDSAKey, error) {
 		return ECDSAKey{}, err
 	}
 
-	return ECDSAKey{sk, pk, group}, nil
+	return NewECDSAKey(sk, pk, group), nil
 }
