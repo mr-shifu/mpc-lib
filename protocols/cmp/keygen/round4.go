@@ -160,7 +160,9 @@ func (r *round4) StoreMessage(msg round.Message) error {
 		return errors.New("failed to validate VSS share")
 	}
 
-	r.ShareReceived[from] = Share
+	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), Share); err != nil {
+		return err
+	}
 
 	// Mark the message as received
 	r.MessagesForwarded[from] = true
@@ -187,7 +189,15 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		UpdatedSecretECDSA.Set(r.PreviousSecretECDSA)
 	}
 	for _, j := range r.PartyIDs() {
-		UpdatedSecretECDSA.Add(r.ShareReceived[j])
+		vssKeyj, err := r.vss_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return nil, err
+		}
+		shareReceivedj, err := vssKeyj.GetShare(r.SelfID().Scalar(r.Group()))
+		if err != nil {
+			return nil, err
+		}
+		UpdatedSecretECDSA.Add(shareReceivedj)
 	}
 
 	// [F₁(X), …, Fₙ(X)]

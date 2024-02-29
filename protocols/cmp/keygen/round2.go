@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -27,37 +26,8 @@ type round2 struct {
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 
-	// VSSPolynomials[j] = Fⱼ(X) = fⱼ(X)•G
-	// VSSPolynomials map[party.ID]*polynomial.Exponent
-
 	// Commitments[j] = H(Keygen3ⱼ ∥ Decommitments[j])
 	Commitments map[party.ID]hash.Commitment
-
-	// RIDs[j] = ridⱼ
-	// RIDs map[party.ID]types.RID
-	// ChainKeys[j] = cⱼ
-	// ChainKeys map[party.ID]types.RID
-
-	// ShareReceived[j] = xʲᵢ
-	// share received from party j
-	ShareReceived map[party.ID]curve.Scalar
-
-	// ElgamalKeys map[party.ID]*cs_elgamal.ElgamalKey
-	// ElGamalPublic map[party.ID]curve.Point
-	// ElGamalSecret curve.Scalar
-
-	// PaillierPublic[j] = Nⱼ
-	// PaillierPublic map[party.ID]*paillier.PublicKey
-
-	// Pedersen[j] = (Nⱼ,Sⱼ,Tⱼ)
-	// Pedersen map[party.ID]*pedersen.Parameters
-
-	// PaillierSecret = (pᵢ, qᵢ)
-	// PaillierSecret *paillier.SecretKey
-
-	// PedersenSecret = λᵢ
-	// Used to generate the Pedersen parameters
-	// PedersenSecret *saferith.Nat
 
 	// SchnorrRand = aᵢ
 	// Randomness used to compute Schnorr commitment of proof of knowledge of secret share

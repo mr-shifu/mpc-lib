@@ -104,6 +104,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), SelfShare); err != nil {
+		return nil, err
+	}
 
 	// generate Schnorr randomness
 	SchnorrRand := zksch.NewRandomness(rand.Reader, r.Group(), nil)
@@ -164,7 +167,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		vss_km:             r.vss_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		ShareReceived:      map[party.ID]curve.Scalar{r.SelfID(): SelfShare},
 		SchnorrRand:        SchnorrRand,
 		Commitments:        map[party.ID]hash.Commitment{r.SelfID(): SelfCommitment},
 		Decommitment:       Decommitment,
