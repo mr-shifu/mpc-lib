@@ -7,20 +7,20 @@ import (
 
 type VSSShareStore interface {
 	// GetShare returns a share (x, f(x)) for a given index.
-	Get(ski []byte, index curve.Scalar) (curve.Point, error)
+	Get(ski []byte, index curve.Scalar) (curve.Scalar, error)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	Import(ski []byte, index curve.Scalar, share curve.Point) error
+	Import(ski []byte, index curve.Scalar, share curve.Scalar) error
 
 	WithSKI(ski []byte) (LinkedVSSShareStore, error)
 }
 
 type LinkedVSSShareStore interface {
 	// GetShare returns a share (x, f(x)) for a given index.
-	Get(index curve.Scalar) (curve.Point, error)
+	Get(index curve.Scalar) (curve.Scalar, error)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	Import(index curve.Scalar, share curve.Point) error
+	Import(index curve.Scalar, share curve.Scalar) error
 }
 
 type VssKey interface {
@@ -45,13 +45,14 @@ type VssKey interface {
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
 	EvaluateByExponents(index curve.Scalar) (curve.Point, error)
 
+	// TODO much better to be removed
 	WithShareStore(ss LinkedVSSShareStore)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	ImportShare(index curve.Scalar, share curve.Point) error
+	ImportShare(index curve.Scalar, share curve.Scalar) error
 
 	// GetShare returns a share (x, f(x)) for a given index.
-	GetShare(index curve.Scalar) (curve.Point, error)
+	GetShare(index curve.Scalar) (curve.Scalar, error)
 }
 
 type VssKeyManager interface {
