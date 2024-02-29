@@ -1,0 +1,34 @@
+package ecdsa
+
+import "github.com/mr-shifu/mpc-lib/core/math/curve"
+
+type ECDSAKey interface {
+	// Bytes returns the byte representation of the key.
+	Bytes() ([]byte, error)
+
+	// SKI returns the serialized key identifier.
+	SKI() []byte
+
+	// Private returns true if the key is private.
+	Private() bool
+
+	// PublicKey returns the corresponding public key part of ECDSA Key.
+	PublicKey() ECDSAKey
+
+	// PublicKeyRaw returns the raw public key.
+	PublicKeyRaw() curve.Point
+}
+
+type ECDSAKeyManager interface {
+	// GenerateKey generates a new ECDSA key pair.
+	GenerateKey() (ECDSAKey, error)
+
+	// Import imports a ECDSA key from its byte representation.
+	ImportKey(data []byte) (ECDSAKey, error)
+
+	// GetKey returns a ECDSA key by its SKI.
+	GetKey(ski []byte) (ECDSAKey, error)
+
+	// Encrypt returns the encryption of `message` as ciphertext and nonce.
+	Encrypt(ski []byte, message curve.Scalar) ([]byte, curve.Scalar, error)
+}

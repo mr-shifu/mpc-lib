@@ -21,8 +21,6 @@ type ElgamalKey struct {
 }
 
 func (key ElgamalKey) Bytes() ([]byte, error) {
-	
-	
 	pk, err := key.publicKey.MarshalBinary()
 	if err != nil {
 		return nil, err
