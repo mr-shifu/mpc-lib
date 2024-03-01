@@ -5,8 +5,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
-func (key ECDSAKey) NewSchnorrCommitment(group curve.Curve) (curve.Point, error) {
-	return key.zks.NewCommitment(group)
+func (key ECDSAKey) NewSchnorrCommitment() (curve.Point, error) {
+	return key.zks.NewCommitment(key.group)
 }
 
 func (key ECDSAKey) ImportSchnorrCommitment(commitment curve.Point) error {
