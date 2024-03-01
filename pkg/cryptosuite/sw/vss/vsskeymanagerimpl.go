@@ -6,17 +6,18 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	cs_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
 type VssKeyManager struct {
 	group curve.Curve
 	ks    keystore.Keystore
-	st    cs_vss.VSSShareStore
+	st    comm_vss.VSSShareStore
 }
 
-func NewVssKeyManager(store keystore.Keystore, st cs_vss.VSSShareStore, g curve.Curve) *VssKeyManager {
+func NewVssKeyManager(store keystore.Keystore, st comm_vss.VSSShareStore, ecmgr comm_ecdsa.ECDSAKeyManager, g curve.Curve) *VssKeyManager {
 	return &VssKeyManager{
 		group: g,
 		ks:    store,
@@ -26,13 +27,12 @@ func NewVssKeyManager(store keystore.Keystore, st cs_vss.VSSShareStore, g curve.
 
 // GenerateSecrets generates a Polynomail of a specified degree with secret as constant value
 // and stores coefficients and expponents of coefficients.
-func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_vss.VssKey, error) {
+func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (comm_vss.VssKey, error) {
 	// Generate a polynomial with secret as constant value
 	secrets := polynomial.NewPolynomial(mgr.group, degree, secret)
 	// Generate exponents of coefficients
 	exponents := polynomial.NewPolynomialExponent(secrets)
 
-	
 	// get SKI from binary encoded exponents
 	vssKey := NewVssKey(secrets, exponents, nil)
 	ski := vssKey.SKI()
@@ -51,16 +51,18 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (cs_v
 		return nil, err
 	}
 
+	// create a linked sharestore and set it in vssKey
 	sharestore, err := mgr.st.WithSKI(ski)
 	if err != nil {
 		return nil, err
 	}
 	vssKey.WithShareStore(sharestore)
+
 	return vssKey, nil
 }
 
 // ImportSecrets imports exponents of coefficients in []byte format and returns VssKey.
-func (mgr *VssKeyManager) ImportSecrets(data []byte) (cs_vss.VssKey, error) {
+func (mgr *VssKeyManager) ImportSecrets(data []byte) (comm_vss.VssKey, error) {
 	exponents := polynomial.NewEmptyExponent(mgr.group)
 	if err := exponents.UnmarshalBinary(data); err != nil {
 		return nil, err
@@ -96,7 +98,7 @@ func (mgr *VssKeyManager) ImportSecrets(data []byte) (cs_vss.VssKey, error) {
 }
 
 // GetSecrets returns VssKey of coefficients.
-func (mgr *VssKeyManager) GetSecrets(ski []byte) (cs_vss.VssKey, error) {
+func (mgr *VssKeyManager) GetSecrets(ski []byte) (comm_vss.VssKey, error) {
 	// encode ski to hex string as keyID
 	keyID := hex.EncodeToString(ski)
 

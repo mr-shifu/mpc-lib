@@ -3,6 +3,7 @@ package ecdsa
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 )
 
 type ECDSAKey interface {
@@ -35,6 +36,8 @@ type ECDSAKey interface {
 	SchnorrCommitment() (curve.Point, error)
 
 	SchnorrProof() (curve.Scalar, error)
+
+	VSS() (vss.VssKey, error)
 }
 
 type ECDSAKeyManager interface {
@@ -42,7 +45,7 @@ type ECDSAKeyManager interface {
 	GenerateKey() (ECDSAKey, error)
 
 	// Import imports a ECDSA key from its byte representation.
-	ImportKey(key ECDSAKey) error
+	ImportKey(key ECDSAKey) (ECDSAKey, error)
 
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(ski []byte) (ECDSAKey, error)

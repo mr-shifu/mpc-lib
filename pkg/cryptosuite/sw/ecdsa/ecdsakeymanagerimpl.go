@@ -3,10 +3,12 @@ package ecdsa
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
@@ -18,13 +20,16 @@ type Config struct {
 type ECDSAKeyManager struct {
 	keystore     keystore.Keystore
 	schnorrstore keystore.Keystore
+	vssmgr       comm_vss.VssKeyManager
 	cfg          *Config
 }
 
-func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore, cfg *Config) *ECDSAKeyManager {
+func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore, vssmgr comm_vss.VssKeyManager, cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
-		keystore: store,
-		cfg:      cfg,
+		keystore:     store,
+		schnorrstore: schnorrstore,
+		vssmgr:       vssmgr,
+		cfg:          cfg,
 	}
 }
 
@@ -49,16 +54,21 @@ func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 	}
 
 	// return the key pair
-	return key.withZKSchnorr(
-		zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID)),
-	), nil
+	return key.
+		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
+		withVSSKeyMgr(mgr.vssmgr), nil
 }
 
-func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) error {
+func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) (comm_ecdsa.ECDSAKey, error) {
+	k, ok := key.(ECDSAKey)
+	if !ok {
+		return nil, errors.New("invalid key type")
+	}
+
 	// decode the key
 	kb, err := key.Bytes()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// get key SKI and encode it to hex string as keyID
@@ -67,10 +77,12 @@ func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) error {
 
 	// import the decoded key to the keystore with keyID
 	if err := mgr.keystore.Import(keyID, kb); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return k.
+		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
+		withVSSKeyMgr(mgr.vssmgr), nil
 }
 
 func (mgr *ECDSAKeyManager) GetKey(ski []byte) (comm_ecdsa.ECDSAKey, error) {
@@ -87,7 +99,7 @@ func (mgr *ECDSAKeyManager) GetKey(ski []byte) (comm_ecdsa.ECDSAKey, error) {
 		return ECDSAKey{}, err
 	}
 
-	return k.withZKSchnorr(
-		zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID)),
-	), err
+	return k.
+		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
+		withVSSKeyMgr(mgr.vssmgr), nil
 }
