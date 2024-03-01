@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
@@ -29,6 +30,12 @@ type ECDSAKey struct {
 	vssmgr comm_vss.VssKeyManager
 }
 
+type rawECDSAKey struct {
+	Group string
+	Priv  []byte
+	Pub   []byte
+}
+
 func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey {
 	return ECDSAKey{
 		priv:  priv,
@@ -38,28 +45,24 @@ func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey
 }
 
 func (key ECDSAKey) Bytes() ([]byte, error) {
-	pk, err := key.pub.MarshalBinary()
+	raw := &rawECDSAKey{}
+
+	raw.Group = key.group.Name()
+
+	pub, err := key.pub.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	gn := key.group.Name()
+	raw.Pub = pub
 
-	buf := make([]byte, 0)
-	buf = append(buf, uint8(len(gn)))
-	buf = append(buf, []byte(gn)...)
-	buf = append(buf, uint8(len(pk)))
-	buf = append(buf, pk...)
-
-	if key.Private() {
-		sk, err := key.priv.MarshalBinary()
+	if key.priv != nil {
+		priv, err := key.priv.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		buf = append(buf, uint8(len(sk)))
-		buf = append(buf, sk...)
+		raw.Priv = priv
 	}
-
-	return buf, nil
+	return cbor.Marshal(raw)
 }
 
 func (key ECDSAKey) SKI() []byte {
@@ -99,38 +102,33 @@ func (key ECDSAKey) withVSSKeyMgr(vssmgr comm_vss.VssKeyManager) ECDSAKey {
 }
 
 func fromBytes(data []byte) (ECDSAKey, error) {
-	if len(data) < 2 {
-		return ECDSAKey{}, ErrInvalidKey
+	key := ECDSAKey{}
+	
+	raw := &rawECDSAKey{}
+	if err := cbor.Unmarshal(data, raw); err != nil {
+		return ECDSAKey{}, err
 	}
 
-	gnLen := int(data[0])
-	if len(data) < 2+gnLen {
-		return ECDSAKey{}, ErrInvalidKey
-	}
-	gn := string(data[1 : 1+gnLen])
 	var group curve.Curve
-	switch gn {
+	switch raw.Group {
 	case "secp256k1":
 		group = curve.Secp256k1{}
 	}
+	key.group = group
 
-	pkLen := int(data[1+gnLen])
-	if len(data) < 2+gnLen+pkLen {
-		return ECDSAKey{}, ErrInvalidKey
+	if len(raw.Priv) > 0 {
+		priv := group.NewScalar()
+		if err := priv.UnmarshalBinary(raw.Priv); err != nil {
+			return ECDSAKey{}, err
+		}
+		key.priv = priv
 	}
-	pk := group.NewPoint()
-	if err := pk.UnmarshalBinary(data[2+gnLen : 2+gnLen+pkLen]); err != nil {
+
+	pub := group.NewPoint()
+	if err := pub.UnmarshalBinary(raw.Pub); err != nil {
 		return ECDSAKey{}, err
 	}
+	key.pub = pub
 
-	skLen := int(data[2+gnLen+pkLen])
-	if len(data) < 2+gnLen+pkLen+skLen {
-		return ECDSAKey{}, ErrInvalidKey
-	}
-	sk := group.NewScalar()
-	if err := sk.UnmarshalBinary(data[3+gnLen+pkLen:]); err != nil {
-		return ECDSAKey{}, err
-	}
-
-	return NewECDSAKey(sk, pk, group), nil
+	return key, nil
 }
