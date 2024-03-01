@@ -60,12 +60,13 @@ func (k *VssKey) Bytes() ([]byte, error) {
 
 // SKI returns the serialized key identifier.
 func (k *VssKey) SKI() []byte {
-	kbs, err := k.exponents.MarshalBinary()
+	pub := k.exponents.Constant()
+	pub_bytes, err := pub.MarshalBinary()
 	if err != nil {
 		return nil
 	}
 	hash := sha256.New()
-	hash.Write(kbs)
+	hash.Write(pub_bytes)
 	return hash.Sum(nil)
 }
 
