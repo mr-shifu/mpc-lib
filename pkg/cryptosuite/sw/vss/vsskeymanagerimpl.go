@@ -6,7 +6,6 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
@@ -17,7 +16,7 @@ type VssKeyManager struct {
 	st    comm_vss.VSSShareStore
 }
 
-func NewVssKeyManager(store keystore.Keystore, st comm_vss.VSSShareStore, ecmgr comm_ecdsa.ECDSAKeyManager, g curve.Curve) *VssKeyManager {
+func NewVssKeyManager(store keystore.Keystore, st comm_vss.VSSShareStore, g curve.Curve) *VssKeyManager {
 	return &VssKeyManager{
 		group: g,
 		ks:    store,
