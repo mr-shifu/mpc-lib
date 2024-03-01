@@ -25,7 +25,7 @@ type ECDSAKey interface {
 	// PublicKeyRaw returns the raw public key.
 	PublicKeyRaw() curve.Point
 
-	NewSchnorrCommitment(group curve.Curve) (curve.Point, error)
+	NewSchnorrCommitment() (curve.Point, error)
 
 	ImportSchnorrCommitment(commitment curve.Point) error
 
@@ -36,6 +36,10 @@ type ECDSAKey interface {
 	SchnorrCommitment() (curve.Point, error)
 
 	SchnorrProof() (curve.Scalar, error)
+
+	GenerateVSSSecrets(degree int) error
+
+	ImportVSSSecrets(exponents []byte) error
 
 	VSS() (vss.VssKey, error)
 }
