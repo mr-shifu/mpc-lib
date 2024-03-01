@@ -50,10 +50,11 @@ func (zksch *ZKSchnorr) NewCommitment(group curve.Curve) (curve.Point, error) {
 	alpha := sample.Scalar(rand.Reader, group)
 	bigAlpha := alpha.Act(g)
 
+	zksch.group = group
 	zksch.alpha = alpha
 	zksch.bigAlpha = bigAlpha
 
-	if err := zksch.save(zksch); err != nil {
+	if err := zksch.save(); err != nil {
 		return nil, err
 	}
 
@@ -65,11 +66,10 @@ func (zksch *ZKSchnorr) ImportCommitment(commitment curve.Point, group curve.Cur
 		return errors.New("invalid commitment")
 	}
 
-	sch := &ZKSchnorr{
-		group:    group,
-		bigAlpha: commitment,
-	}
-	if err := zksch.save(sch); err != nil {
+	zksch.group = group
+	zksch.bigAlpha = commitment
+
+	if err := zksch.save(); err != nil {
 		return err
 	}
 
@@ -77,35 +77,35 @@ func (zksch *ZKSchnorr) ImportCommitment(commitment curve.Point, group curve.Cur
 }
 
 func (zksch *ZKSchnorr) Prove(hash hash.Hash, secret curve.Scalar, public curve.Point) (curve.Scalar, error) {
-	sch, err := zksch.get()
+	err := zksch.get()
 	if err != nil {
 		return nil, err
 	}
 
-	if sch.group == nil {
+	if zksch.group == nil {
 		return nil, errors.New("group is nil")
 	}
-	if sch.alpha == nil || sch.bigAlpha == nil {
+	if zksch.alpha == nil || zksch.bigAlpha == nil {
 		return nil, errors.New("commitment is nil")
 	}
 
-	g := sch.group.NewBasePoint()
+	g := zksch.group.NewBasePoint()
 
 	if public.IsIdentity() || secret.IsZero() {
 		return nil, nil
 	}
 
-	c, err := challenge(hash, sch.group, sch.bigAlpha, public, g)
+	c, err := challenge(hash, zksch.group, zksch.bigAlpha, public, g)
 	if err != nil {
 		return nil, err
 	}
 
 	cx := c.Mul(secret)
-	z := cx.Add(sch.alpha)
+	z := cx.Add(zksch.alpha)
 
-	sch.z = z
-	sch.c = c
-	if err = zksch.save(sch); err != nil {
+	zksch.z = z
+	zksch.c = c
+	if err = zksch.save(); err != nil {
 		return nil, err
 	}
 
@@ -113,27 +113,26 @@ func (zksch *ZKSchnorr) Prove(hash hash.Hash, secret curve.Scalar, public curve.
 }
 
 func (zksch *ZKSchnorr) Verify(hash hash.Hash, public curve.Point, proof curve.Scalar) (bool, error) {
-	sch, err := zksch.get()
-	if err != nil {
+	if err := zksch.get(); err != nil {
 		return false, err
 	}
-	g := sch.group.NewBasePoint()
+	g := zksch.group.NewBasePoint()
 
 	if proof == nil || !isValidProof(proof) || public.IsIdentity() {
 		return false, errors.New("invalid proof")
 	}
 
-	e, err := challenge(hash, sch.group, sch.bigAlpha, public, g)
+	e, err := challenge(hash, zksch.group, zksch.bigAlpha, public, g)
 	if err != nil {
 		return false, err
 	}
 
 	lhs := proof.Act(g)
 	rhs := e.Act(public)
-	rhs = rhs.Add(sch.bigAlpha)
+	rhs = rhs.Add(zksch.bigAlpha)
 
-	sch.z = proof
-	if err = zksch.save(sch); err != nil {
+	zksch.z = proof
+	if err = zksch.save(); err != nil {
 		return false, err
 	}
 
@@ -169,40 +168,49 @@ func challenge(hash hash.Hash, group curve.Curve, commitment, public, gen curve.
 }
 
 func (zksch ZKSchnorr) bytes() ([]byte, error) {
+	raw := &rawZKSchnorr{}
+
 	group := zksch.group.Name()
+	raw.Group = group
 
-	alpha, err := zksch.alpha.MarshalBinary()
-	if err != nil {
-		return nil, err
+	if zksch.alpha != nil {
+		alpha, err := zksch.alpha.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Alpha = alpha
 	}
 
-	bigAlpha, err := zksch.bigAlpha.MarshalBinary()
-	if err != nil {
-		return nil, err
+	if zksch.bigAlpha != nil {
+		bigAlpha, err := zksch.bigAlpha.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.BigAlpha = bigAlpha
 	}
 
-	c, err := zksch.c.MarshalBinary()
-	if err != nil {
-		return nil, err
+	if zksch.c != nil {
+		c, err := zksch.c.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.C = c
 	}
 
-	z, err := zksch.z.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	raw := rawZKSchnorr{
-		Group:    group,
-		Alpha:    alpha,
-		BigAlpha: bigAlpha,
-		C:        c,
-		Z:        z,
+	if zksch.z != nil {
+		z, err := zksch.z.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Z = z
 	}
 
 	return cbor.Marshal(raw)
 }
 
 func fromBytes(data []byte) (*ZKSchnorr, error) {
+	zksch := &ZKSchnorr{}
+
 	var raw rawZKSchnorr
 	if err := cbor.Unmarshal(data, &raw); err != nil {
 		return nil, err
@@ -212,38 +220,46 @@ func fromBytes(data []byte) (*ZKSchnorr, error) {
 	switch raw.Group {
 	case "secp256k1":
 		group = curve.Secp256k1{}
+		zksch.group = group
 	}
 
-	alpha := group.NewScalar()
-	if err := alpha.UnmarshalBinary(raw.Alpha); err != nil {
-		return nil, err
+	if raw.Alpha != nil {
+		alpha := group.NewScalar()
+		if err := alpha.UnmarshalBinary(raw.Alpha); err != nil {
+			return nil, err
+		}
+		zksch.alpha = alpha
 	}
 
-	bigAlpha := group.NewPoint()
-	if err := bigAlpha.UnmarshalBinary(raw.BigAlpha); err != nil {
-		return nil, err
+	if raw.BigAlpha != nil {
+		bigAlpha := group.NewPoint()
+		if err := bigAlpha.UnmarshalBinary(raw.BigAlpha); err != nil {
+			return nil, err
+		}
+		zksch.bigAlpha = bigAlpha
 	}
 
-	c := group.NewScalar()
-	if err := c.UnmarshalBinary(raw.C); err != nil {
-		return nil, err
+	if raw.C != nil {
+		c := group.NewScalar()
+		if err := c.UnmarshalBinary(raw.C); err != nil {
+			return nil, err
+		}
+		zksch.c = c
 	}
 
-	z := group.NewScalar()
-	if err := z.UnmarshalBinary(raw.Z); err != nil {
-		return nil, err
+	if raw.Z != nil {
+		z := group.NewScalar()
+		if err := z.UnmarshalBinary(raw.Z); err != nil {
+			return nil, err
+		}
+		zksch.z = z
 	}
 
-	return &ZKSchnorr{
-		alpha:    alpha,
-		bigAlpha: bigAlpha,
-		c:        c,
-		z:        z,
-	}, nil
+	return zksch, nil
 }
 
-func (zksch *ZKSchnorr) save(sch *ZKSchnorr) error {
-	sch_bytes, err := sch.bytes()
+func (zksch *ZKSchnorr) save() error {
+	sch_bytes, err := zksch.bytes()
 	if err != nil {
 		return err
 	}
@@ -253,10 +269,12 @@ func (zksch *ZKSchnorr) save(sch *ZKSchnorr) error {
 	return nil
 }
 
-func (zksch *ZKSchnorr) get() (*ZKSchnorr, error) {
+func (zksch *ZKSchnorr) get() error {
 	sch_bytes, err := zksch.store.Get()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return fromBytes(sch_bytes)
+	zksch, err = fromBytes(sch_bytes)
+
+	return err
 }
