@@ -11,12 +11,12 @@ import (
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -29,7 +29,7 @@ type round4 struct {
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
-	vss_km      comm_vss.VssKeyManager
+	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 
@@ -146,7 +146,12 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// verify share with VSS
-	vssKey, err := r.vss_km.GetKey(r.KeyID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	if err != nil {
+		return err
+	}
+	vssKey, err := ecKey.VSS()
+	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -189,7 +194,17 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		UpdatedSecretECDSA.Set(r.PreviousSecretECDSA)
 	}
 	for _, j := range r.PartyIDs() {
-		vssKeyj, err := r.vss_km.GetKey(r.KeyID, string(j))
+		ecKeyj, err := r.ecdsa_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return nil, err
+		}
+		vssKeyj, err := ecKeyj.VSS()
+		// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+		if err != nil {
+			return nil, err
+		}
+
+		// vssKeyj, err := r.vss_km.GetKey(r.KeyID, string(j))
 		if err != nil {
 			return nil, err
 		}
@@ -203,11 +218,16 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// [F₁(X), …, Fₙ(X)]
 	ShamirPublicPolynomials := make([]*polynomial.Exponent, 0, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		vssj, err := r.vss_km.GetKey(r.KeyID, string(j))
+		ecKeyj, err := r.ecdsa_km.GetKey(r.KeyID, string(j))
 		if err != nil {
-			return r, err
+			return nil, err
 		}
-		expj, err := vssj.ExponentsRaw()
+		vssKeyj, err := ecKeyj.VSS()
+		// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+		if err != nil {
+			return nil, err
+		}
+		expj, err := vssKeyj.ExponentsRaw()
 		if err != nil {
 			return r, err
 		}
@@ -249,16 +269,6 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 			Pedersen: pedersenj.PublicKeyRaw(),
 		}
 	}
-
-	// rid, err := r.rid_km.GetKey(r.KeyID, string(r.SelfID()))
-	// if err != nil {
-	// 	return r, err
-	// }
-
-	// chainKey, err := r.chainKey_km.GetKey(r.KeyID, string(r.SelfID()))
-	// if err != nil {
-	// 	return r, err
-	// }
 
 	mpckey, err := r.mpc_ks.Get(r.KeyID)
 	if err != nil {

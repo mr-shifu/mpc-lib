@@ -5,12 +5,12 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round2)(nil)
@@ -22,7 +22,7 @@ type round2 struct {
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
-	vss_km      comm_vss.VssKeyManager
+	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 
@@ -98,11 +98,26 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	vsspoly, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
-	exponents, err := vsspoly.ExponentsRaw()
+	vssKey, err := ecKey.VSS()
+	if err != nil {
+		return nil, err
+	}
+	selfShare, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
+	if err != nil {
+		return nil, err
+	}
+	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), selfShare); err != nil {
+		return nil, err
+	}
+	// vsspoly, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	exponents, err := vssKey.ExponentsRaw()
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +148,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		elgamal_km:         r.elgamal_km,
 		paillier_km:        r.paillier_km,
 		pedersen_km:        r.pedersen_km,
-		vss_km:             r.vss_km,
+		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
 		SchnorrCommitments: map[party.ID]*zksch.Commitment{},

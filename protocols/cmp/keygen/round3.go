@@ -18,12 +18,13 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round3)(nil)
@@ -35,7 +36,7 @@ type round3 struct {
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
-	vss_km      comm_vss.VssKeyManager
+	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 
@@ -105,7 +106,12 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	VSSPolynomial := body.VSSPolynomial
 	// check that the constant coefficient is 0
 	// if refresh then the polynomial is constant
-	vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return err
+	}
+	vssKey, err := ecKey.VSS()
+	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -166,9 +172,26 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if _, err := r.vss_km.ImportKey(r.KeyID, string(from), vss_bytes); err != nil {
+
+	pub := body.VSSPolynomial.Constant()
+	k := sw_ecdsa.NewECDSAKey(nil, pub, pub.Curve())
+	err = r.ecdsa_km.ImportKey(r.KeyID, string(from), k)
+	if err != nil {
 		return err
 	}
+	fromKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	if err != nil {
+		return err
+	}
+	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
+		return err
+	}
+	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
+		return err
+	}
+	// if _, err := r.vss_km.ImportKey(r.KeyID, string(from), vss_bytes); err != nil {
+	// 	return err
+	// }
 
 	r.SchnorrCommitments[from] = body.SchnorrCommitments
 
@@ -273,7 +296,12 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	vssKey, err := ecKey.VSS()
+	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +347,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		elgamal_km:         r.elgamal_km,
 		paillier_km:        r.paillier_km,
 		pedersen_km:        r.pedersen_km,
-		vss_km:             r.vss_km,
+		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
 		MessageBroadcasted: make(map[party.ID]bool),

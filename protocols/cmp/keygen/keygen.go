@@ -1,11 +1,9 @@
 package keygen
 
 import (
-	"crypto/rand"
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
@@ -28,8 +26,10 @@ import (
 	mpc_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/rid"
 
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
-	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
+
+	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
+	mpc_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/ecdsa"
 
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
@@ -48,7 +48,8 @@ type MPCKeygen struct {
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
-	vss_km      comm_vss.VssKeyManager
+	// vss_km      comm_vss.VssKeyManager
+	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 	hash_mgr    comm_hash.HashManager
@@ -81,7 +82,13 @@ func NewMPCKeygen() *MPCKeygen {
 	vss_ks := keystore.NewInMemoryKeystore()
 	vss_ss := sw_vss.NewInMemoryVSSShareStore()
 	vss_km := sw_vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
-	vss := mpc_vss.NewVSS(vss_km, vss_kr)
+	// vss := mpc_vss.NewVSS(vss_km, vss_kr)
+
+	ecdsa_ks := keystore.NewInMemoryKeystore()
+	schstore := keystore.NewInMemoryKeystore()
+	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, schstore, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_kr := inmem_keyrepo.NewKeyRepository()
+	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	rid_kr := inmem_keyrepo.NewKeyRepository()
 	rid_ks := keystore.NewInMemoryKeystore()
@@ -101,7 +108,7 @@ func NewMPCKeygen() *MPCKeygen {
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
 		pedersen_km: pedersen,
-		vss_km:      vss,
+		ecdsa_km:    ecdsa,
 		rid_km:      rid,
 		chainKey_km: chainKey,
 		hash_mgr:    hash_mgr,
@@ -136,7 +143,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 				elgamal_km:                m.elgamal_km,
 				paillier_km:               m.paillier_km,
 				pedersen_km:               m.pedersen_km,
-				vss_km:                    m.vss_km,
+				ecdsa_km:                  m.ecdsa_km,
 				rid_km:                    m.rid_km,
 				chainKey_km:               m.chainKey_km,
 				PreviousSecretECDSA:       c.ECDSA,
@@ -146,10 +153,17 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 		}
 
 		// sample fᵢ(X) deg(fᵢ) = t, fᵢ(0) = secretᵢ
-		VSSConstant := sample.Scalar(rand.Reader, group)
-		if _, err = m.vss_km.GenerateSecrets(keyID, string(helper.SelfID()), VSSConstant, helper.Threshold()); err != nil {
+		key, err := m.ecdsa_km.GenerateKey(keyID, string(helper.SelfID()))
+		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
+		if err := key.GenerateVSSSecrets(helper.Threshold()); err != nil {
+			return nil, fmt.Errorf("keygen: %w", err)
+		}
+		// VSSConstant := sample.Scalar(rand.Reader, group)
+		// if _, err = m.vss_km.GenerateSecrets(keyID, string(helper.SelfID()), VSSConstant, helper.Threshold()); err != nil {
+		// 	return nil, fmt.Errorf("keygen: %w", err)
+		// }
 
 		mpckey := comm_mpckey.MPCKey{
 			ID:        keyID,
@@ -173,7 +187,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			elgamal_km:  m.elgamal_km,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			vss_km:      m.vss_km,
+			ecdsa_km:    m.ecdsa_km,
 			rid_km:      m.rid_km,
 			chainKey_km: m.chainKey_km,
 		}, nil
