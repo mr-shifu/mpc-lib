@@ -79,3 +79,45 @@ func (e *ECDSAKeyManager) GetKey(keyID string, partyID string) (comm_ecdsa.ECDSA
 
 	return e.km.GetKey(k.SKI)
 }
+
+func (e *ECDSAKeyManager) GetAllKeys(keyID string) (map[string]comm_ecdsa.ECDSAKey, error) {
+	keys, err := e.kr.GetAll(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make(map[string]comm_ecdsa.ECDSAKey)
+	for _, k := range keys {
+		key, err := e.km.GetKey(k.SKI)
+		if err != nil {
+			return nil, err
+		}
+
+		ret[k.PartyID] = key
+	}
+
+	return ret, nil
+}
+
+func (e *ECDSAKeyManager) GetVSSKey(keyID string, partyID string) (comm_vss.VssKey, error) {
+	keys, err := e.kr.GetAll(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	k, ok := keys[partyID]
+	if !ok {
+		return nil, errors.New("key not found")
+	}
+
+	ecKey, err := e.km.GetKey(k.SKI)
+	if err != nil {
+		return nil, err
+	}
+
+	return ecKey.VSS()
+}
+
+func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string) {
+
+}

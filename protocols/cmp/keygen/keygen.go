@@ -48,7 +48,6 @@ type MPCKeygen struct {
 	elgamal_km  comm_elgamal.ElgamalKeyManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
-	// vss_km      comm_vss.VssKeyManager
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
@@ -82,7 +81,6 @@ func NewMPCKeygen() *MPCKeygen {
 	vss_ks := keystore.NewInMemoryKeystore()
 	vss_ss := sw_vss.NewInMemoryVSSShareStore()
 	vss_km := sw_vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
-	// vss := mpc_vss.NewVSS(vss_km, vss_kr)
 
 	ecdsa_ks := keystore.NewInMemoryKeystore()
 	schstore := keystore.NewInMemoryKeystore()

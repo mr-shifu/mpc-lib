@@ -193,18 +193,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if r.PreviousSecretECDSA != nil {
 		UpdatedSecretECDSA.Set(r.PreviousSecretECDSA)
 	}
-	for _, j := range r.PartyIDs() {
-		ecKeyj, err := r.ecdsa_km.GetKey(r.KeyID, string(j))
-		if err != nil {
-			return nil, err
-		}
-		vssKeyj, err := ecKeyj.VSS()
-		// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
-		if err != nil {
-			return nil, err
-		}
 
-		// vssKeyj, err := r.vss_km.GetKey(r.KeyID, string(j))
+	// integrate creation of MPC Key VSS polynomial, shares and ECDSA key together
+	for _, j := range r.PartyIDs() {
+		vssKeyj, err := r.ecdsa_km.GetVSSKey(r.KeyID, string(j))
 		if err != nil {
 			return nil, err
 		}
@@ -218,12 +210,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// [F₁(X), …, Fₙ(X)]
 	ShamirPublicPolynomials := make([]*polynomial.Exponent, 0, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		ecKeyj, err := r.ecdsa_km.GetKey(r.KeyID, string(j))
-		if err != nil {
-			return nil, err
-		}
-		vssKeyj, err := ecKeyj.VSS()
-		// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+		vssKeyj, err := r.ecdsa_km.GetVSSKey(r.KeyID, string(j))
 		if err != nil {
 			return nil, err
 		}

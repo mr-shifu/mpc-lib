@@ -296,12 +296,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
-	if err != nil {
-		return nil, err
-	}
-	vssKey, err := ecKey.VSS()
-	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	vssKey, err := r.ecdsa_km.GetVSSKey(r.KeyID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
