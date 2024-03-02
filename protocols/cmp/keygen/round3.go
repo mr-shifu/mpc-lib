@@ -13,7 +13,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
-	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
@@ -39,10 +38,6 @@ type round3 struct {
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
-
-	// SchnorrCommitments[j] = Aⱼ
-	// Commitment for proof of knowledge in the last round
-	SchnorrCommitments map[party.ID]*zksch.Commitment // Aⱼ
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool

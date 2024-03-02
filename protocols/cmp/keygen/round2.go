@@ -3,10 +3,9 @@ package keygen
 import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/party"
-	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
@@ -29,10 +28,6 @@ type round2 struct {
 
 	// Commitments[j] = H(Keygen3ⱼ ∥ Decommitments[j])
 	Commitments map[party.ID]hash.Commitment
-
-	// SchnorrRand = aᵢ
-	// Randomness used to compute Schnorr commitment of proof of knowledge of secret share
-	// SchnorrRand *zksch.Randomness
 
 	// Decommitment for Keygen3ᵢ
 	Decommitment hash.Decommitment // uᵢ
@@ -120,7 +115,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	selfShare := &comm_vss.VSSShare{
-		Index: r.SelfID().Scalar(r.Group()),
+		Index:  r.SelfID().Scalar(r.Group()),
 		Secret: selfShareSecret,
 		Public: selfSharePublic,
 	}
@@ -161,7 +156,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		SchnorrCommitments: map[party.ID]*zksch.Commitment{},
 		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
 }

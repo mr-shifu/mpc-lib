@@ -175,14 +175,24 @@ func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string, selfID party.ID
 	}
 
 	// Calculate MPC VSS Share of all VSS keys
-	mpcVSSSharePublic, err := mpcVSSKey.EvaluateByExponents(selfID.Scalar(group))
-	if err != nil {
-		return err
+	vssShareSecret := group.NewScalar()
+	vssSharePublic := group.NewPoint()
+	for _, key := range ecKeys {
+		vssKey, err := key.VSS()
+		if err != nil {
+			return err
+		}
+		share, err := vssKey.GetShare(selfID.Scalar(group))
+		if err != nil {
+			return err
+		}
+		vssShareSecret = vssShareSecret.Add(share.Secret)
+		vssSharePublic = vssSharePublic.Add(share.Public)
 	}
 	mpcVSSShare := &comm_vss.VSSShare{
 		Index:  selfID.Scalar(group),
-		Secret: nil,
-		Public: mpcVSSSharePublic,
+		Secret: vssShareSecret,
+		Public: vssSharePublic,
 	}
 	return mpcVSSKey.ImportShare(mpcVSSShare)
 }

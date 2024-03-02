@@ -45,12 +45,6 @@ type round1 struct {
 	//
 	// In that case, we will simply use the previous chain key at the very end.
 	PreviousChainKey types.RID
-
-	// VSSSecret = fᵢ(X)
-	// Polynomial from which the new secret shares are computed.
-	// Keygen:  fᵢ(0) = xⁱ
-	// Refresh: fᵢ(0) = 0
-	// VSSSecret *polynomial.Polynomial
 }
 
 // VerifyMessage implements round.Round.

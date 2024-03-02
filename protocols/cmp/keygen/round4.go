@@ -165,8 +165,8 @@ func (r *round4) StoreMessage(msg round.Message) error {
 		return errors.New("failed to validate VSS share")
 	}
 	vssShare := &comm_vss.VSSShare{
-		Index: r.SelfID().Scalar(r.Group()),
-		Secret: nil,
+		Index:  r.SelfID().Scalar(r.Group()),
+		Secret: Share,
 		Public: PublicShare,
 	}
 	if err := vssKey.ImportShare(vssShare); err != nil {
@@ -241,12 +241,17 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
+	mpcVSSShare, err := mpcVSSKey.GetShare(r.SelfID().Scalar(r.Group()))
+	if err != nil {
+		return r, err
+	}
+
 	// TODO elgamal and paillier secret key is missed here
 	UpdatedConfig := &config.Config{
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		// ECDSA:     UpdatedSecretECDSA,
+		ECDSA:     mpcVSSShare.Secret,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
 		RID:      mpckey.RID,
