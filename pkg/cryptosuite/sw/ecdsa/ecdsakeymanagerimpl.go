@@ -33,6 +33,10 @@ func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore,
 	}
 }
 
+func (mgr *ECDSAKeyManager) NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) comm_ecdsa.ECDSAKey {
+	return NewECDSAKey(priv, pub, group)
+}
+
 func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 	// Generate a new ECDSA key pair
 	sk, pk := sample.ScalarPointPair(rand.Reader, mgr.cfg.Group)
