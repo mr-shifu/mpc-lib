@@ -53,7 +53,4 @@ type ECDSAKeyManager interface {
 
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(ski []byte) (ECDSAKey, error)
-
-	// Encrypt returns the encryption of `message` as ciphertext and nonce.
-	Encrypt(ski []byte, message curve.Scalar) ([]byte, curve.Scalar, error)
 }
