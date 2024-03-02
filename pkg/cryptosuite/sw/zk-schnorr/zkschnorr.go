@@ -140,10 +140,18 @@ func (zksch *ZKSchnorr) Verify(hash hash.Hash, public curve.Point, proof curve.S
 }
 
 func (zksch *ZKSchnorr) Commitment() (curve.Point, error) {
+	err := zksch.get()
+	if err != nil {
+		return nil, err
+	}
 	return zksch.bigAlpha, nil
 }
 
 func (zksch *ZKSchnorr) Proof() (curve.Scalar, error) {
+	err := zksch.get()
+	if err != nil {
+		return nil, err
+	}
 	return zksch.z, nil
 }
 
@@ -208,12 +216,12 @@ func (zksch ZKSchnorr) bytes() ([]byte, error) {
 	return cbor.Marshal(raw)
 }
 
-func fromBytes(data []byte) (*ZKSchnorr, error) {
-	zksch := &ZKSchnorr{}
+func fromBytes(data []byte, zksch *ZKSchnorr) (error) {
+	// zksch := &ZKSchnorr{}
 
 	var raw rawZKSchnorr
 	if err := cbor.Unmarshal(data, &raw); err != nil {
-		return nil, err
+		return err
 	}
 
 	var group curve.Curve
@@ -226,7 +234,7 @@ func fromBytes(data []byte) (*ZKSchnorr, error) {
 	if raw.Alpha != nil {
 		alpha := group.NewScalar()
 		if err := alpha.UnmarshalBinary(raw.Alpha); err != nil {
-			return nil, err
+			return err
 		}
 		zksch.alpha = alpha
 	}
@@ -234,7 +242,7 @@ func fromBytes(data []byte) (*ZKSchnorr, error) {
 	if raw.BigAlpha != nil {
 		bigAlpha := group.NewPoint()
 		if err := bigAlpha.UnmarshalBinary(raw.BigAlpha); err != nil {
-			return nil, err
+			return err
 		}
 		zksch.bigAlpha = bigAlpha
 	}
@@ -242,7 +250,7 @@ func fromBytes(data []byte) (*ZKSchnorr, error) {
 	if raw.C != nil {
 		c := group.NewScalar()
 		if err := c.UnmarshalBinary(raw.C); err != nil {
-			return nil, err
+			return err
 		}
 		zksch.c = c
 	}
@@ -250,12 +258,12 @@ func fromBytes(data []byte) (*ZKSchnorr, error) {
 	if raw.Z != nil {
 		z := group.NewScalar()
 		if err := z.UnmarshalBinary(raw.Z); err != nil {
-			return nil, err
+			return err
 		}
 		zksch.z = z
 	}
 
-	return zksch, nil
+	return nil
 }
 
 func (zksch *ZKSchnorr) save() error {
@@ -274,7 +282,10 @@ func (zksch *ZKSchnorr) get() error {
 	if err != nil {
 		return err
 	}
-	zksch, err = fromBytes(sch_bytes)
+
+	if err := fromBytes(sch_bytes, zksch); err != nil {
+		return err
+	}
 
 	return err
 }
