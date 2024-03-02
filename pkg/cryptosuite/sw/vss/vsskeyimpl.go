@@ -109,12 +109,12 @@ func (k *VssKey) WithShareStore(ss cs_vss.LinkedVSSShareStore) {
 	k.shares = ss
 }
 
-func (k *VssKey) GetShare(index curve.Scalar) (curve.Scalar, error) {
+func (k *VssKey) GetShare(index curve.Scalar) (*cs_vss.VSSShare, error) {
 	return k.shares.Get(index)
 }
 
-func (k *VssKey) ImportShare(index curve.Scalar, share curve.Scalar) error {
-	return k.shares.Import(index, share)
+func (k *VssKey) ImportShare(share *cs_vss.VSSShare) error {
+	return k.shares.Import(share)
 }
 
 func fromBytes(data []byte) (VssKey, error) {

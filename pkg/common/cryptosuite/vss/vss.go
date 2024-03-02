@@ -5,22 +5,28 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 )
 
+type VSSShare struct {
+	Index  curve.Scalar
+	Secret curve.Scalar
+	Public curve.Point
+}
+
 type VSSShareStore interface {
 	// GetShare returns a share (x, f(x)) for a given index.
-	Get(ski []byte, index curve.Scalar) (curve.Scalar, error)
+	Get(ski []byte, index curve.Scalar) (*VSSShare, error)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	Import(ski []byte, index curve.Scalar, share curve.Scalar) error
+	Import(ski []byte, share *VSSShare) error
 
 	WithSKI(ski []byte) (LinkedVSSShareStore, error)
 }
 
 type LinkedVSSShareStore interface {
 	// GetShare returns a share (x, f(x)) for a given index.
-	Get(index curve.Scalar) (curve.Scalar, error)
+	Get(index curve.Scalar) (*VSSShare, error)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	Import(index curve.Scalar, share curve.Scalar) error
+	Import(share *VSSShare) error
 }
 
 type VssKey interface {
@@ -49,10 +55,10 @@ type VssKey interface {
 	WithShareStore(ss LinkedVSSShareStore)
 
 	// ImportShare imports a share (x, f(x)) and stores it.
-	ImportShare(index curve.Scalar, share curve.Scalar) error
+	ImportShare(share *VSSShare) error
 
 	// GetShare returns a share (x, f(x)) for a given index.
-	GetShare(index curve.Scalar) (curve.Scalar, error)
+	GetShare(index curve.Scalar) (*VSSShare, error)
 }
 
 type VssKeyManager interface {

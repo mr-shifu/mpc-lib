@@ -6,6 +6,7 @@ import (
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
@@ -110,11 +111,20 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	selfShare, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
+	selfShareSecret, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
 	if err != nil {
 		return nil, err
 	}
-	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), selfShare); err != nil {
+	selfSharePublic, err := vssKey.EvaluateByExponents(r.SelfID().Scalar(r.Group()))
+	if err != nil {
+		return nil, err
+	}
+	selfShare := &comm_vss.VSSShare{
+		Index: r.SelfID().Scalar(r.Group()),
+		Secret: selfShareSecret,
+		Public: selfSharePublic,
+	}
+	if err := vssKey.ImportShare(selfShare); err != nil {
 		return nil, err
 	}
 	exponents, err := vssKey.ExponentsRaw()

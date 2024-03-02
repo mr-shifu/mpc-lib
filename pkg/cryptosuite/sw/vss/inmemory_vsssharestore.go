@@ -17,7 +17,7 @@ var (
 type (
 	InMemoryVSSShareStore struct {
 		lock   sync.RWMutex
-		shares map[string]map[string]curve.Scalar
+		shares map[string]map[string]*cs_vss.VSSShare
 	}
 
 	InMemoryLinkedVSSShareStore struct {
@@ -28,11 +28,11 @@ type (
 
 func NewInMemoryVSSShareStore() *InMemoryVSSShareStore {
 	return &InMemoryVSSShareStore{
-		shares: make(map[string]map[string]curve.Scalar),
+		shares: make(map[string]map[string]*cs_vss.VSSShare),
 	}
 }
 
-func (s *InMemoryVSSShareStore) Get(ski []byte, index curve.Scalar) (curve.Scalar, error) {
+func (s *InMemoryVSSShareStore) Get(ski []byte, index curve.Scalar) (*cs_vss.VSSShare, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -52,19 +52,19 @@ func (s *InMemoryVSSShareStore) Get(ski []byte, index curve.Scalar) (curve.Scala
 	return nil, ErrShareNotFound
 }
 
-func (s *InMemoryVSSShareStore) Import(ski []byte, index curve.Scalar, share curve.Scalar) error {
+func (s *InMemoryVSSShareStore) Import(ski []byte, share *cs_vss.VSSShare) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	kid := hex.EncodeToString(ski)
 
-	index_bytes, err := index.MarshalBinary()
+	index_bytes, err := share.Index.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
 	if _, ok := s.shares[kid]; !ok {
-		s.shares[kid] = make(map[string]curve.Scalar)
+		s.shares[kid] = make(map[string]*cs_vss.VSSShare)
 	}
 	s.shares[kid][string(index_bytes)] = share
 
@@ -78,10 +78,10 @@ func (s *InMemoryVSSShareStore) WithSKI(ski []byte) (cs_vss.LinkedVSSShareStore,
 	}, nil
 }
 
-func (s *InMemoryLinkedVSSShareStore) Get(index curve.Scalar) (curve.Scalar, error) {
+func (s *InMemoryLinkedVSSShareStore) Get(index curve.Scalar) (*cs_vss.VSSShare, error) {
 	return s.store.Get(s.ski, index)
 }
 
-func (s *InMemoryLinkedVSSShareStore) Import(index curve.Scalar, share curve.Scalar) error {
-	return s.store.Import(s.ski, index, share)
+func (s *InMemoryLinkedVSSShareStore) Import(share *cs_vss.VSSShare) error {
+	return s.store.Import(s.ski, share)
 }
