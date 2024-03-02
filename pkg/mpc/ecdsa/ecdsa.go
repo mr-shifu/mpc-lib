@@ -3,6 +3,9 @@ package ecdsa
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/core/party"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
@@ -118,6 +121,68 @@ func (e *ECDSAKeyManager) GetVSSKey(keyID string, partyID string) (comm_vss.VssK
 	return ecKey.VSS()
 }
 
-func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string) {
+func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string, selfID party.ID, group curve.Curve) error {
+	ecKeys, err := e.GetAllKeys(keyID)
+	if err != nil {
+		return err
+	}
 
+	// Calculate MPC public Key
+	mpcPublicKey := group.NewPoint()
+	for _, key := range ecKeys {
+		vssKey, err := key.VSS()
+		if err != nil {
+			return err
+		}
+		exp, err := vssKey.ExponentsRaw()
+		if err != nil {
+			return err
+		}
+		pub := exp.Constant()
+		mpcPublicKey = mpcPublicKey.Add(pub)
+	}
+
+	// Import MPC public Key
+	k := e.km.NewKey(nil, mpcPublicKey, group)
+	if err := e.ImportKey(keyID, "ROOT", k); err != nil {
+		return err
+	}
+
+	// Calculate MPC VSS Exponents of all VSS keys
+	var allExponents []*polynomial.Exponent
+	for _, key := range ecKeys {
+		vssKey, err := key.VSS()
+		if err != nil {
+			return err
+		}
+		exp, err := vssKey.ExponentsRaw()
+		if err != nil {
+			return err
+		}
+		allExponents = append(allExponents, exp)
+	}
+	mpcExponent, err := polynomial.Sum(allExponents)
+	if err != nil {
+		return err
+	}
+	mpcExponentBytes, err := mpcExponent.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	mpcVSSKey, err := e.vssmgr.ImportSecrets(mpcExponentBytes)
+	if err != nil {
+		return err
+	}
+
+	// Calculate MPC VSS Share of all VSS keys
+	mpcVSSSharePublic, err := mpcVSSKey.EvaluateByExponents(selfID.Scalar(group))
+	if err != nil {
+		return err
+	}
+	mpcVSSShare := &comm_vss.VSSShare{
+		Index:  selfID.Scalar(group),
+		Secret: nil,
+		Public: mpcVSSSharePublic,
+	}
+	return mpcVSSKey.ImportShare(mpcVSSShare)
 }

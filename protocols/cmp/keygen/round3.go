@@ -169,10 +169,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
-
 	pub := body.VSSPolynomial.Constant()
 	k := sw_ecdsa.NewECDSAKey(nil, pub, pub.Curve())
 	err = r.ecdsa_km.ImportKey(r.KeyID, string(from), k)

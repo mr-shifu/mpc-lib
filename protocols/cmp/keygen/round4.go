@@ -4,13 +4,13 @@ import (
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -164,8 +164,12 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	if !PublicShare.Equal(ExpectedPublicShare) {
 		return errors.New("failed to validate VSS share")
 	}
-
-	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), Share); err != nil {
+	vssShare := &comm_vss.VSSShare{
+		Index: r.SelfID().Scalar(r.Group()),
+		Secret: nil,
+		Public: PublicShare,
+	}
+	if err := vssKey.ImportShare(vssShare); err != nil {
 		return err
 	}
 
@@ -188,52 +192,23 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if len(r.MessageBroadcasted) != r.N()-1 || len(r.MessagesForwarded) != r.N()-1 {
 		return nil, round.ErrNotEnoughMessages
 	}
-	// add all shares to our secret
-	UpdatedSecretECDSA := r.Group().NewScalar()
-	if r.PreviousSecretECDSA != nil {
-		UpdatedSecretECDSA.Set(r.PreviousSecretECDSA)
-	}
 
 	// integrate creation of MPC Key VSS polynomial, shares and ECDSA key together
-	for _, j := range r.PartyIDs() {
-		vssKeyj, err := r.ecdsa_km.GetVSSKey(r.KeyID, string(j))
-		if err != nil {
-			return nil, err
-		}
-		shareReceivedj, err := vssKeyj.GetShare(r.SelfID().Scalar(r.Group()))
-		if err != nil {
-			return nil, err
-		}
-		UpdatedSecretECDSA.Add(shareReceivedj)
-	}
-
-	// [F₁(X), …, Fₙ(X)]
-	ShamirPublicPolynomials := make([]*polynomial.Exponent, 0, len(r.PartyIDs()))
-	for _, j := range r.PartyIDs() {
-		vssKeyj, err := r.ecdsa_km.GetVSSKey(r.KeyID, string(j))
-		if err != nil {
-			return nil, err
-		}
-		expj, err := vssKeyj.ExponentsRaw()
-		if err != nil {
-			return r, err
-		}
-		ShamirPublicPolynomials = append(ShamirPublicPolynomials, expj)
-	}
-
-	// ShamirPublicPolynomial = F(X) = ∑Fⱼ(X)
-	ShamirPublicPolynomial, err := polynomial.Sum(ShamirPublicPolynomials)
-	if err != nil {
-		return r, err
+	if err := r.ecdsa_km.GenerateMPCKeyFromShares(r.KeyID, r.SelfID(), r.Group()); err != nil {
+		return nil, err
 	}
 
 	// compute the new public key share Xⱼ = F(j) (+X'ⱼ if doing a refresh)
+	mpcKey, err := r.ecdsa_km.GetKey(r.KeyID, "ROOT")
+	if err != nil {
+		return nil, err
+	}
+	mpcVSSKey, err := mpcKey.VSS()
+	if err != nil {
+		return nil, err
+	}
 	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		PublicECDSAShare := ShamirPublicPolynomial.Evaluate(j.Scalar(r.Group()))
-		if r.PreviousPublicSharesECDSA != nil {
-			PublicECDSAShare = PublicECDSAShare.Add(r.PreviousPublicSharesECDSA[j])
-		}
 		elgamalj, err := r.elgamal_km.GetKey(r.KeyID, string(j))
 		if err != nil {
 			return r, err
@@ -245,6 +220,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 
 		pedersenj, err := r.pedersen_km.GetKey(r.KeyID, string(j))
+		if err != nil {
+			return r, err
+		}
+		PublicECDSAShare, err := mpcVSSKey.EvaluateByExponents(j.Scalar(r.Group()))
 		if err != nil {
 			return r, err
 		}
@@ -267,7 +246,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		ECDSA:     UpdatedSecretECDSA,
+		// ECDSA:     UpdatedSecretECDSA,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
 		RID:      mpckey.RID,
