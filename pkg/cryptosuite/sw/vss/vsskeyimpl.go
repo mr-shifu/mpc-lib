@@ -2,9 +2,9 @@ package vss
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 	cs_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
@@ -17,6 +17,12 @@ type VssKey struct {
 	shares cs_vss.LinkedVSSShareStore
 }
 
+type rawVssKey struct {
+	Group     string
+	Secrets   []byte
+	Exponents []byte
+}
+
 func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent, shares cs_vss.LinkedVSSShareStore) cs_vss.VssKey {
 	return &VssKey{
 		secrets:   secrets,
@@ -27,35 +33,29 @@ func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent, s
 
 // Bytes returns the byte representation of the vss coefficients.
 func (k *VssKey) Bytes() ([]byte, error) {
-	gn := k.exponents.Group().Name()
-	gnl := len(gn)
+	raw := rawVssKey{}
 
-	eb, err := k.exponents.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	elb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(elb, uint16(len(eb)))
-
-	buf := make([]byte, 0)
-	buf = append(buf, byte(gnl))
-	buf = append(buf, gn...)
-	buf = append(buf, elb...)
-	buf = append(buf, eb...)
-
-	if k.Private() {
-		sb, err := k.secrets.MarshalBinary()
+	if k.exponents != nil {
+		gn := k.exponents.Group().Name()
+		exponents_bytes, err := k.exponents.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		slb := make([]byte, 2)
-		binary.LittleEndian.PutUint16(slb, uint16(len(sb)))
-
-		buf = append(buf, slb...)
-		buf = append(buf, sb...)
+		raw.Group = gn
+		raw.Exponents = exponents_bytes
 	}
 
-	return buf, nil
+	if k.secrets != nil {
+		secrets_bytes, err := k.secrets.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Secrets = secrets_bytes
+	}
+
+	buf, err := cbor.Marshal(raw)
+
+	return buf, err
 }
 
 // SKI returns the serialized key identifier.
@@ -118,39 +118,37 @@ func (k *VssKey) ImportShare(index curve.Scalar, share curve.Scalar) error {
 }
 
 func fromBytes(data []byte) (VssKey, error) {
-	// read group
-	gnlen := uint16(data[0])
-	gn := string(data[1 : 1+gnlen])
+	raw := &rawVssKey{}
+	err := cbor.Unmarshal(data, raw)
+	if err != nil {
+		return VssKey{}, err
+	}
+
 	var group curve.Curve
-	if gn == "secp256k1" {
+	switch raw.Group {
+	case "secp256k1":
 		group = curve.Secp256k1{}
-	} else {
-		return VssKey{}, errors.New("unsupported curve")
 	}
 
-	// read exponents length
-	exponentsLen := binary.LittleEndian.Uint16(data[1+gnlen : 1+gnlen+2])
-	exponents := polynomial.EmptyExponent(group)
-	if err := exponents.UnmarshalBinary(data[1+gnlen+2 : 1+gnlen+2+exponentsLen]); err != nil {
-		return VssKey{}, err
+	vss := VssKey{}
+
+	if raw.Exponents != nil {
+		exponents := polynomial.EmptyExponent(group)
+		err = exponents.UnmarshalBinary(raw.Exponents)
+		if err != nil {
+			return VssKey{}, err
+		}
+		vss.exponents = exponents
 	}
 
-	// read secrets length
-	secretsLen := binary.LittleEndian.Uint16(data[1+gnlen+2+exponentsLen : 1+gnlen+2+exponentsLen+2])
-	if secretsLen == 0 {
-		return VssKey{
-			secrets:   nil,
-			exponents: exponents,
-		}, nil
-
-	}
-	secrets := polynomial.NewEmptyPolynomial(group, exponents.Degree())
-	if err := secrets.UnmarshalBinary(data[1+gnlen+2+exponentsLen+2 : 1+gnlen+2+exponentsLen+2+secretsLen]); err != nil {
-		return VssKey{}, err
+	if raw.Secrets != nil {
+		secrets := &polynomial.Polynomial{}
+		err = secrets.UnmarshalBinary(raw.Secrets)
+		if err != nil {
+			return VssKey{}, err
+		}
+		vss.secrets = secrets
 	}
 
-	return VssKey{
-		secrets:   secrets,
-		exponents: exponents,
-	}, nil
+	return vss, nil
 }
