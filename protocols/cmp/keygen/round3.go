@@ -16,9 +16,9 @@ import (
 	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -56,7 +56,7 @@ type broadcast3 struct {
 	// VSSPolynomial = Fᵢ(X) VSSPolynomial
 	VSSPolynomial *polynomial.Exponent
 	// SchnorrCommitments = Aᵢ Schnorr commitment for the final confirmation
-	SchnorrCommitments *zksch.Commitment
+	SchnorrCommitments curve.Point
 	ElGamalPublic      []byte // curve.Point
 	// N Paillier and Pedersen N = p•q, p ≡ q ≡ 3 mod 4
 	N *saferith.Modulus
@@ -189,11 +189,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
 		return err
 	}
-	// if _, err := r.vss_km.ImportKey(r.KeyID, string(from), vss_bytes); err != nil {
-	// 	return err
-	// }
 
-	r.SchnorrCommitments[from] = body.SchnorrCommitments
+	// r.SchnorrCommitments[from] = body.SchnorrCommitments
+	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
+		return err
+	}
 
 	if _, err := r.elgamal_km.ImportKey(r.KeyID, string(from), body.ElGamalPublic); err != nil {
 		return err
@@ -370,7 +370,7 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
 		VSSPolynomial:      polynomial.EmptyExponent(r.Group()),
-		SchnorrCommitments: zksch.EmptyCommitment(r.Group()),
+		SchnorrCommitments: r.Group().NewPoint(), //zksch.EmptyCommitment(r.Group()),
 		// ElGamalPublic:      r.Group().NewPoint(),
 	}
 }

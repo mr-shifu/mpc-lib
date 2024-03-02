@@ -3,8 +3,8 @@ package keygen
 import (
 	"errors"
 
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
-	sch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -25,7 +25,7 @@ type round5 struct {
 type broadcast5 struct {
 	round.NormalBroadcastContent
 	// SchnorrResponse is the Schnorr proof of knowledge of the new secret share
-	SchnorrResponse *sch.Response
+	SchnorrResponse curve.Scalar
 }
 
 // StoreBroadcastMessage implements round.BroadcastRound.
@@ -38,13 +38,26 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	if !body.SchnorrResponse.IsValid() {
-		return round.ErrNilFields
+	// TODO implement SchnorrResponse validation
+	// if !body.SchnorrResponse.IsValid() {
+	// 	return round.ErrNilFields
+	// }
+
+	// if !body.SchnorrResponse.Verify(r.HashForID(from),
+	// 	r.UpdatedConfig.Public[from].ECDSA,
+	// 	r.SchnorrCommitments[from], nil) {
+	// 	return errors.New("failed to validate schnorr proof for received share")
+	// }
+	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	if err != nil {
+		return err
 	}
 
-	if !body.SchnorrResponse.Verify(r.HashForID(from),
-		r.UpdatedConfig.Public[from].ECDSA,
-		r.SchnorrCommitments[from], nil) {
+	verified, err := ecKey.VerifySchnorrProof(r.HashForID(from), body.SchnorrResponse)
+	if err != nil {
+		return err
+	}
+	if !verified {
 		return errors.New("failed to validate schnorr proof for received share")
 	}
 
@@ -83,7 +96,7 @@ func (broadcast5) RoundNumber() round.Number { return 5 }
 // BroadcastContent implements round.BroadcastRound.
 func (r *round5) BroadcastContent() round.BroadcastContent {
 	return &broadcast5{
-		SchnorrResponse: sch.EmptyResponse(r.Group()),
+		SchnorrResponse: r.Group().NewScalar(), // sch.EmptyResponse(r.Group()),
 	}
 }
 

@@ -160,10 +160,6 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 		if err := key.GenerateVSSSecrets(helper.Threshold()); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
-		// VSSConstant := sample.Scalar(rand.Reader, group)
-		// if _, err = m.vss_km.GenerateSecrets(keyID, string(helper.SelfID()), VSSConstant, helper.Threshold()); err != nil {
-		// 	return nil, fmt.Errorf("keygen: %w", err)
-		// }
 
 		mpckey := comm_mpckey.MPCKey{
 			ID:        keyID,

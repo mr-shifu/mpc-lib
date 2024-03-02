@@ -1,13 +1,11 @@
 package keygen
 
 import (
-	"crypto/rand"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
-	zksch "github.com/mr-shifu/mpc-lib/core/zk/sch"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
@@ -107,20 +105,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if _, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group())); err != nil {
 		return nil, err
 	}
-	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// SelfShare, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), SelfShare); err != nil {
-	// 	return nil, err
-	// }
 
 	// generate Schnorr randomness
-	SchnorrRand := zksch.NewRandomness(rand.Reader, r.Group(), nil)
+	schnorrCommitment, err := key.NewSchnorrCommitment()
+	if err != nil {
+		return nil, err
+	}
 
 	// Sample RIDᵢ
 	selfRID, err := r.rid_km.GenerateKey(r.KeyID, string(r.SelfID()))
@@ -157,7 +147,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	SelfCommitment, Decommitment, err := r.HashForID(r.SelfID()).Commit(
-		selfRID_bytes, chainKey_bytes, vssKey_bytes, SchnorrRand.Commitment(), elgamal_bytes, pedersen_bytes)
+		selfRID_bytes, chainKey_bytes, vssKey_bytes, schnorrCommitment, elgamal_bytes, pedersen_bytes)
 	if err != nil {
 		return r, errors.New("failed to commit")
 	}
@@ -178,7 +168,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		SchnorrRand:        SchnorrRand,
 		Commitments:        map[party.ID]hash.Commitment{r.SelfID(): SelfCommitment},
 		Decommitment:       Decommitment,
 		MessageBroadcasted: make(map[party.ID]bool),

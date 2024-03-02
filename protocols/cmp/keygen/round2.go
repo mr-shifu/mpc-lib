@@ -31,7 +31,7 @@ type round2 struct {
 
 	// SchnorrRand = aᵢ
 	// Randomness used to compute Schnorr commitment of proof of knowledge of secret share
-	SchnorrRand *zksch.Randomness
+	// SchnorrRand *zksch.Randomness
 
 	// Decommitment for Keygen3ᵢ
 	Decommitment hash.Decommitment // uᵢ
@@ -102,6 +102,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	schnorrCommitment, err := ecKey.SchnorrCommitment()
+	if err != nil {
+		return nil, err
+	}
 	vssKey, err := ecKey.VSS()
 	if err != nil {
 		return nil, err
@@ -113,10 +117,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err := vssKey.ImportShare(r.SelfID().Scalar(r.Group()), selfShare); err != nil {
 		return nil, err
 	}
-	// vsspoly, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
-	// if err != nil {
-	// 	return nil, err
-	// }
 	exponents, err := vssKey.ExponentsRaw()
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		RID:                rid.Raw(),
 		C:                  chainKey.Raw(),
 		VSSPolynomial:      exponents,
-		SchnorrCommitments: r.SchnorrRand.Commitment(),
+		SchnorrCommitments: schnorrCommitment,
 		ElGamalPublic:      ekb,
 		N:                  ped.PublicKeyRaw().N(),
 		S:                  ped.PublicKeyRaw().S(),
