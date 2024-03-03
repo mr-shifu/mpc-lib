@@ -4,7 +4,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -25,12 +27,7 @@ type round2 struct {
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
-
-	// Commitments[j] = H(Keygen3ⱼ ∥ Decommitments[j])
-	Commitments map[party.ID]hash.Commitment
-
-	// Decommitment for Keygen3ᵢ
-	Decommitment hash.Decommitment // uᵢ
+	commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -52,7 +49,14 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	if err := body.Commitment.Validate(); err != nil {
 		return err
 	}
-	r.Commitments[msg.From] = body.Commitment
+	cmt := &commitstore.Commitment{
+		Commitment:   body.Commitment,
+		Decommitment: nil,
+	}
+	if err := r.commit_mgr.Import(r.KeyID, msg.From, cmt); err != nil {
+		return err
+	}
+
 	// Mark the message as received
 	r.MessageBroadcasted[msg.From] = true
 
@@ -133,6 +137,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Send the message we created in Round1 to all
+	cmt, err := r.commit_mgr.Get(r.KeyID, r.SelfID())
+	if err != nil {
+		return nil, err
+	}
+
 	err = r.BroadcastMessage(out, &broadcast3{
 		RID:                rid.Raw(),
 		C:                  chainKey.Raw(),
@@ -142,7 +151,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		N:                  ped.PublicKeyRaw().N(),
 		S:                  ped.PublicKeyRaw().S(),
 		T:                  ped.PublicKeyRaw().T(),
-		Decommitment:       r.Decommitment,
+		Decommitment:       cmt.Decommitment,
 	})
 	if err != nil {
 		return r, err
@@ -156,6 +165,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
+		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
 }

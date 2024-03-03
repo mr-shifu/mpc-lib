@@ -2,13 +2,15 @@ package keygen
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
+	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
+	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -29,6 +31,7 @@ type round1 struct {
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
+	commit_mgr  comm_commitment.CommitmentManager
 
 	// PreviousSecretECDSA = sk'ᵢ
 	// Contains the previous secret ECDSA key share which is being refreshed
@@ -119,15 +122,19 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// commit to data in message 2
 	// TODO Hash func must be fixed to handle cryptosuite keys
-	pedersen_bytes, err := pedersenKey.Bytes()
+	ped_pub := pedersenKey.PublicKeyRaw()
 	if err != nil {
 		return nil, err
 	}
-	elgamal_bytes, err := elgamlKey.Bytes()
+	elgamal_bytes, err := elgamlKey.PublicKey().Bytes()
 	if err != nil {
 		return nil, err
 	}
-	vssKey_bytes, err := vssKey.Bytes()
+	vssExponents, err := vssKey.ExponentsRaw()
+	if err != nil {
+		return nil, err
+	}
+	vssExponents_bytes, err := vssExponents.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +147,30 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	SelfCommitment, Decommitment, err := r.HashForID(r.SelfID()).Commit(
-		selfRID_bytes, chainKey_bytes, vssKey_bytes, schnorrCommitment, elgamal_bytes, pedersen_bytes)
+	h := r.Hash().Clone()
+	h.WriteAny("test")
+	hashed := h.Sum()
+	fmt.Printf("Round: %d, hashed: %x\n", r.Number(), hashed)
+
+	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
+		selfRID_bytes,
+		chainKey_bytes,
+		vssExponents_bytes,
+		schnorrCommitment,
+		elgamal_bytes,
+		ped_pub.N(),
+		ped_pub.S(),
+		ped_pub.T(),
+	)
 	if err != nil {
 		return r, errors.New("failed to commit")
+	}
+
+	if err := r.commit_mgr.Import(r.KeyID, r.SelfID(), &commitstore.Commitment{
+		Commitment:   SelfCommitment,
+		Decommitment: Decommitment,
+	}); err != nil {
+		return r, err
 	}
 
 	// should be broadcast but we don't need that here
@@ -162,8 +189,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
-		Commitments:        map[party.ID]hash.Commitment{r.SelfID(): SelfCommitment},
-		Decommitment:       Decommitment,
+		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}
 	return nextRound, nil

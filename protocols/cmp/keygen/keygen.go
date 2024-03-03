@@ -37,8 +37,11 @@ import (
 	comm_mpckey "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 
+	inmem_commitstore "github.com/mr-shifu/mpc-lib/pkg/commitstore"
 	inmem_keyrepo "github.com/mr-shifu/mpc-lib/pkg/keyrepository"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/commitment"
+	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -53,6 +56,7 @@ type MPCKeygen struct {
 	chainKey_km comm_rid.RIDKeyManager
 	hash_mgr    comm_hash.HashManager
 	mpc_ks      comm_mpckey.MPCKeystore
+	commit_mgr  comm_commitment.CommitmentManager
 	// keys              map[string]round.Info
 	// roundStates       map[string]int
 }
@@ -101,6 +105,10 @@ func NewMPCKeygen() *MPCKeygen {
 	hash_ks := keystore.NewInMemoryKeystore()
 	hash_mgr := sw_hash.NewHashManager(hash_ks)
 
+	commitstore := inmem_commitstore.NewInMemoryCommitstore()
+	commit_kr := inmem_keyrepo.NewKeyRepository()
+	commit_mgr := commitment.NewCommitmentManager(commitstore, commit_kr)
+
 	return &MPCKeygen{
 		mpc_ks:      mpc_ks,
 		elgamal_km:  elgamal,
@@ -110,6 +118,7 @@ func NewMPCKeygen() *MPCKeygen {
 		rid_km:      rid,
 		chainKey_km: chainKey,
 		hash_mgr:    hash_mgr,
+		commit_mgr:  commit_mgr,
 	}
 
 }
@@ -184,6 +193,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			ecdsa_km:    m.ecdsa_km,
 			rid_km:      m.rid_km,
 			chainKey_km: m.chainKey_km,
+			commit_mgr:  m.commit_mgr,
 		}, nil
 
 	}

@@ -18,6 +18,7 @@ import (
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -38,6 +39,7 @@ type round3 struct {
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
+	commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -132,18 +134,12 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err := pedersen.ValidateParameters(body.N, body.S, body.T); err != nil {
 		return err
 	}
-	// Verify decommit
-	if !r.HashForID(from).Decommit(r.Commitments[from], body.Decommitment,
-		body.RID, body.C, VSSPolynomial, body.SchnorrCommitments, body.ElGamalPublic, body.N, body.S, body.T) {
-		// return errors.New("failed to decommit")
-	}
 
 	r.rid_km.ImportKey(r.KeyID, string(from), body.RID)
 
 	r.chainKey_km.ImportKey(r.KeyID, string(from), body.C)
 
-	paillierKey := sw_paillier.NewPaillierKey(nil, paillier.NewPublicKey(body.N))
-	paillier_byte, err := paillierKey.Bytes()
+	paillier_byte, err := sw_paillier.NewPaillierKey(nil, paillier.NewPublicKey(body.N)).Bytes()
 	if err != nil {
 		return err
 	}
@@ -151,8 +147,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	ped := sw_pedersen.NewPedersenKey(nil, pedersen.New(arith.ModulusFromN(body.N), body.S, body.T))
-	ped_byte, err := ped.Bytes()
+	ped_byte, err := sw_pedersen.NewPedersenKey(nil, pedersen.New(arith.ModulusFromN(body.N), body.S, body.T)).PublicKey().Bytes()
 	if err != nil {
 		return err
 	}
@@ -177,17 +172,40 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
 		return err
 	}
-	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
-		return err
-	}
-
-	// r.SchnorrCommitments[from] = body.SchnorrCommitments
 	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
 		return err
 	}
 
-	if _, err := r.elgamal_km.ImportKey(r.KeyID, string(from), body.ElGamalPublic); err != nil {
+	elgamal, err := r.elgamal_km.ImportKey(r.KeyID, string(from), body.ElGamalPublic)
+	if err != nil {
 		return err
+	}
+	elgamal_bytes, err := elgamal.PublicKey().Bytes()
+	if err != nil {
+		return err
+	}
+
+	// Verify decommit
+	cmt, err := r.commit_mgr.Get(r.KeyID, from)
+	if err != nil {
+		return err
+	}
+	cmt.Decommitment = body.Decommitment
+	if err := r.commit_mgr.Import(r.KeyID, from, cmt); err != nil {
+		return err
+	}
+
+	if !r.Hash().Clone().Decommit(cmt.Commitment, body.Decommitment,
+		[]byte(body.RID),
+		[]byte(body.C),
+		vss_bytes,
+		body.SchnorrCommitments,
+		elgamal_bytes,
+		body.N,
+		body.S,
+		body.T,
+	) {
+		return errors.New("failed to decommit")
 	}
 
 	// Mark the message as received
@@ -336,6 +354,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ecdsa_km:           r.ecdsa_km,
 		rid_km:             r.rid_km,
 		chainKey_km:        r.chainKey_km,
+		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessagesForwarded:  make(map[party.ID]bool),
 	}, nil

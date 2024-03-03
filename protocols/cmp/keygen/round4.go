@@ -11,6 +11,7 @@ import (
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
 	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
@@ -32,6 +33,7 @@ type round4 struct {
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
+	commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool

@@ -62,7 +62,5 @@ func (e *ElgamalKeyManager) GetKey(keyID string, partyID string) (comm_elgamal.E
 		return nil, errors.New("key not found")
 	}
 
-	
-
 	return e.km.GetKey(k.SKI)
 }
