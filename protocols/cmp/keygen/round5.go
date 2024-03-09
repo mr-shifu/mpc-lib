@@ -48,7 +48,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// 	r.SchnorrCommitments[from], nil) {
 	// 	return errors.New("failed to validate schnorr proof for received share")
 	// }
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}

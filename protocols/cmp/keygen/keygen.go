@@ -88,7 +88,7 @@ func NewMPCKeygen() *MPCKeygen {
 
 	ecdsa_ks := keystore.NewInMemoryKeystore()
 	schstore := keystore.NewInMemoryKeystore()
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, schstore, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, schstore, vss_km, nil, nil, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa_kr := inmem_keyrepo.NewKeyRepository()
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
@@ -120,7 +120,6 @@ func NewMPCKeygen() *MPCKeygen {
 		hash_mgr:    hash_mgr,
 		commit_mgr:  commit_mgr,
 	}
-
 }
 
 func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *config.Config) protocol.StartFunc {

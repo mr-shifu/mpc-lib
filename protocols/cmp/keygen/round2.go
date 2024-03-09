@@ -53,7 +53,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		Commitment:   body.Commitment,
 		Decommitment: nil,
 	}
-	if err := r.commit_mgr.Import(r.KeyID, msg.From, cmt); err != nil {
+	if err := r.commit_mgr.Import(r.ID, msg.From, cmt); err != nil {
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// TODO need keyID to get the key
-	elgamalKey, err := r.elgamal_km.GetKey(r.KeyID, string(r.SelfID()))
+	elgamalKey, err := r.elgamal_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -88,17 +88,17 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	rid, err := r.rid_km.GetKey(r.KeyID, string(r.SelfID()))
+	rid, err := r.rid_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GetKey(r.KeyID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -131,13 +131,13 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.KeyID, string(r.SelfID()))
+	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// Send the message we created in Round1 to all
-	cmt, err := r.commit_mgr.Get(r.KeyID, r.SelfID())
+	cmt, err := r.commit_mgr.Get(r.ID, r.SelfID())
 	if err != nil {
 		return nil, err
 	}

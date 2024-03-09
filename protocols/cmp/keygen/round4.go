@@ -63,11 +63,11 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// verify zkmod
-	ped, err := r.pedersen_km.GetKey(r.KeyID, string(from))
+	ped, err := r.pedersen_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}
-	paillier, err := r.paillier_km.GetKey(r.KeyID, string(from))
+	paillier, err := r.paillier_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	paillierKey, err := r.paillier_km.GetKey(r.KeyID, string(r.SelfID()))
+	paillierKey, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -104,13 +104,13 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return errors.New("invalid ciphertext")
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.KeyID, string(r.SelfID()))
+	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
 
 	// verify zkfac
-	paillierj, err := r.paillier_km.GetKey(r.KeyID, string(from))
+	paillierj, err := r.paillier_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message4)
 
 	// decrypt share
-	paillierKey, err := r.paillier_km.GetKey(r.KeyID, string(r.SelfID()))
+	paillierKey, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -148,12 +148,12 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// verify share with VSS
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}
 	vssKey, err := ecKey.VSS()
-	// vssKey, err := r.vss_km.GetKey(r.KeyID, string(r.SelfID()))
+	// vssKey, err := r.vss_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -196,12 +196,12 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// integrate creation of MPC Key VSS polynomial, shares and ECDSA key together
-	if err := r.ecdsa_km.GenerateMPCKeyFromShares(r.KeyID, r.SelfID(), r.Group()); err != nil {
+	if err := r.ecdsa_km.GenerateMPCKeyFromShares(r.ID, r.SelfID(), r.Group()); err != nil {
 		return nil, err
 	}
 
 	// compute the new public key share Xⱼ = F(j) (+X'ⱼ if doing a refresh)
-	mpcKey, err := r.ecdsa_km.GetKey(r.KeyID, "ROOT")
+	mpcKey, err := r.ecdsa_km.GetKey(r.ID, "ROOT")
 	if err != nil {
 		return nil, err
 	}
@@ -211,17 +211,17 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		elgamalj, err := r.elgamal_km.GetKey(r.KeyID, string(j))
+		elgamalj, err := r.elgamal_km.GetKey(r.ID, string(j))
 		if err != nil {
 			return r, err
 		}
 
-		paillierj, err := r.paillier_km.GetKey(r.KeyID, string(j))
+		paillierj, err := r.paillier_km.GetKey(r.ID, string(j))
 		if err != nil {
 			return r, err
 		}
 
-		pedersenj, err := r.pedersen_km.GetKey(r.KeyID, string(j))
+		pedersenj, err := r.pedersen_km.GetKey(r.ID, string(j))
 		if err != nil {
 			return r, err
 		}
@@ -238,7 +238,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
-	mpckey, err := r.mpc_ks.Get(r.KeyID)
+	mpckey, err := r.mpc_ks.Get(r.ID)
 	if err != nil {
 		return r, err
 	}
@@ -267,7 +267,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
 	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return r, err
 	}

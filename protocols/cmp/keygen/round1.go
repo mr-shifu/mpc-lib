@@ -68,13 +68,13 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // - commit to message.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// generate Paillier and Pedersen
-	_, err := r.paillier_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	_, err := r.paillier_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// derive Pedersen from Paillier
-	pedersenKey, err := r.paillier_km.DerivePedersenKey(r.KeyID, string(r.SelfID()))
+	pedersenKey, err := r.paillier_km.DerivePedersenKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +82,16 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.pedersen_km.ImportKey(r.KeyID, string(r.SelfID()), pedersen_kb)
+	r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersen_kb)
 
 	// generate ElGamal key
-	elgamlKey, err := r.elgamal_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	elgamlKey, err := r.elgamal_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// save our own share already so we are consistent with what we receive from others
-	key, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	key, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -110,12 +110,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Sample RIDᵢ
-	selfRID, err := r.rid_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	selfRID, err := r.rid_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, errors.New("failed to commit")
 	}
 
-	if err := r.commit_mgr.Import(r.KeyID, r.SelfID(), &commitstore.Commitment{
+	if err := r.commit_mgr.Import(r.ID, r.SelfID(), &commitstore.Commitment{
 		Commitment:   SelfCommitment,
 		Decommitment: Decommitment,
 	}); err != nil {
