@@ -14,22 +14,6 @@ var _ round.Round = (*round5)(nil)
 type round5 struct {
 	*round4
 
-	// SigmaShares[j] = σⱼ = m⋅kⱼ + χⱼ⋅R|ₓ
-	SigmaShares map[party.ID]curve.Scalar
-
-	// Delta = δ = ∑ⱼ δⱼ
-	// computed from received shares
-	Delta curve.Scalar
-
-	// BigDelta = Δ = ∑ⱼ Δⱼ
-	BigDelta curve.Point
-
-	// R = [δ⁻¹] Γ
-	BigR curve.Point
-
-	// R = R|ₓ
-	R curve.Scalar
-
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
 }
@@ -52,7 +36,10 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	r.SigmaShares[msg.From] = body.SigmaShare
+	// r.SigmaShares[msg.From] = body.SigmaShare
+	if err := r.sigma.ImportSigma(r.cfg.ID(), string(msg.From), body.SigmaShare); err != nil {
+		return err
+	}
 
 	// Mark the message as received
 	r.MessageBroadcasted[msg.From] = true
@@ -79,15 +66,26 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	// compute σ = ∑ⱼ σⱼ
 	Sigma := r.Group().NewScalar()
 	for _, j := range r.PartyIDs() {
-		Sigma.Add(r.SigmaShares[j])
+		sigmaShare, err := r.sigma.GetSigma(r.cfg.ID(), string(j))
+		if err != nil {
+			return nil, err
+		}
+		Sigma = Sigma.Add(sigmaShare)
 	}
 
+	r.signature.ImportSignSigma(r.cfg.ID(), Sigma)
+	signR := r.signature.SignR(r.cfg.ID())
+
 	signature := &ecdsa.Signature{
-		R: r.BigR,
+		R: signR,
 		S: Sigma,
 	}
 
-	if !signature.Verify(r.PublicKey, r.Message) {
+	ecKey, err := r.ec.GetKey(r.cfg.KeyID(), "ROOT")
+	if err != nil {
+		return nil, err
+	}
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
 		return r.AbortRound(errors.New("failed to validate signature")), nil
 	}
 
