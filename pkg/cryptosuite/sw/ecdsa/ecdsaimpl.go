@@ -7,6 +7,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
+	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
@@ -28,6 +30,10 @@ type ECDSAKey struct {
 	zks *zksch.ZKSchnorr
 
 	vssmgr comm_vss.VssKeyManager
+
+	pekmgr comm_pek.PaillierEncodedKeyManager
+
+	mtamgr comm_mta.MtAManager
 }
 
 type rawECDSAKey struct {
@@ -101,9 +107,19 @@ func (key ECDSAKey) withVSSKeyMgr(vssmgr comm_vss.VssKeyManager) ECDSAKey {
 	return key
 }
 
+func (key ECDSAKey) withPekMgr(pekmgr comm_pek.PaillierEncodedKeyManager) ECDSAKey {
+	key.pekmgr = pekmgr
+	return key
+}
+
+func (key ECDSAKey) withMtAMgr(mtamgr comm_mta.MtAManager) ECDSAKey {
+	key.mtamgr = mtamgr
+	return key
+}
+
 func fromBytes(data []byte) (ECDSAKey, error) {
 	key := ECDSAKey{}
-	
+
 	raw := &rawECDSAKey{}
 	if err := cbor.Unmarshal(data, raw); err != nil {
 		return ECDSAKey{}, err

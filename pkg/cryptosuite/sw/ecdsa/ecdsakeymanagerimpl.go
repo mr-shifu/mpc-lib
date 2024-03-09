@@ -8,6 +8,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
+	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
@@ -21,14 +23,24 @@ type ECDSAKeyManager struct {
 	keystore     keystore.Keystore
 	schnorrstore keystore.Keystore
 	vssmgr       comm_vss.VssKeyManager
+	pekmgr       comm_pek.PaillierEncodedKeyManager
+	mtamgr       comm_mta.MtAManager
 	cfg          *Config
 }
 
-func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore, vssmgr comm_vss.VssKeyManager, cfg *Config) *ECDSAKeyManager {
+func NewECDSAKeyManager(
+	store keystore.Keystore,
+	schnorrstore keystore.Keystore,
+	vssmgr comm_vss.VssKeyManager,
+	pekmgr comm_pek.PaillierEncodedKeyManager,
+	mtamgr comm_mta.MtAManager,
+	cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
 		keystore:     store,
 		schnorrstore: schnorrstore,
 		vssmgr:       vssmgr,
+		pekmgr:       pekmgr,
+		mtamgr:       mtamgr,
 		cfg:          cfg,
 	}
 }
