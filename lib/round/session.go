@@ -1,11 +1,9 @@
 package round
 
 import (
-	"encoding/json"
-
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 type Info struct {
@@ -21,25 +19,6 @@ type Info struct {
 	Threshold int
 	// Group returns the group used for this protocol execution.
 	Group curve.Curve
-}
-
-func NewEmptyInfo(g curve.Curve) Info {
-	return Info{
-		Group: g,
-	}
-}
-func (i *Info) Serialize() ([]byte, error) {
-	tbs := Info{
-		ProtocolID:       i.ProtocolID,
-		FinalRoundNumber: i.FinalRoundNumber,
-		SelfID:           i.SelfID,
-		PartyIDs:         i.PartyIDs,
-		Threshold:        i.Threshold,
-	}
-	return json.Marshal(tbs)
-}
-func (Info) Deserialze(data []byte, info *Info) error {
-	return json.Unmarshal(data, info)
 }
 
 // Session represents the current execution of a round-based protocol.
