@@ -58,7 +58,7 @@ func ProveAffG(group curve.Curve, h hash.Hash,
 // - Proof = zkaffp proof of correct encryption.
 func ProveAffP(
 	group curve.Curve,
-	h *hash.Hash,
+	h hash.Hash,
 	senderSecretShare *saferith.Int,
 	senderEncryptedShare *paillier.Ciphertext,
 	senderEncryptedShareNonce *saferith.Nat,

@@ -5,18 +5,23 @@ import (
 	"testing"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/zk"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkaffp "github.com/mr-shifu/mpc-lib/core/zk/affp"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_newMtA(t *testing.T) {
+	hs := keystore.NewInMemoryKeystore()
+	mgr := hash.NewHashManager(hs)
+	h := mgr.NewHasher("test")
+
 	group := curve.Secp256k1{}
 
 	source := mrand.New(mrand.NewSource(1))
@@ -55,10 +60,10 @@ func Test_newMtA(t *testing.T) {
 
 	{
 		Ai, Aj := aiScalar.ActOnBase(), ajScalar.ActOnBase()
-		betaI, Di, Fi, proofI := ProveAffG(group, hash.New(), ai, Ai, Bj, ski, paillierJ, zk.Pedersen)
-		betaJ, Dj, Fj, proofJ := ProveAffG(group, hash.New(), aj, Aj, Bi, skj, paillierI, zk.Pedersen)
+		betaI, Di, Fi, proofI := ProveAffG(group, h.Clone(), ai, Ai, Bj, ski, paillierJ, zk.Pedersen)
+		betaJ, Dj, Fj, proofJ := ProveAffG(group, h.Clone(), aj, Aj, Bi, skj, paillierI, zk.Pedersen)
 
-		assert.True(t, proofI.Verify(hash.New(), zkaffg.Public{
+		assert.True(t, proofI.Verify(h.Clone(), zkaffg.Public{
 			Kv:       Bj,
 			Dv:       Di,
 			Fp:       Fi,
@@ -67,7 +72,7 @@ func Test_newMtA(t *testing.T) {
 			Verifier: paillierJ,
 			Aux:      zk.Pedersen,
 		}))
-		assert.True(t, proofJ.Verify(hash.New(), zkaffg.Public{
+		assert.True(t, proofJ.Verify(h.Clone(), zkaffg.Public{
 			Kv:       Bi,
 			Dv:       Dj,
 			Fp:       Fj,
@@ -82,10 +87,10 @@ func Test_newMtA(t *testing.T) {
 	{
 		Ai, nonceI := ski.Enc(ai)
 		Aj, nonceJ := skj.Enc(aj)
-		betaI, Di, Fi, proofI := ProveAffP(group, hash.New(), ai, Ai, nonceI, Bj, ski, paillierJ, zk.Pedersen)
-		betaJ, Dj, Fj, proofJ := ProveAffP(group, hash.New(), aj, Aj, nonceJ, Bi, skj, paillierI, zk.Pedersen)
+		betaI, Di, Fi, proofI := ProveAffP(group, h.Clone(), ai, Ai, nonceI, Bj, ski, paillierJ, zk.Pedersen)
+		betaJ, Dj, Fj, proofJ := ProveAffP(group, h.Clone(), aj, Aj, nonceJ, Bi, skj, paillierI, zk.Pedersen)
 
-		assert.True(t, proofI.Verify(group, hash.New(), zkaffp.Public{
+		assert.True(t, proofI.Verify(group, h.Clone(), zkaffp.Public{
 			Kv:       Bj,
 			Dv:       Di,
 			Fp:       Fi,
@@ -94,7 +99,7 @@ func Test_newMtA(t *testing.T) {
 			Verifier: paillierJ,
 			Aux:      zk.Pedersen,
 		}))
-		assert.True(t, proofJ.Verify(group, hash.New(), zkaffp.Public{
+		assert.True(t, proofJ.Verify(group, h.Clone(), zkaffp.Public{
 			Kv:       Bi,
 			Dv:       Dj,
 			Fp:       Fj,
