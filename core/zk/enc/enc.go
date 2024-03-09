@@ -4,12 +4,12 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 type Public struct {
@@ -61,7 +61,7 @@ func (p *Proof) IsValid(public Public) bool {
 	return true
 }
 
-func NewProof(group curve.Curve, hash *hash.Hash, public Public, private Private) *Proof {
+func NewProof(group curve.Curve, hash hash.Hash, public Public, private Private) *Proof {
 	N := public.Prover.N()
 	NModulus := public.Prover.Modulus()
 
@@ -98,7 +98,7 @@ func NewProof(group curve.Curve, hash *hash.Hash, public Public, private Private
 	}
 }
 
-func (p *Proof) Verify(group curve.Curve, hash *hash.Hash, public Public) bool {
+func (p *Proof) Verify(group curve.Curve, hash hash.Hash, public Public) bool {
 	if !p.IsValid(public) {
 		return false
 	}
@@ -132,7 +132,7 @@ func (p *Proof) Verify(group curve.Curve, hash *hash.Hash, public Public) bool {
 	return true
 }
 
-func challenge(hash *hash.Hash, group curve.Curve, public Public, commitment *Commitment) (e *saferith.Int, err error) {
+func challenge(hash hash.Hash, group curve.Curve, public Public, commitment *Commitment) (e *saferith.Int, err error) {
 	err = hash.WriteAny(public.Aux, public.Prover, public.K,
 		commitment.S, commitment.A, commitment.C)
 	e = sample.IntervalScalar(hash.Digest(), group)
