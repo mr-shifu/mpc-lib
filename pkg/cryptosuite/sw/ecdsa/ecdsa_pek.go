@@ -1,8 +1,6 @@
 package ecdsa
 
 import (
-	"encoding/hex"
-
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
@@ -14,25 +12,8 @@ import (
 func (key ECDSAKey) EncodeByPaillier(pk paillier.PaillierKey) (comm_pek.PaillierEncodedKey, error) {
 	if key.Private() {
 		encoded, nonce := pk.Encode(curve.MakeInt(key.priv))
-		kid := hex.EncodeToString(key.SKI())
-		pek := paillierencodedkey.NewPaillierEncodedkey(nil, encoded, nonce)
-		if err := key.pekmgr.Import(kid, pek); err != nil {
-			return nil, err
-		}
+		pek := paillierencodedkey.NewPaillierEncodedkey(nil, encoded, nonce, key.group)
 		return pek, nil
 	}
 	return nil, nil
-}
-
-func (key ECDSAKey) ImportPaillierEncoded(pek comm_pek.PaillierEncodedKey) error {
-	kid := hex.EncodeToString(key.SKI())
-	if err := key.pekmgr.Import(kid, pek); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (key ECDSAKey) GetPaillierEncodedKey() (comm_pek.PaillierEncodedKey, error) {
-	kid := hex.EncodeToString(key.SKI())
-	return key.pekmgr.Get(kid)
 }
