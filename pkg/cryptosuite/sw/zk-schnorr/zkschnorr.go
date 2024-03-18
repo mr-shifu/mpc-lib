@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	ErrKeyExists   = errors.New("key exists")
-	ErrKeyNotFound = errors.New("key not found")
+	ErrKeyExists   = errors.New("zkschctore: key exists")
+	ErrKeyNotFound = errors.New("zkschctore: key not found")
 )
 
 type ZKSchnorr struct {
