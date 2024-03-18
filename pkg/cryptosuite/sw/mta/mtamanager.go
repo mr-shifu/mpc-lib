@@ -38,18 +38,20 @@ func (m *MtAManager) Import(keyID string, key comm_mta.MtA) error {
 
 func (m *MtAManager) SetAlpha(keyID string, alpha *saferith.Int) error {
 	mta, err := m.Get(keyID)
-	if err != nil {
-		return err
+	if err != nil || mta == nil {
+		mta = NewMtA(alpha, nil)
+	} else {
+		mta.SetAlpha(alpha)
 	}
-	mta.SetAlpha(alpha)
 	return m.Import(keyID, mta)
 }
 
 func (m *MtAManager) SetBeta(keyID string, beta *saferith.Int) error {
 	mta, err := m.Get(keyID)
-	if err != nil {
-		return err
+	if err != nil || mta == nil {
+		mta = NewMtA(beta, nil)
+	} else {
+		mta.SetBeta(beta)
 	}
-	mta.SetBeta(beta)
 	return m.Import(keyID, mta)
 }
