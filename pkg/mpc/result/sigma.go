@@ -62,7 +62,8 @@ func (s *SigmaStore) GetSigma(signID, partyID string) (curve.Scalar, error) {
 		return nil, err
 	}
 
-	var sigma curve.Scalar
+	g := curve.Secp256k1{}
+	sigma := g.NewScalar()
 	if err := sigma.UnmarshalBinary(sb); err != nil {
 		return nil, err
 	}
