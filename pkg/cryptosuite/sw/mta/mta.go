@@ -23,17 +23,20 @@ func NewMtA(alpha, beta *saferith.Int) *MtA {
 }
 
 func (m *MtA) Bytes() ([]byte, error) {
-	alphaBytes, err := m.alpha.MarshalBinary()
-	if err != nil {
-		return nil, err
+	raw := rawMtA{}
+	if m.alpha != nil {
+		alphaBytes, err := m.alpha.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Alpha = alphaBytes
 	}
-	betaBytes, err := m.beta.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	raw := rawMtA{
-		Alpha: alphaBytes,
-		Beta:  betaBytes,
+	if m.beta != nil {
+		betaBytes, err := m.beta.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Beta = betaBytes
 	}
 	return cbor.Marshal(raw)
 }
@@ -61,15 +64,20 @@ func fromBytes(b []byte) (*MtA, error) {
 		return nil, err
 	}
 
+	
 	alpha := new(saferith.Int)
-	err = alpha.UnmarshalBinary(raw.Alpha)
-	if err != nil {
-		return nil, err
+	if raw.Alpha != nil {
+		err = alpha.UnmarshalBinary(raw.Alpha)
+		if err != nil {
+			return nil, err
+		}
 	}
 	beta := new(saferith.Int)
-	err = beta.UnmarshalBinary(raw.Beta)
-	if err != nil {
-		return nil, err
+	if raw.Beta != nil {
+		err = beta.UnmarshalBinary(raw.Beta)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return NewMtA(alpha, beta), nil
 }
