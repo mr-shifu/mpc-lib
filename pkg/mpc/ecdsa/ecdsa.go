@@ -37,11 +37,13 @@ func (e *ECDSAKeyManager) GenerateKey(keyID string, partyID string) (comm_ecdsa.
 		return nil, err
 	}
 
-	if err := e.vsskr.Import(keyID, keyrepository.KeyData{
-		PartyID: partyID,
-		SKI:     ski,
-	}); err != nil {
-		return nil, err
+	if e.vsskr != nil {
+		if err := e.vsskr.Import(keyID, keyrepository.KeyData{
+			PartyID: partyID,
+			SKI:     ski,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	return key, nil
@@ -59,11 +61,13 @@ func (e *ECDSAKeyManager) ImportKey(keyID string, partyID string, key comm_ecdsa
 		return err
 	}
 
-	if err := e.vsskr.Import(keyID, keyrepository.KeyData{
-		PartyID: partyID,
-		SKI:     key.SKI(),
-	}); err != nil {
-		return err
+	if e.vsskr != nil {
+		if err := e.vsskr.Import(keyID, keyrepository.KeyData{
+			PartyID: partyID,
+			SKI:     key.SKI(),
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -77,7 +81,7 @@ func (e *ECDSAKeyManager) GetKey(keyID string, partyID string) (comm_ecdsa.ECDSA
 
 	k, ok := keys[partyID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, errors.New("ecdsa: key not found")
 	}
 
 	return e.km.GetKey(k.SKI)
@@ -110,7 +114,7 @@ func (e *ECDSAKeyManager) GetVSSKey(keyID string, partyID string) (comm_vss.VssK
 
 	k, ok := keys[partyID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, errors.New("ecdsa: key not found")
 	}
 
 	ecKey, err := e.km.GetKey(k.SKI)
