@@ -19,13 +19,15 @@ func NewPaillierKeyManager(km comm_pek.PaillierEncodedKeyManager, kr keyreposito
 }
 
 func (mgr *PaillierEncodedKeyManager) ImportKey(keyID string, partyID string, k comm_pek.PaillierEncodedKey) (comm_pek.PaillierEncodedKey, error) {
-	if err := mgr.km.Import(keyID, k); err != nil {
+	kid := uuid.New().String()
+
+	if _, err := mgr.km.Import(kid, k); err != nil {
 		return nil, err
 	}
 
 	if err := mgr.kr.Import(keyID, keyrepository.KeyData{
 		PartyID: partyID,
-		SKI:     []byte(uuid.New().String()),
+		SKI:     []byte(kid),
 	}); err != nil {
 		return nil, err
 	}
