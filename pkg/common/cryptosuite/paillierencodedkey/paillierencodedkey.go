@@ -1,4 +1,4 @@
-package paillierencodedkeystore
+package paillierencodedkey
 
 import (
 	"github.com/cronokirby/saferith"
@@ -18,5 +18,5 @@ type PaillierEncodedKey interface {
 
 type PaillierEncodedKeyManager interface {
 	Get(keyID string) (PaillierEncodedKey, error)
-	Import(keyID string, key PaillierEncodedKey) error
+	Import(keyID string, key PaillierEncodedKey) (PaillierEncodedKey, error)
 }
