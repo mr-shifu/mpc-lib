@@ -20,13 +20,15 @@ func NewPaillierKeyManager(km comm_mta.MtAManager, kr keyrepository.KeyRepositor
 }
 
 func (mgr *PaillierEncodedKeyManager) ImportKey(keyID string, partyID string, k comm_mta.MtA) (comm_mta.MtA, error) {
-	if err := mgr.km.Import(keyID, k); err != nil {
+	kid := uuid.New().String()
+	
+	if err := mgr.km.Import(kid, k); err != nil {
 		return nil, err
 	}
 
 	if err := mgr.kr.Import(keyID, keyrepository.KeyData{
 		PartyID: partyID,
-		SKI:     []byte(uuid.New().String()),
+		SKI:     []byte(kid),
 	}); err != nil {
 		return nil, err
 	}
@@ -49,9 +51,29 @@ func (mgr *PaillierEncodedKeyManager) GetKey(keyID string, partyID string) (comm
 }
 
 func (mgr *PaillierEncodedKeyManager) SetAlpha(keyID string, partyID string, alpha *saferith.Int) error {
-	return mgr.km.SetAlpha(keyID, alpha)
+	keys, err := mgr.kr.GetAll(keyID)
+	if err != nil {
+		return  err
+	}
+
+	k, ok := keys[partyID]
+	if !ok {
+		return errors.New("key not found")
+	}
+
+	return mgr.km.SetAlpha(string(k.SKI), alpha)
 }
 
 func (mgr *PaillierEncodedKeyManager) SetBeta(keyID string, partyID string, beta *saferith.Int) error {
-	return mgr.km.SetBeta(keyID, beta)
+	keys, err := mgr.kr.GetAll(keyID)
+	if err != nil {
+		return  err
+	}
+
+	k, ok := keys[partyID]
+	if !ok {
+		return errors.New("key not found")
+	}
+
+	return mgr.km.SetBeta(string(k.SKI), beta)
 }
