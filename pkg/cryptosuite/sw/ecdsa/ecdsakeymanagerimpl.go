@@ -23,7 +23,6 @@ type ECDSAKeyManager struct {
 	keystore     keystore.Keystore
 	schnorrstore keystore.Keystore
 	vssmgr       comm_vss.VssKeyManager
-	pekmgr       comm_pek.PaillierEncodedKeyManager
 	mtamgr       comm_mta.MtAManager
 	cfg          *Config
 }
@@ -32,14 +31,12 @@ func NewECDSAKeyManager(
 	store keystore.Keystore,
 	schnorrstore keystore.Keystore,
 	vssmgr comm_vss.VssKeyManager,
-	pekmgr comm_pek.PaillierEncodedKeyManager,
 	mtamgr comm_mta.MtAManager,
 	cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
 		keystore:     store,
 		schnorrstore: schnorrstore,
 		vssmgr:       vssmgr,
-		pekmgr:       pekmgr,
 		mtamgr:       mtamgr,
 		cfg:          cfg,
 	}
@@ -72,7 +69,8 @@ func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 	// return the key pair
 	return key.
 		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
-		withVSSKeyMgr(mgr.vssmgr), nil
+		withVSSKeyMgr(mgr.vssmgr).
+		withMtAMgr(mgr.mtamgr), nil
 }
 
 func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) (comm_ecdsa.ECDSAKey, error) {
@@ -98,7 +96,8 @@ func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) (comm_ecdsa.ECDSA
 
 	return k.
 		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
-		withVSSKeyMgr(mgr.vssmgr), nil
+		withVSSKeyMgr(mgr.vssmgr).
+		withMtAMgr(mgr.mtamgr), nil
 }
 
 func (mgr *ECDSAKeyManager) GetKey(ski []byte) (comm_ecdsa.ECDSAKey, error) {
