@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrKeyNotFound = errors.New("key not found")
+	ErrKeyNotFound = errors.New("paillierencodedkey: key not found")
 )
 
 type PaillierEncodedKey struct {
@@ -28,80 +28,98 @@ type rawPaillierEncodedKey struct {
 	Nonce   []byte
 }
 
-func NewPaillierEncodedkey(secret curve.Scalar, encoded *paillier.Ciphertext, nonce *saferith.Nat) pek.PaillierEncodedKey {
+func NewPaillierEncodedkey(secret curve.Scalar, encoded *paillier.Ciphertext, nonce *saferith.Nat, curve curve.Curve) pek.PaillierEncodedKey {
 	return &PaillierEncodedKey{
-		group:   secret.Curve(),
+		group:   curve,
 		secret:  secret,
 		encoded: encoded,
 		nonce:   nonce,
 	}
 }
 
-func (k *PaillierEncodedKey) Bytes() ([]byte, error) {
+func (k PaillierEncodedKey) Bytes() ([]byte, error) {
 	group := k.group.Name()
-	sk_bytes, err := k.secret.MarshalBinary()
-	if err != nil {
-		return nil, err
+
+	raw := rawPaillierEncodedKey{
+		Group: group,
 	}
+
+	if k.secret != nil {
+		sk_bytes, err := k.secret.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Secret = sk_bytes
+	}
+
 	enc_bytes, err := k.encoded.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	nonce_bytes, err := k.nonce.MarshalBinary()
-	if err != nil {
-		return nil, err
+	raw.Encoded = enc_bytes
+
+	if k.nonce != nil {
+		nonce_bytes, err := k.nonce.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.Nonce = nonce_bytes
 	}
-	raw := rawPaillierEncodedKey{
-		Group:   group,
-		Secret:  sk_bytes,
-		Encoded: enc_bytes,
-		Nonce:   nonce_bytes,
-	}
+
 	return cbor.Marshal(raw)
 }
 
-func (k *PaillierEncodedKey) Secret() curve.Scalar {
+func (k PaillierEncodedKey) Secret() curve.Scalar {
 	return k.secret
 }
 
-func (k *PaillierEncodedKey) Encoded() *paillier.Ciphertext {
+func (k PaillierEncodedKey) Encoded() *paillier.Ciphertext {
 	return k.encoded
 }
 
-func (k *PaillierEncodedKey) Nonce() *saferith.Nat {
+func (k PaillierEncodedKey) Nonce() *saferith.Nat {
 	return k.nonce
 }
 
-func fromBytes(data []byte) (*PaillierEncodedKey, error) {
+func fromBytes(data []byte) (PaillierEncodedKey, error) {
 	var raw rawPaillierEncodedKey
 	err := cbor.Unmarshal(data, &raw)
 	if err != nil {
-		return nil, err
+		return PaillierEncodedKey{}, err
 	}
+
 	var group curve.Curve
 	switch raw.Group {
 	case "secp256k1":
 		group = curve.Secp256k1{}
 	}
-	sk := group.NewScalar()
-	err = sk.UnmarshalBinary(raw.Secret)
-	if err != nil {
-		return nil, err
+
+	k := &PaillierEncodedKey{
+		group: group,
 	}
+
+	if raw.Secret != nil {
+		sk := group.NewScalar()
+		err = sk.UnmarshalBinary(raw.Secret)
+		if err != nil {
+			return PaillierEncodedKey{}, err
+		}
+		k.secret = sk
+	}
+
 	enc := &paillier.Ciphertext{}
 	err = enc.UnmarshalBinary(raw.Encoded)
 	if err != nil {
-		return nil, err
+		return PaillierEncodedKey{}, err
 	}
+	k.encoded = enc
+
 	nonce := new(saferith.Nat)
 	err = nonce.UnmarshalBinary(raw.Nonce)
 	if err != nil {
-		return nil, err
+		return PaillierEncodedKey{}, err
 	}
-	return &PaillierEncodedKey{
-		group:   group,
-		secret:  sk,
-		encoded: enc,
-		nonce:   nonce,
-	}, nil
+	k.nonce = nonce
+
+	return *k, nil
 }
