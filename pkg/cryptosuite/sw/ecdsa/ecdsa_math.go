@@ -1,6 +1,7 @@
 package ecdsa
 
 import (
+	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 )
@@ -14,7 +15,10 @@ func (key ECDSAKey) Act(g curve.Point, inv bool) curve.Point {
 }
 
 func (key ECDSAKey) Commit(m curve.Scalar, c curve.Scalar) curve.Scalar {
-	return key.group.NewScalar().Set(key.priv).Mul(m).Add(c)
+	g := key.group
+	cmt := new(saferith.Int).Mul(curve.MakeInt(key.priv), curve.MakeInt(m), -1)
+	cmt = cmt.Add(cmt, curve.MakeInt(c), -1)
+	return g.NewScalar().SetNat(cmt.Mod(g.Order()))
 }
 
 func (key ECDSAKey) CommitByKey(multiplierKey comm_ecdsa.ECDSAKey, c curve.Scalar) curve.Scalar {
@@ -23,7 +27,9 @@ func (key ECDSAKey) CommitByKey(multiplierKey comm_ecdsa.ECDSAKey, c curve.Scala
 	if !ok {
 		return nil
 	}
-	return group.NewScalar().Set(key.priv).Mul(mk.priv).Add(c)
+	cmt := new(saferith.Int).Mul(curve.MakeInt(key.priv), curve.MakeInt(mk.priv), -1)
+	cmt = cmt.Add(cmt, curve.MakeInt(c), -1)
+	return group.NewScalar().SetNat(cmt.Mod(group.Order()))
 }
 
 func (key ECDSAKey) Mul(c curve.Scalar) curve.Scalar {
@@ -32,13 +38,13 @@ func (key ECDSAKey) Mul(c curve.Scalar) curve.Scalar {
 
 func (key ECDSAKey) AddKeys(keys ...comm_ecdsa.ECDSAKey) curve.Scalar {
 	group := key.group
-	sum := group.NewScalar().Set(key.priv)
+	sum := group.NewScalar().SetNat(curve.MakeInt(key.priv).Mod(group.Order())) // group.NewScalar().Set(key.priv)
 	for _, k := range keys {
 		k, ok := k.(ECDSAKey)
 		if !ok {
 			return nil
 		}
-		sum = sum.Add(group.NewScalar().Set(k.priv))
+		sum = sum.Add(group.NewScalar().SetNat(curve.MakeInt(k.priv).Mod(group.Order())))
 	}
-	return sum
+	return group.NewScalar().SetNat(curve.MakeInt(sum).Mod(group.Order()))
 }
