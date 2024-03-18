@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrKeyNotFound = errors.New("key not found")
+	ErrKeyNotFound = errors.New("keystore: key not found")
 )
 
 type InMemoryKeystore struct {

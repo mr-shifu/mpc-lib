@@ -8,6 +8,10 @@ import (
 	comm_keyrepository "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 )
 
+var (
+	ErrKeyNotFound = errors.New("elgamal: key not found")
+)
+
 type ElgamalKeyManager struct {
 	km comm_elgamal.ElgamalKeyManager
 	kr comm_keyrepository.KeyRepository
@@ -59,7 +63,7 @@ func (e *ElgamalKeyManager) GetKey(keyID string, partyID string) (comm_elgamal.E
 
 	k, ok := keys[partyID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, ErrKeyNotFound
 	}
 
 	return e.km.GetKey(k.SKI)

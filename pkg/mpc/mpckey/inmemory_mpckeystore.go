@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrKeyAlreadyExists = errors.New("key already exists")
-	ErrKeyNotFound      = errors.New("key not found")
+	ErrKeyAlreadyExists = errors.New("mpckey: key already exists")
+	ErrKeyNotFound      = errors.New("mpckey: key not found")
 )
 
 type InMemoryMPCKeystore struct {
