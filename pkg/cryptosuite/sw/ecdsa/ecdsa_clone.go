@@ -7,13 +7,14 @@ import (
 
 func (key ECDSAKey) CloneByMultiplier(c curve.Scalar) comm_ecdsa.ECDSAKey {
 	group := key.group
-	priv := group.NewScalar().Set(c).Mul(key.priv)
-	pub := c.Act(key.pub)
-	return ECDSAKey{
-		priv:  priv,
-		pub:   pub,
+	cloned := ECDSAKey{
 		group: group,
 	}
+	if key.Private() {
+		cloned.priv = group.NewScalar().Set(c).Mul(key.priv)
+	}
+	cloned.pub = c.Act(key.pub)
+	return cloned
 }
 
 func (key ECDSAKey) CloneByKeyMultiplier(multiplierKey comm_ecdsa.ECDSAKey, c curve.Scalar) comm_ecdsa.ECDSAKey {
@@ -22,11 +23,13 @@ func (key ECDSAKey) CloneByKeyMultiplier(multiplierKey comm_ecdsa.ECDSAKey, c cu
 	if !ok {
 		return nil
 	}
-	priv := group.NewScalar().Set(key.priv).Mul(mk.priv).Add(c)
-	pub := c.Act(key.pub)
-	return ECDSAKey{
-		priv:  priv,
-		pub:   pub,
+	cloned := ECDSAKey{
 		group: group,
 	}
+	if key.Private() {
+		cloned.priv = group.NewScalar().Set(key.priv).Mul(mk.priv).Add(c)
+	}
+	cloned.pub = c.Act(key.pub)
+	
+	return cloned
 }
