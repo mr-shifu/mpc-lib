@@ -21,7 +21,7 @@ func newEcdsakeyManager() *ECDSAKeyManager {
 	sharestore := vss.NewInMemoryVSSShareStore()
 	vssmgr := vss.NewVssKeyManager(vss_ks, sharestore, cfg.Group)
 
-	mgr := NewECDSAKeyManager(ks, schstore, vssmgr, nil, nil, cfg)
+	mgr := NewECDSAKeyManager(ks, schstore, vssmgr, nil, cfg)
 
 	return mgr
 }

@@ -67,14 +67,11 @@ type ECDSAKey interface {
 
 	EncodeByPaillier(pk paillier.PaillierKey) (comm_pek.PaillierEncodedKey, error)
 
-	ImportPaillierEncoded(pek comm_pek.PaillierEncodedKey) error
-
-	GetPaillierEncodedKey() (comm_pek.PaillierEncodedKey, error)
-
-	NewZKEncProof(h hash.Hash, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
+	NewZKEncProof(h hash.Hash, pek comm_pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
 
 	NewZKLogstarProof(
 		h hash.Hash,
+		pek comm_pek.PaillierEncodedKey,
 		C *paillier_core.Ciphertext,
 		X curve.Point,
 		G curve.Point,

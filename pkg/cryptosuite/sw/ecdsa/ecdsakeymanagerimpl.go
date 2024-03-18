@@ -9,7 +9,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
-	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
