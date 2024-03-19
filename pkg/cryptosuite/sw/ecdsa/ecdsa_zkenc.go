@@ -5,15 +5,11 @@ import (
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
-func (k ECDSAKey) NewZKEncProof(h hash.Hash, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error) {
-	pek, err := k.GetPaillierEncodedKey()
-	if err != nil {
-		return nil, err
-	}
-
+func (k ECDSAKey) NewZKEncProof(h hash.Hash, pek comm_pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error) {
 	proof := zkenc.NewProof(
 		k.Group(),
 		h,
