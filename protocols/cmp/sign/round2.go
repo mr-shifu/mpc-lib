@@ -43,7 +43,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	paillierj, err := r.paillier_km.GetKey(r.ID, string(from))
+	paillierj, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
 	if err != nil {
 		return err
 	}
@@ -52,19 +52,14 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("invalid K, G")
 	}
 
-	k_pekj := pek.NewPaillierEncodedkey(nil, body.K, nil)
-	KShare, err := r.signK.GetKey(r.ID, string(from))
-	if err != nil {
+	k_pekj := pek.NewPaillierEncodedkey(nil, body.K, nil, r.Group())
+	if _, err := r.signK_pek.ImportKey(r.ID, string(from), k_pekj); err != nil {
 		return err
 	}
-	if err := KShare.ImportPaillierEncoded(k_pekj); err != nil {
-		return nil
-	}
 
-	gamma_pekj := pek.NewPaillierEncodedkey(nil, body.G, nil)
-	gamma, err := r.gamma.GetKey(r.ID, string(from))
-	if err := gamma.ImportPaillierEncoded(gamma_pekj); err != nil {
-		return nil
+	gamma_pekj := pek.NewPaillierEncodedkey(nil, body.G, nil, r.Group())
+	if _, err := r.gamma_pek.ImportKey(r.ID, string(from), gamma_pekj); err != nil {
+		return err
 	}
 
 	// Mark the message as received
@@ -87,16 +82,16 @@ func (r *round2) VerifyMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	paillierFrom, err := r.paillier_km.GetKey(r.ID, string(from))
+	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
 	if err != nil {
 		return err
 	}
-	pedersenTo, err := r.pedersen_km.GetKey(r.ID, string(to))
+	pedersenTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
 	if err != nil {
 		return err
 	}
-	KShare, err := r.signK.GetKey(r.ID, string(from))
-	Kj, err := KShare.GetPaillierEncodedKey()
+
+	Kj, err := r.signK_pek.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}
@@ -146,18 +141,14 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		j := otherIDs[i]
 
 		// TODO must be changed to signID
-		gamma, err := r.gamma.GetKey(r.cfg.ID(), string(j))
+		gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
 		if err != nil {
 			return err
 		}
-		ShareK, err := r.signK.GetKey(r.cfg.ID(), string(j))
+		eckey, err := r.ec.GetKey(r.cfg.ID(), string(r.SelfID()))
 		if err != nil {
 			return err
-		}
-		k_pek, err := ShareK.GetPaillierEncodedKey()
-		if err != nil {
-			return err
-		}
+		}		
 		paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
 		if err != nil {
 			return err
@@ -170,6 +161,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return err
 		}
+		k_pek, err := r.signK_pek.GetKey(r.cfg.ID(), string(j))
+		if err != nil {
+			return err
+		}
 
 		DeltaBeta, DeltaD, DeltaF, DeltaProof := gamma.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
@@ -179,7 +174,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			pedj.PublicKey(),
 		)
 
-		ChiBeta, ChiD, ChiF, ChiProof := gamma.NewMtAAffgProof(
+		ChiBeta, ChiD, ChiF, ChiProof := eckey.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
@@ -187,14 +182,15 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			pedj.PublicKey(),
 		)
 
-		gammaPEK, err := gamma.GetPaillierEncodedKey()
+		gammaPEK, err := r.gamma_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
 		if err != nil {
 			return err
 		}
 		proof, err := gamma.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
-			gammaPEK.Encoded(),   // G
-			gamma.PublicKeyRaw(), // Gamma
+			gammaPEK,
+			gammaPEK.Encoded(),
+			gamma.PublicKeyRaw(),
 			nil,
 			paillierKey.PublicKey(),
 			pedj.PublicKey(),

@@ -89,7 +89,7 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	gammaFrom_pek, err := gammaFrom.GetPaillierEncodedKey()
+	gammaFrom_pek, err := r.gamma_pek.GetKey(r.cfg.ID(), string(from))
 	if err != nil {
 		return err
 	}
@@ -99,11 +99,7 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 		return err
 	}
 
-	shareKTo, err := r.signK.GetKey(r.cfg.ID(), string(to))
-	if err != nil {
-		return err
-	}
-	shareKTo_pek, err := shareKTo.GetPaillierEncodedKey()
+	shareKTo_pek, err := r.signK_pek.GetKey(r.cfg.ID(), string(to))
 	if err != nil {
 		return err
 	}
@@ -152,7 +148,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message3)
 
 	// αᵢⱼ
-	paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
 	if err != nil {
 		return err
 	}
@@ -193,7 +189,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// Γ = ∑ⱼ Γⱼ
 	Gamma := r.Group().NewPoint()
-	for j := range r.PartyIDs() {
+	for _, j := range r.PartyIDs() {
 		gammaj, err := r.gamma.GetKey(r.cfg.ID(), string(j))
 		if err != nil {
 			return nil, err
@@ -201,7 +197,9 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Gamma = Gamma.Add(gammaj.PublicKeyRaw())
 	}
 	gammaRoot := sw_ecdsa.NewECDSAKey(nil, Gamma, Gamma.Curve())
-	r.gamma.ImportKey(r.cfg.ID(), "ROOT", gammaRoot)
+	if err := r.gamma.ImportKey(r.cfg.ID(), "ROOT", gammaRoot); err != nil {
+		return nil, err
+	}
 
 	// Δᵢ = [kᵢ]Γ
 	KShare, err := r.signK.GetKey(r.cfg.ID(), string(r.SelfID()))
@@ -215,44 +213,44 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// δᵢ = γᵢ kᵢ + ∑ⱼ δᵢⱼ
-	delta_mta_sum := new(saferith.Int)
+	deltaSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
 		//δᵢ += αᵢⱼ + βᵢⱼ
 		deltaj, err := r.delta_mta.GetKey(r.cfg.ID(), string(j))
 		if err != nil {
 			return nil, err
 		}
-		delta_mta_sum = delta_mta_sum.Add(delta_mta_sum, deltaj.Alpha(), -1)
-		delta_mta_sum = delta_mta_sum.Add(delta_mta_sum, deltaj.Beta(), -1)
+		deltaSum = deltaSum.Add(deltaSum, deltaj.Alpha(), -1)
+		deltaSum = deltaSum.Add(deltaSum, deltaj.Beta(), -1)
 	}
-	delta_mta_sum_scalar := r.Group().NewScalar().SetNat(delta_mta_sum.Mod(r.Group().Order()))
+	deltaSumScalar := r.Group().NewScalar().SetNat(deltaSum.Mod(r.Group().Order()))
 	gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
-	DeltaShareScalar := gamma.CommitByKey(KShare, delta_mta_sum_scalar)
-	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.Act(DeltaShareScalar.Curve().NewBasePoint()), DeltaShareScalar.Curve())
+	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
+	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
 	if err := r.delta.ImportKey(r.cfg.ID(), string(r.SelfID()), deltaShare); err != nil {
 		return nil, err
 	}
 
 	// χᵢ = xᵢ kᵢ + ∑ⱼ χᵢⱼ
-	chi_mta_sum := new(saferith.Int)
+	chiSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
 		chij, err := r.chi_mta.GetKey(r.cfg.ID(), string(j))
 		if err != nil {
 			return nil, err
 		}
-		chi_mta_sum = chi_mta_sum.Add(chi_mta_sum, chij.Alpha(), -1)
-		chi_mta_sum = chi_mta_sum.Add(chi_mta_sum, chij.Beta(), -1)
+		chiSum = chiSum.Add(chiSum, chij.Alpha(), -1)
+		chiSum = chiSum.Add(chiSum, chij.Beta(), -1)
 	}
-	chi_mta_sum_scalar := r.Group().NewScalar().SetNat(chi_mta_sum.Mod(r.Group().Order()))
+	chiSumScalar := r.Group().NewScalar().SetNat(chiSum.Mod(r.Group().Order()))
 	eckey, err := r.ec.GetKey(r.cfg.ID(), string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
-	ChaiShareScalar := eckey.CommitByKey(KShare, chi_mta_sum_scalar)
-	chiShare := sw_ecdsa.NewECDSAKey(ChaiShareScalar, ChaiShareScalar.Act(ChaiShareScalar.Curve().NewBasePoint()), ChaiShareScalar.Curve())
+	ChaiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
+	chiShare := sw_ecdsa.NewECDSAKey(ChaiShareScalar, ChaiShareScalar.ActOnBase(), ChaiShareScalar.Curve())
 	if err := r.chi.ImportKey(r.cfg.ID(), string(r.SelfID()), chiShare); err != nil {
 		return nil, err
 	}
@@ -269,7 +267,8 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
-	KSharePEK, err := KShare.GetPaillierEncodedKey()
+	
+	KSharePEK, err := r.signK_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -285,9 +284,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 		proofLog, err := KShare.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
-			KSharePEK.Encoded(),
-			bigDeltaShare,
-			Gamma,
+			KSharePEK, // PEK
+			KSharePEK.Encoded(), // C
+			bigDeltaShare, // X
+			Gamma, 	// G
 			paillier.PublicKey(),
 			pedj.PublicKey(),
 		)

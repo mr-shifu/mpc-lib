@@ -9,6 +9,7 @@ import (
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mta"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
+	comm_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pek"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 )
 
@@ -19,7 +20,7 @@ type round1 struct {
 
 	cfg       comm_config.SignConfig
 	signature comm_result.Signature
-	
+
 	hash_mgr    comm_hash.HashManager
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
@@ -30,12 +31,15 @@ type round1 struct {
 	delta    comm_ecdsa.ECDSAKeyManager
 	chi      comm_ecdsa.ECDSAKeyManager
 	bigDelta comm_ecdsa.ECDSAKeyManager
-	
+
+	gamma_pek comm_pek.PaillierEncodedKeyManager
+	signK_pek comm_pek.PaillierEncodedKeyManager
+
 	delta_mta comm_mta.MtAManager
 	chi_mta   comm_mta.MtAManager
-	
-	sigma     comm_result.SigmaStore
-	
+
+	sigma comm_result.SigmaStore
+
 	Message []byte
 }
 
@@ -60,13 +64,6 @@ func (round1) StoreMessage(round.Message) error { return nil }
 // In the next round, we send a hash of all the {Kⱼ,Gⱼ}ⱼ.
 // In two rounds, we compare the hashes received and if they are different then we abort.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
-	// load signing metadata
-	// TODO rename it to signing configs
-	// md, err := r.cfg.Get()
-	// if err != nil {
-	// 	return r, err
-	// }
-
 	// Retreive Paillier Key to encode K and Gamma
 	paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
 	if err != nil {
@@ -84,6 +81,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
+	if _, err := r.gamma_pek.ImportKey(r.cfg.ID(), string(r.SelfID()), gammaPEK); err != nil {
+		return r, err
+	}
 
 	// Generate K Scalar using ecdsa keymanager and store its SKI to K keyrepository
 	KShare, err := r.signK.GenerateKey(r.cfg.ID(), string(r.SelfID()))
@@ -95,6 +95,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	KSharePEK, err := KShare.EncodeByPaillier(paillierKey.PublicKey())
 	if err != nil {
 		return nil, err
+	}
+	if _, err := r.signK_pek.ImportKey(r.cfg.ID(), string(r.SelfID()), KSharePEK); err != nil {
+		return r, err
 	}
 
 	otherIDs := r.OtherPartyIDs()
@@ -109,7 +112,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return err
 		}
-		proof, err := KShare.NewZKEncProof(r.HashForID(r.SelfID()), paillierKey.PublicKey(), pedj.PublicKey())
+		proof, err := KShare.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey())
 		if err != nil {
 			return err
 		}

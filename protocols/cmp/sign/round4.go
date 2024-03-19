@@ -72,16 +72,12 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	kFrom, err := r.signK.GetKey(r.cfg.ID(), string(from))
-	if err != nil {
-		return err
-	}
-	kFromPek, err := kFrom.GetPaillierEncodedKey()
+	kFromPek, err := r.signK_pek.GetKey(r.cfg.ID(), string(from))
 	if err != nil {
 		return err
 	}
 
-	bigDeltaShareFrom, err := r.ec.GetKey(r.cfg.ID(), string(from))
+	bigDeltaShareFrom, err := r.bigDelta.GetKey(r.cfg.ID(), string(from))
 	if err != nil {
 		return err
 	}
@@ -186,10 +182,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	SigmaShare := selfKShare.Commit(m, RChi)
-	r.signature.ImportSignR(r.cfg.ID(), BigR);
 	if err := r.sigma.ImportSigma(r.cfg.ID(), string(r.SelfID()), SigmaShare); err != nil {
 		return nil, err
 	}
+	r.signature.ImportSignR(r.cfg.ID(), BigR)
 
 	// Send to all
 	err = r.BroadcastMessage(out, &broadcast5{SigmaShare: SigmaShare})
