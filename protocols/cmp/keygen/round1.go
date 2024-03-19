@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
@@ -146,11 +145,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	h := r.Hash().Clone()
-	h.WriteAny("test")
-	hashed := h.Sum()
-	fmt.Printf("Round: %d, hashed: %x\n", r.Number(), hashed)
 
 	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
 		selfRID_bytes,
