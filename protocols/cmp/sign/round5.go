@@ -81,7 +81,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		S: Sigma,
 	}
 
-	ecKey, err := r.ec.GetKey(r.cfg.KeyID(), "ROOT")
+	ecKey, err := r.ec.GetKey(r.cfg.ID(), "ROOT")
 	if err != nil {
 		return nil, err
 	}
