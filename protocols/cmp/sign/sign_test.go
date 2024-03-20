@@ -52,53 +52,57 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
-	elgamal_kr := keyrepository.NewKeyRepository()
-	elgamal_ks := keystore.NewInMemoryKeystore()
+	ksf := keystore.KeystoreFactory{}
+	krf := keyrepository.KeyRepositoryFactory{}
+
+
+	elgamal_kr := krf.NewKeyRepository(nil)
+	elgamal_ks := ksf.NewKeystore(nil)
 	elgamal_km := sw_elgamal.NewElgamalKeyManager(elgamal_ks, &sw_elgamal.Config{Group: curve.Secp256k1{}})
 	elgamal := mpc_elgamal.NewElgamal(elgamal_km, elgamal_kr)
 
-	paillier_kr := keyrepository.NewKeyRepository()
-	paillier_ks := keystore.NewInMemoryKeystore()
+	paillier_kr := krf.NewKeyRepository(nil)
+	paillier_ks := ksf.NewKeystore(nil)
 	paillier_km := sw_paillier.NewPaillierKeyManager(paillier_ks, pl)
 	paillier := mpc_paillier.NewPaillierKeyManager(paillier_km, paillier_kr)
 
-	pedersen_kr := keyrepository.NewKeyRepository()
-	pedersen_ks := keystore.NewInMemoryKeystore()
+	pedersen_kr := krf.NewKeyRepository(nil)
+	pedersen_ks := ksf.NewKeystore(nil)
 	pedersen_km := sw_pedersen.NewPedersenKeymanager(pedersen_ks)
 	pedersen := mpc_pedersen.NewPedersenKeyManager(pedersen_km, pedersen_kr)
 
-	vss_kr := keyrepository.NewKeyRepository()
-	vss_ks := keystore.NewInMemoryKeystore()
+	vss_kr := krf.NewKeyRepository(nil)
+	vss_ks := ksf.NewKeystore(nil)
 	vss_ss := sw_vss.NewInMemoryVSSShareStore()
 	vss_km := sw_vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
 
-	pek_ks := keystore.NewInMemoryKeystore()
+	pek_ks := ksf.NewKeystore(nil)
 	pek_mgr := sw_pek.NewPaillierEncodedKeyManager(pek_ks)
 
-	mta_ks := keystore.NewInMemoryKeystore()
+	mta_ks := ksf.NewKeystore(nil)
 	mta_mgr := sw_mta.NewMtAManager(mta_ks)
 
-	ecdsa_ks := keystore.NewInMemoryKeystore()
-	ecdsa_kr := keyrepository.NewKeyRepository()
-	sch_ks := keystore.NewInMemoryKeystore()
+	ecdsa_ks := ksf.NewKeystore(nil)
+	ecdsa_kr := krf.NewKeyRepository(nil)
+	sch_ks := ksf.NewKeystore(nil)
 	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, mta_mgr, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
-	rid_kr := keyrepository.NewKeyRepository()
-	rid_ks := keystore.NewInMemoryKeystore()
+	rid_kr := krf.NewKeyRepository(nil)
+	rid_ks := ksf.NewKeystore(nil)
 	rid_km := sw_rid.NewRIDManager(rid_ks)
 	rid := mpc_rid.NewRIDKeyManager(rid_km, rid_kr)
 
-	chainKey_kr := keyrepository.NewKeyRepository()
-	chainKey_ks := keystore.NewInMemoryKeystore()
+	chainKey_kr := krf.NewKeyRepository(nil)
+	chainKey_ks := ksf.NewKeystore(nil)
 	chainKey_km := sw_rid.NewRIDManager(chainKey_ks)
 	chainKey := mpc_rid.NewRIDKeyManager(chainKey_km, chainKey_kr)
 
-	hash_ks := keystore.NewInMemoryKeystore()
+	hash_ks := ksf.NewKeystore(nil)
 	hash_mgr := sw_hash.NewHashManager(hash_ks)
 
 	commitstore := commitstore.NewInMemoryCommitstore()
-	commit_kr := keyrepository.NewKeyRepository()
+	commit_kr := krf.NewKeyRepository(nil)
 	commit_mgr := commitment.NewCommitmentManager(commitstore, commit_kr)
 
 	mpc_keygen := keygen.NewMPCKeygen(
@@ -114,40 +118,40 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		pl,
 	)
 
-	sigma_kr := keyrepository.NewKeyRepository()
-	sigma_ks := keystore.NewInMemoryKeystore()
+	sigma_kr := krf.NewKeyRepository(nil)
+	sigma_ks := ksf.NewKeystore(nil)
 	sigma := mpc_result.NewSigmaStore(sigma_ks, sigma_kr)
 
 	sign_cfg := mpc_config.NewSignConfigManager()
 
 	signature := mpc_result.NewSignStore()
 
-	gamma_kr := keyrepository.NewKeyRepository()
+	gamma_kr := krf.NewKeyRepository(nil)
 	gamma_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, gamma_kr, nil, nil)
 
-	signK_kr := keyrepository.NewKeyRepository()
+	signK_kr := krf.NewKeyRepository(nil)
 	signK_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, signK_kr, nil, nil)
 
-	delta_kr := keyrepository.NewKeyRepository()
+	delta_kr := krf.NewKeyRepository(nil)
 	delta_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, delta_kr, nil, nil)
 
-	chi_kr := keyrepository.NewKeyRepository()
+	chi_kr := krf.NewKeyRepository(nil)
 	chi_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, chi_kr, nil, nil)
 
-	bigDelta_kr := keyrepository.NewKeyRepository()
+	bigDelta_kr := krf.NewKeyRepository(nil)
 	bigDelta_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, bigDelta_kr, nil, nil)
 
-	gamma_pek_kr := keyrepository.NewKeyRepository()
+	gamma_pek_kr := krf.NewKeyRepository(nil)
 	gamma_pek := mpc_pek.NewPaillierKeyManager(pek_mgr, gamma_pek_kr)
 
-	signK_pek_kr := keyrepository.NewKeyRepository()
+	signK_pek_kr := krf.NewKeyRepository(nil)
 	signK_pek := mpc_pek.NewPaillierKeyManager(pek_mgr, signK_pek_kr)
 
-	delta_mta_kr := keyrepository.NewKeyRepository()
+	delta_mta_kr := krf.NewKeyRepository(nil)
 	mta_km := sw_mta.NewMtAManager(mta_ks)
 	delta_mta := mpc_mta.NewPaillierKeyManager(mta_km, delta_mta_kr)
 
-	chi_mta_kr := keyrepository.NewKeyRepository()
+	chi_mta_kr := krf.NewKeyRepository(nil)
 	chi_mta := mpc_mta.NewPaillierKeyManager(mta_km, chi_mta_kr)
 
 	mpc_sign := NewMPCSign(
@@ -222,7 +226,7 @@ func TestSign(t *testing.T) {
 	group := curve.Secp256k1{}
 
 	KeygenRounds := round.Number(5)
-	// SignRounds := round.Number(5)
+	SignRounds := round.Number(5)
 
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
@@ -276,7 +280,7 @@ func TestSign(t *testing.T) {
 	for _, partyID := range partyIDs {
 		info := round.Info{
 			ProtocolID:       "cmp/sign-test",
-			FinalRoundNumber: KeygenRounds,
+			FinalRoundNumber: SignRounds,
 			SelfID:           partyID,
 			PartyIDs:         partyIDs,
 			Threshold:        N - 1,
