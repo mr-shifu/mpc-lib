@@ -60,8 +60,8 @@ func Test_newMtA(t *testing.T) {
 
 	{
 		Ai, Aj := aiScalar.ActOnBase(), ajScalar.ActOnBase()
-		betaI, Di, Fi, proofI := ProveAffG(group, h.Clone(), ai, Ai, Bj, ski, paillierJ, zk.Pedersen)
-		betaJ, Dj, Fj, proofJ := ProveAffG(group, h.Clone(), aj, Aj, Bi, skj, paillierI, zk.Pedersen)
+		betaI, Di, Fi, proofI := ProveAffG(group, h.Clone(), ai, Ai, Bj, paillierI, paillierJ, zk.Pedersen)
+		betaJ, Dj, Fj, proofJ := ProveAffG(group, h.Clone(), aj, Aj, Bi, paillierJ, paillierI, zk.Pedersen)
 
 		assert.True(t, proofI.Verify(h.Clone(), zkaffg.Public{
 			Kv:       Bj,
@@ -87,8 +87,8 @@ func Test_newMtA(t *testing.T) {
 	{
 		Ai, nonceI := ski.Enc(ai)
 		Aj, nonceJ := skj.Enc(aj)
-		betaI, Di, Fi, proofI := ProveAffP(group, h.Clone(), ai, Ai, nonceI, Bj, ski, paillierJ, zk.Pedersen)
-		betaJ, Dj, Fj, proofJ := ProveAffP(group, h.Clone(), aj, Aj, nonceJ, Bi, skj, paillierI, zk.Pedersen)
+		betaI, Di, Fi, proofI := ProveAffP(group, h.Clone(), ai, Ai, nonceI, Bj, paillierI, paillierJ, zk.Pedersen)
+		betaJ, Dj, Fj, proofJ := ProveAffP(group, h.Clone(), aj, Aj, nonceJ, Bi, paillierJ, paillierI, zk.Pedersen)
 
 		assert.True(t, proofI.Verify(group, h.Clone(), zkaffp.Public{
 			Kv:       Bj,
