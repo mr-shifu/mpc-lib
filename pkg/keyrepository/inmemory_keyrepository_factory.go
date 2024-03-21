@@ -1,8 +1,10 @@
 package keyrepository
 
-type KeyRepositoryFactory struct {}
+import "github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
+
+type InMemoryKeyRepositoryFactory struct {}
 
 // NewKeyRepository creates a new KeyRepository instance for the given repository configuration
-func (f *KeyRepositoryFactory) NewKeyRepository(cfg interface{}) *KeyRepository {
+func (f *InMemoryKeyRepositoryFactory) NewKeyRepository(cfg interface{}) keyrepository.KeyRepository {
 	return NewKeyRepository()
 }
