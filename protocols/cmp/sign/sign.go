@@ -132,8 +132,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			return nil, err
 		}
 
-
-		mpcsign := mpc_config.NewSignConfig(
+		cfg := mpc_config.NewSignConfig(
 			signID,
 			keyID,
 			group,
@@ -141,7 +140,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			helper.SelfID(),
 			helper.PartyIDs(),
 		)
-		if err := m.cfgmgr.ImportConfig(mpcsign); err != nil {
+		if err := m.cfgmgr.ImportConfig(cfg); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 

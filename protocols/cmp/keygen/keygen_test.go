@@ -109,7 +109,7 @@ func newMPCKeygen() *MPCKeygen {
 	ecdsa_ks := keystore.NewInMemoryKeystore()
 	ecdsa_kr := inmem_keyrepo.NewKeyRepository()
 	sch_ks := keystore.NewInMemoryKeystore()
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, nil, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	rid_kr := inmem_keyrepo.NewKeyRepository()

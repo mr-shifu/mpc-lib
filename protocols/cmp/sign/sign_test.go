@@ -42,8 +42,8 @@ import (
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	mpc_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/pekmanager"
 	mpc_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/mta"
+	mpc_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/pekmanager"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 )
 
@@ -52,9 +52,8 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
-	ksf := keystore.KeystoreFactory{}
-	krf := keyrepository.KeyRepositoryFactory{}
-
+	ksf := keystore.InmemoryKeystoreFactory{}
+	krf := keyrepository.InMemoryKeyRepositoryFactory{}
 
 	elgamal_kr := krf.NewKeyRepository(nil)
 	elgamal_ks := ksf.NewKeystore(nil)
@@ -79,13 +78,11 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	pek_ks := ksf.NewKeystore(nil)
 	pek_mgr := sw_pek.NewPaillierEncodedKeyManager(pek_ks)
 
-	mta_ks := ksf.NewKeystore(nil)
-	mta_mgr := sw_mta.NewMtAManager(mta_ks)
 
 	ecdsa_ks := ksf.NewKeystore(nil)
 	ecdsa_kr := krf.NewKeyRepository(nil)
 	sch_ks := ksf.NewKeystore(nil)
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, mta_mgr, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	rid_kr := krf.NewKeyRepository(nil)
@@ -148,6 +145,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	signK_pek := mpc_pek.NewPaillierKeyManager(pek_mgr, signK_pek_kr)
 
 	delta_mta_kr := krf.NewKeyRepository(nil)
+	mta_ks := ksf.NewKeystore(nil)
 	mta_km := sw_mta.NewMtAManager(mta_ks)
 	delta_mta := mpc_mta.NewPaillierKeyManager(mta_km, delta_mta_kr)
 

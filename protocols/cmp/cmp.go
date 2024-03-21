@@ -33,6 +33,7 @@ import (
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pek"
 	mpc_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/pekmanager"
 
+	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
@@ -91,6 +92,7 @@ type MPC struct {
 func NewMPC(
 	ksf keystore.KeystoreFactory,
 	krf keyrepository.KeyRepositoryFactory,
+	commit_ks commitstore.CommitStore,
 	pl *pool.Pool,
 ) *MPC {
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
@@ -118,7 +120,7 @@ func NewMPC(
 	ecdsa_ks := ksf.NewKeystore(nil)
 	ecdsa_kr := krf.NewKeyRepository(nil)
 	sch_ks := ksf.NewKeystore(nil)
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, nil, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	rid_ks := ksf.NewKeystore(nil)
@@ -134,7 +136,6 @@ func NewMPC(
 	hash_ks := ksf.NewKeystore(nil)
 	hash_mgr := sw_hash.NewHashManager(hash_ks)
 
-	commit_ks := ksf.NewKeystore(nil)
 	commit_kr := krf.NewKeyRepository(nil)
 	commit_mgr := commitment.NewCommitmentManager(commit_ks, commit_kr)
 
