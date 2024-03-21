@@ -65,6 +65,7 @@ type MPC struct {
 	paillier   comm_paillier.PaillierKeyManager
 	pedersen   comm_pedersen.PedersenKeyManager
 	ec         comm_ecdsa.ECDSAKeyManager
+	ec_vss     comm_ecdsa.ECDSAKeyManager
 	rid        comm_rid.RIDKeyManager
 	chainKey   comm_rid.RIDKeyManager
 	hash_mgr   comm_hash.HashManager
@@ -114,14 +115,16 @@ func NewMPC(
 
 	vss_ks := ksf.NewKeystore(nil)
 	vss_kr := krf.NewKeyRepository(nil)
-	vss_ss := sw_vss.NewInMemoryVSSShareStore()
-	vss_km := sw_vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
+	vss_km := sw_vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
 	ecdsa_ks := ksf.NewKeystore(nil)
 	ecdsa_kr := krf.NewKeyRepository(nil)
 	sch_ks := ksf.NewKeystore(nil)
 	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
+
+	ec_vss_kr := krf.NewKeyRepository(nil)
+	ec_vss_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, ec_vss_kr, nil, nil)
 
 	rid_ks := ksf.NewKeystore(nil)
 	rid_kr := krf.NewKeyRepository(nil)
@@ -186,6 +189,7 @@ func NewMPC(
 		paillier:   paillier,
 		pedersen:   pedersen,
 		ec:         ecdsa,
+		ec_vss:     ec_vss_mgr,
 		rid:        rid,
 		chainKey:   chainKey,
 		hash_mgr:   hash_mgr,
@@ -211,6 +215,7 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
+		mpc.ec_vss,
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,
@@ -274,6 +279,7 @@ func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, partici
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
+		mpc.ec_vss,
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,

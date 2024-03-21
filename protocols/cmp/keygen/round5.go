@@ -6,7 +6,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -14,7 +13,6 @@ var _ round.Round = (*round5)(nil)
 
 type round5 struct {
 	*round4
-	mpc_ks comm_mpc_ks.MPCKeystore
 
 	UpdatedConfig *config.Config
 

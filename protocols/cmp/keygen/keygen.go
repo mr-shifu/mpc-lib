@@ -26,6 +26,7 @@ type MPCKeygen struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
 	rid_km      rid.RIDKeyManager
 	chainKey_km rid.RIDKeyManager
 	hash_mgr    hash.HashManager
@@ -40,6 +41,7 @@ func NewMPCKeygen(
 	paillier paillier.PaillierKeyManager,
 	pedersen pedersen.PedersenKeyManager,
 	ecdsa ecdsa.ECDSAKeyManager,
+	ec_vss ecdsa.ECDSAKeyManager,
 	rid rid.RIDKeyManager,
 	chainKey rid.RIDKeyManager,
 	hash_mgr hash.HashManager,
@@ -53,6 +55,7 @@ func NewMPCKeygen(
 		paillier_km: paillier,
 		pedersen_km: pedersen,
 		ecdsa_km:    ecdsa,
+		ec_vss_km:   ec_vss,
 		rid_km:      rid,
 		chainKey_km: chainKey,
 		hash_mgr:    hash_mgr,
@@ -88,6 +91,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 				paillier_km:               m.paillier_km,
 				pedersen_km:               m.pedersen_km,
 				ecdsa_km:                  m.ecdsa_km,
+				ec_vss_km:                 m.ec_vss_km,
 				rid_km:                    m.rid_km,
 				chainKey_km:               m.chainKey_km,
 				PreviousSecretECDSA:       c.ECDSA,
@@ -128,6 +132,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
 			ecdsa_km:    m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
 			rid_km:      m.rid_km,
 			chainKey_km: m.chainKey_km,
 			commit_mgr:  m.commit_mgr,

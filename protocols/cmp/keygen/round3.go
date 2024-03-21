@@ -18,28 +18,12 @@ import (
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
 )
 
 var _ round.Round = (*round3)(nil)
 
 type round3 struct {
 	*round2
-
-	mpc_ks      comm_mpc_ks.MPCKeystore
-	elgamal_km  comm_elgamal.ElgamalKeyManager
-	paillier_km comm_paillier.PaillierKeyManager
-	pedersen_km comm_pedersen.PedersenKeyManager
-	ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	rid_km      comm_rid.RIDKeyManager
-	chainKey_km comm_rid.RIDKeyManager
-	commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -82,6 +66,8 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if !ok || body == nil {
 		return round.ErrInvalidContent
 	}
+
+	// TODO Combine key validation at key import
 
 	// check nil
 	if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil || body.SchnorrCommitments == nil {
@@ -351,14 +337,6 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	r.UpdateHashState(rid)
 	return &round4{
 		round3:             r,
-		mpc_ks:             r.mpc_ks,
-		elgamal_km:         r.elgamal_km,
-		paillier_km:        r.paillier_km,
-		pedersen_km:        r.pedersen_km,
-		ecdsa_km:           r.ecdsa_km,
-		rid_km:             r.rid_km,
-		chainKey_km:        r.chainKey_km,
-		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessagesForwarded:  make(map[party.ID]bool),
 	}, nil

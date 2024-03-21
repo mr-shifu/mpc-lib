@@ -89,6 +89,14 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return r.AbortRound(errors.New("failed to validate signature")), nil
 	}
 
+	ecKey, err = r.ec.GetKey(r.cfg.KeyID(), "ROOT")
+	if err != nil {
+		return nil, err
+	}
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
+		return r.AbortRound(errors.New("failed to validate signature")), nil
+	}
+
 	return r.ResultRound(signature), nil
 }
 

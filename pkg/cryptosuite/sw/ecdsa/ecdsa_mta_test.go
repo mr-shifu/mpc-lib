@@ -39,8 +39,7 @@ func TestMtA(t *testing.T) {
 	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
 
 	vss_ks := keystore.NewInMemoryKeystore()
-	vss_ss := vss.NewInMemoryVSSShareStore()
-	vss_km := vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
+	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
 	// mta_ks := keystore.NewInMemoryKeystore()
 	// mta_mgr := mta.NewMtAManager(mta_ks)

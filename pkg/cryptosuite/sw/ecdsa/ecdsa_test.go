@@ -18,8 +18,7 @@ func newEcdsakeyManager() *ECDSAKeyManager {
 	schstore := keystore.NewInMemoryKeystore()
 
 	vss_ks := keystore.NewInMemoryKeystore()
-	sharestore := vss.NewInMemoryVSSShareStore()
-	vssmgr := vss.NewVssKeyManager(vss_ks, sharestore, cfg.Group)
+	vssmgr := vss.NewVssKeyManager(vss_ks, cfg.Group)
 
 	mgr := NewECDSAKeyManager(ks, schstore, vssmgr, cfg)
 

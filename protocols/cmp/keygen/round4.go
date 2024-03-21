@@ -10,14 +10,8 @@ import (
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -25,15 +19,6 @@ var _ round.Round = (*round4)(nil)
 
 type round4 struct {
 	*round3
-
-	mpc_ks      comm_mpc_ks.MPCKeystore
-	elgamal_km  comm_elgamal.ElgamalKeyManager
-	paillier_km comm_paillier.PaillierKeyManager
-	pedersen_km comm_pedersen.PedersenKeyManager
-	ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	rid_km      comm_rid.RIDKeyManager
-	chainKey_km comm_rid.RIDKeyManager
-	commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -166,12 +151,8 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	if !PublicShare.Equal(ExpectedPublicShare) {
 		return errors.New("failed to validate VSS share")
 	}
-	vssShare := &comm_vss.VSSShare{
-		Index:  r.SelfID().Scalar(r.Group()),
-		Secret: Share,
-		Public: PublicShare,
-	}
-	if err := vssKey.ImportShare(vssShare); err != nil {
+	vssShareKey := sw_ecdsa.NewECDSAKey(Share, PublicShare, r.Group())
+	if err := r.ec_vss_km.ImportKey(string(vssKey.SKI()), string(r.SelfID()), vssShareKey); err != nil {
 		return err
 	}
 
@@ -195,8 +176,44 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	// integrate creation of MPC Key VSS polynomial, shares and ECDSA key together
+	// Sum all VSS Exponents Shares to generate MPC VSS Exponent
 	if err := r.ecdsa_km.GenerateMPCKeyFromShares(r.ID, r.SelfID(), r.Group()); err != nil {
+		return nil, err
+	}
+
+	// Sum all VSS shares to generate MPC VSS Share
+	var vss_shares []comm_ecdsa.ECDSAKey
+	for _, j := range r.OtherPartyIDs() {
+		ecKey, err := r.ecdsa_km.GetKey(r.ID, string(j))
+		if err != nil {
+			return nil, err
+		}
+		vssKey, err := ecKey.VSS()
+		if err != nil {
+			return nil, err
+		}
+		vss_share, err := r.ec_vss_km.GetKey(string(vssKey.SKI()), string(r.SelfID()))
+		if err != nil {
+			return nil, err
+		}
+		vss_shares = append(vss_shares, vss_share)
+	}
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	vssKey, err := ecKey.VSS()
+	if err != nil {
+		return nil, err
+	}
+	selfVSSShare, err := r.ec_vss_km.GetKey(string(vssKey.SKI()), string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
+	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
+	vssShareKey := sw_ecdsa.NewECDSAKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
+	if err := r.ec_vss_km.ImportKey(r.ID, "ROOT", vssShareKey); err != nil {
 		return nil, err
 	}
 
@@ -243,17 +260,17 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	mpcVSSShare, err := mpcVSSKey.GetShare(r.SelfID().Scalar(r.Group()))
-	if err != nil {
-		return r, err
-	}
+	// mpcVSSShare, err := mpcVSSKey.GetShare(r.SelfID().Scalar(r.Group()))
+	// if err != nil {
+	// 	return r, err
+	// }
 
 	// TODO elgamal and paillier secret key is missed here
 	UpdatedConfig := &config.Config{
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		ECDSA:     mpcVSSShare.Secret,
+		ECDSA:     vssSharePrivateKey,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
 		RID:      mpckey.RID,
@@ -267,10 +284,6 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
 	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
-	if err != nil {
-		return r, err
-	}
 	proof, err := ecKey.GenerateSchnorrProof(h)
 	if err != nil {
 		return r, err
@@ -285,7 +298,6 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	r.UpdateHashState(UpdatedConfig)
 	return &round5{
 		round4:             r,
-		mpc_ks:             r.mpc_ks,
 		UpdatedConfig:      UpdatedConfig,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
