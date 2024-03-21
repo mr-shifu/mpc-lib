@@ -9,7 +9,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
@@ -43,12 +42,12 @@ func TestMtA(t *testing.T) {
 	vss_ss := vss.NewInMemoryVSSShareStore()
 	vss_km := vss.NewVssKeyManager(vss_ks, vss_ss, curve.Secp256k1{})
 
-	mta_ks := keystore.NewInMemoryKeystore()
-	mta_mgr := mta.NewMtAManager(mta_ks)
+	// mta_ks := keystore.NewInMemoryKeystore()
+	// mta_mgr := mta.NewMtAManager(mta_ks)
 
 	ecdsa_ks := keystore.NewInMemoryKeystore()
 	sch_ks := keystore.NewInMemoryKeystore()
-	ec_km := NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, mta_mgr, &Config{Group: curve.Secp256k1{}})
+	ec_km := NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &Config{Group: curve.Secp256k1{}})
 
 	pks := make(map[string]paillier.PaillierKey, 0)
 	peds := make(map[string]pedersen.PedersenKey, 0)
