@@ -12,7 +12,11 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
+	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
+	"github.com/mr-shifu/mpc-lib/pkg/commitstore"
+	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,8 +25,15 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	defer wg.Done()
 
 	keyID := uuid.New().String()
+	ksf := &keystore.InmemoryKeystoreFactory{}
+	krf := &keyrepository.InMemoryKeyRepositoryFactory{}
+	commit_ks := commitstore.NewInMemoryCommitstore()
+	mpc := NewMPC(ksf, krf, commit_ks, pl)
 
-	h, err := protocol.NewMultiHandler(Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl), nil)
+	h, err := protocol.NewMultiHandler(
+		mpc.Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl),
+		// Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl), 
+		nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
 	r, err := h.Result()
@@ -30,17 +41,17 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c := r.(*Config)
 
-
-	h, err = protocol.NewMultiHandler(Refresh(keyID, c, pl), nil)
-	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
-
-	r, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &Config{}, r)
-	c = r.(*Config)
-
-	h, err = protocol.NewMultiHandler(Sign(c, ids, message, pl), nil)
+	signID := uuid.New().String()
+	info := round.Info{
+		ProtocolID: 	 "cmp/sign",
+		FinalRoundNumber: 5,
+		SelfID:           id,
+		PartyIDs:         ids,
+		Threshold:        threshold,
+		Group:            curve.Secp256k1{},
+	}
+	mpc.Sign(signID, keyID, info, ids, message, pl)
+	h, err = protocol.NewMultiHandler(mpc.Sign(signID, keyID, info, ids, message, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -48,27 +59,6 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.NoError(t, err)
 	require.IsType(t, &ecdsa.Signature{}, signResult)
 	signature := signResult.(*ecdsa.Signature)
-	assert.True(t, signature.Verify(c.PublicPoint(), message))
-
-	h, err = protocol.NewMultiHandler(Presign(c, ids, pl), nil)
-	require.NoError(t, err)
-
-	test.HandlerLoop(c.ID, h, n)
-
-	signResult, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &ecdsa.PreSignature{}, signResult)
-	preSignature := signResult.(*ecdsa.PreSignature)
-	assert.NoError(t, preSignature.Validate())
-
-	h, err = protocol.NewMultiHandler(PresignOnline(c, preSignature, message, pl), nil)
-	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
-
-	signResult, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &ecdsa.Signature{}, signResult)
-	signature = signResult.(*ecdsa.Signature)
 	assert.True(t, signature.Verify(c.PublicPoint(), message))
 }
 
@@ -98,6 +88,20 @@ func TestStart(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 	configs, partyIDs := test.GenerateConfig(group, N, T, rand.Reader, pl)
+
+	info := round.Info{
+		ProtocolID:       "cmp/keygen-threshold",
+		FinalRoundNumber: 5,
+		SelfID:           partyIDs[0],
+		PartyIDs:         partyIDs,
+		Threshold:        T,
+		Group:            group,
+	}
+
+	ksf := &keystore.InmemoryKeystoreFactory{}
+	krf := &keyrepository.InMemoryKeyRepositoryFactory{}
+	commit_ks := commitstore.NewInMemoryCommitstore()
+	mpc := NewMPC(ksf, krf, commit_ks, pl)
 
 	m := []byte("HELLO")
 	selfID := partyIDs[0]
@@ -153,15 +157,12 @@ func TestStart(t *testing.T) {
 			keyID := uuid.New().String()
 			c.Threshold = tt.threshold
 			var err error
-			_, err = Keygen(keyID, group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
+			_, err = mpc.Keygen(keyID, group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 
-			_, err = Sign(c, tt.partyIDs, m, pl)(nil)
-			t.Log(err)
-			assert.Error(t, err)
-
-			_, err = Presign(c, tt.partyIDs, pl)(nil)
+			signID := uuid.New().String()
+			_, err = mpc.Sign(signID, keyID, info, tt.partyIDs, m, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 		})

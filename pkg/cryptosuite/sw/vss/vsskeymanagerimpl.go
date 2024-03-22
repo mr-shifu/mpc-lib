@@ -13,14 +13,12 @@ import (
 type VssKeyManager struct {
 	group curve.Curve
 	ks    keystore.Keystore
-	st    comm_vss.VSSShareStore
 }
 
-func NewVssKeyManager(store keystore.Keystore, st comm_vss.VSSShareStore, g curve.Curve) *VssKeyManager {
+func NewVssKeyManager(store keystore.Keystore, g curve.Curve) *VssKeyManager {
 	return &VssKeyManager{
 		group: g,
 		ks:    store,
-		st:    st,
 	}
 }
 
@@ -33,7 +31,7 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (comm
 	exponents := polynomial.NewPolynomialExponent(secrets)
 
 	// get SKI from binary encoded exponents
-	vssKey := NewVssKey(secrets, exponents, nil)
+	vssKey := NewVssKey(secrets, exponents)
 	ski := vssKey.SKI()
 
 	// encode ski to hex string as keyID
@@ -51,11 +49,11 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (comm
 	}
 
 	// create a linked sharestore and set it in vssKey
-	sharestore, err := mgr.st.WithSKI(ski)
-	if err != nil {
-		return nil, err
-	}
-	vssKey.WithShareStore(sharestore)
+	// sharestore, err := mgr.st.WithSKI(ski)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// vssKey.WithShareStore(sharestore)
 
 	return vssKey, nil
 }
@@ -68,7 +66,7 @@ func (mgr *VssKeyManager) ImportSecrets(data []byte) (comm_vss.VssKey, error) {
 	}
 
 	// get coefficients from keystore
-	key := NewVssKey(nil, exponents, nil)
+	key := NewVssKey(nil, exponents)
 
 	// get SKI from binary encoded exponents
 	ski := key.SKI()
@@ -87,11 +85,11 @@ func (mgr *VssKeyManager) ImportSecrets(data []byte) (comm_vss.VssKey, error) {
 		return nil, err
 	}
 
-	sharestore, err := mgr.st.WithSKI(ski)
-	if err != nil {
-		return nil, err
-	}
-	key.WithShareStore(sharestore)
+	// sharestore, err := mgr.st.WithSKI(ski)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// key.WithShareStore(sharestore)
 
 	return key, nil
 }
@@ -112,11 +110,11 @@ func (mgr *VssKeyManager) GetSecrets(ski []byte) (comm_vss.VssKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	sharestore, err := mgr.st.WithSKI(ski)
-	if err != nil {
-		return nil, err
-	}
-	vssKey.WithShareStore(sharestore)
+	// sharestore, err := mgr.st.WithSKI(ski)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// vssKey.WithShareStore(sharestore)
 
 	return &vssKey, nil
 }

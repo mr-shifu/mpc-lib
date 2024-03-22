@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
@@ -17,6 +16,7 @@ import (
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -29,6 +29,8 @@ type round1 struct {
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
+	// ec_vss_km   comm_ecdsa.ECDSAKeyManager
+	vss_mgr     comm_vss.VssKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 	commit_mgr  comm_commitment.CommitmentManager
@@ -68,13 +70,13 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // - commit to message.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// generate Paillier and Pedersen
-	_, err := r.paillier_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	_, err := r.paillier_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// derive Pedersen from Paillier
-	pedersenKey, err := r.paillier_km.DerivePedersenKey(r.KeyID, string(r.SelfID()))
+	pedersenKey, err := r.paillier_km.DerivePedersenKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -82,16 +84,16 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.pedersen_km.ImportKey(r.KeyID, string(r.SelfID()), pedersen_kb)
+	r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersen_kb)
 
 	// generate ElGamal key
-	elgamlKey, err := r.elgamal_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	elgamlKey, err := r.elgamal_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// save our own share already so we are consistent with what we receive from others
-	key, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	key, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +101,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group())); err != nil {
+
+	// generate VSS Share
+	if err := r.vss_mgr.GenerateVSSShare(r.ID, r.SelfID(), r.SelfID(), r.Group()); err != nil {
 		return nil, err
 	}
 
@@ -110,12 +114,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Sample RIDᵢ
-	selfRID, err := r.rid_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	selfRID, err := r.rid_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GenerateKey(r.KeyID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GenerateKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -147,11 +151,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	h := r.Hash().Clone()
-	h.WriteAny("test")
-	hashed := h.Sum()
-	fmt.Printf("Round: %d, hashed: %x\n", r.Number(), hashed)
-
+	// TODO: make Commit to accept Key.Public() instead of key.PublicKeyRaw()
 	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
 		selfRID_bytes,
 		chainKey_bytes,
@@ -166,7 +166,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, errors.New("failed to commit")
 	}
 
-	if err := r.commit_mgr.Import(r.KeyID, r.SelfID(), &commitstore.Commitment{
+	if err := r.commit_mgr.Import(r.ID, r.SelfID(), &commitstore.Commitment{
 		Commitment:   SelfCommitment,
 		Decommitment: Decommitment,
 	}); err != nil {
@@ -182,14 +182,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	nextRound := &round2{
 		round1:             r,
-		mpc_ks:             r.mpc_ks,
-		elgamal_km:         r.elgamal_km,
-		paillier_km:        r.paillier_km,
-		pedersen_km:        r.pedersen_km,
-		ecdsa_km:           r.ecdsa_km,
-		rid_km:             r.rid_km,
-		chainKey_km:        r.chainKey_km,
-		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}
 	return nextRound, nil

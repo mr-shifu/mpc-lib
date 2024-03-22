@@ -37,11 +37,13 @@ func (e *ECDSAKeyManager) GenerateKey(keyID string, partyID string) (comm_ecdsa.
 		return nil, err
 	}
 
-	if err := e.vsskr.Import(keyID, keyrepository.KeyData{
-		PartyID: partyID,
-		SKI:     ski,
-	}); err != nil {
-		return nil, err
+	if e.vsskr != nil {
+		if err := e.vsskr.Import(keyID, keyrepository.KeyData{
+			PartyID: partyID,
+			SKI:     ski,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	return key, nil
@@ -59,11 +61,13 @@ func (e *ECDSAKeyManager) ImportKey(keyID string, partyID string, key comm_ecdsa
 		return err
 	}
 
-	if err := e.vsskr.Import(keyID, keyrepository.KeyData{
-		PartyID: partyID,
-		SKI:     key.SKI(),
-	}); err != nil {
-		return err
+	if e.vsskr != nil {
+		if err := e.vsskr.Import(keyID, keyrepository.KeyData{
+			PartyID: partyID,
+			SKI:     key.SKI(),
+		}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -77,7 +81,7 @@ func (e *ECDSAKeyManager) GetKey(keyID string, partyID string) (comm_ecdsa.ECDSA
 
 	k, ok := keys[partyID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, errors.New("ecdsa: key not found")
 	}
 
 	return e.km.GetKey(k.SKI)
@@ -110,7 +114,7 @@ func (e *ECDSAKeyManager) GetVSSKey(keyID string, partyID string) (comm_vss.VssK
 
 	k, ok := keys[partyID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, errors.New("ecdsa: key not found")
 	}
 
 	ecKey, err := e.km.GetKey(k.SKI)
@@ -169,30 +173,11 @@ func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string, selfID party.ID
 	if err != nil {
 		return err
 	}
-	mpcVSSKey, err := e.vssmgr.ImportSecrets(mpcExponentBytes)
+	_, err = e.vssmgr.ImportSecrets(mpcExponentBytes)
 	if err != nil {
 		return err
 	}
 
-	// Calculate MPC VSS Share of all VSS keys
-	vssShareSecret := group.NewScalar()
-	vssSharePublic := group.NewPoint()
-	for _, key := range ecKeys {
-		vssKey, err := key.VSS()
-		if err != nil {
-			return err
-		}
-		share, err := vssKey.GetShare(selfID.Scalar(group))
-		if err != nil {
-			return err
-		}
-		vssShareSecret = vssShareSecret.Add(share.Secret)
-		vssSharePublic = vssSharePublic.Add(share.Public)
-	}
-	mpcVSSShare := &comm_vss.VSSShare{
-		Index:  selfID.Scalar(group),
-		Secret: vssShareSecret,
-		Public: vssSharePublic,
-	}
-	return mpcVSSKey.ImportShare(mpcVSSShare)
+	return nil
 }
+

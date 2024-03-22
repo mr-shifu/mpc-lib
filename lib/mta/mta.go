@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkaffp "github.com/mr-shifu/mpc-lib/core/zk/affp"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 )
 
 // ProveAffG returns the necessary messages for the receiver of the
@@ -23,16 +23,16 @@ import (
 // - D = (aⱼ ⊙ Bᵢ) ⊕ encᵢ(- β, s)
 // - F = encⱼ(-β, r)
 // - Proof = zkaffg proof of correct encryption.
-func ProveAffG(group curve.Curve, h *hash.Hash,
+func ProveAffG(group curve.Curve, h hash.Hash,
 	senderSecretShare *saferith.Int, senderSecretSharePoint curve.Point, receiverEncryptedShare *paillier.Ciphertext,
-	sender *paillier.SecretKey, receiver *paillier.PublicKey, verifier *pedersen.Parameters) (Beta *saferith.Int, D, F *paillier.Ciphertext, Proof *zkaffg.Proof) {
+	sender *paillier.PublicKey, receiver *paillier.PublicKey, verifier *pedersen.Parameters) (Beta *saferith.Int, D, F *paillier.Ciphertext, Proof *zkaffg.Proof) {
 	D, F, S, R, BetaNeg := newMta(senderSecretShare, receiverEncryptedShare, sender, receiver)
 	Proof = zkaffg.NewProof(group, h, zkaffg.Public{
 		Kv:       receiverEncryptedShare,
 		Dv:       D,
 		Fp:       F,
 		Xp:       senderSecretSharePoint,
-		Prover:   sender.PublicKey,
+		Prover:   sender,
 		Verifier: receiver,
 		Aux:      verifier,
 	}, zkaffg.Private{
@@ -56,17 +56,23 @@ func ProveAffG(group curve.Curve, h *hash.Hash,
 // - D = (aⱼ ⊙ Bᵢ) ⊕ encᵢ(-β, s)
 // - F = encⱼ(-β, r)
 // - Proof = zkaffp proof of correct encryption.
-func ProveAffP(group curve.Curve, h *hash.Hash,
-	senderSecretShare *saferith.Int, senderEncryptedShare *paillier.Ciphertext, senderEncryptedShareNonce *saferith.Nat,
+func ProveAffP(
+	group curve.Curve,
+	h hash.Hash,
+	senderSecretShare *saferith.Int,
+	senderEncryptedShare *paillier.Ciphertext,
+	senderEncryptedShareNonce *saferith.Nat,
 	receiverEncryptedShare *paillier.Ciphertext,
-	sender *paillier.SecretKey, receiver *paillier.PublicKey, verifier *pedersen.Parameters) (Beta *saferith.Int, D, F *paillier.Ciphertext, Proof *zkaffp.Proof) {
+	sender *paillier.PublicKey,
+	receiver *paillier.PublicKey,
+	verifier *pedersen.Parameters) (Beta *saferith.Int, D, F *paillier.Ciphertext, Proof *zkaffp.Proof) {
 	D, F, S, R, BetaNeg := newMta(senderSecretShare, receiverEncryptedShare, sender, receiver)
 	Proof = zkaffp.NewProof(group, h, zkaffp.Public{
 		Kv:       receiverEncryptedShare,
 		Dv:       D,
 		Fp:       F,
 		Xp:       senderEncryptedShare,
-		Prover:   sender.PublicKey,
+		Prover:   sender,
 		Verifier: receiver,
 		Aux:      verifier,
 	}, zkaffp.Private{
@@ -81,8 +87,11 @@ func ProveAffP(group curve.Curve, h *hash.Hash,
 	return
 }
 
-func newMta(senderSecretShare *saferith.Int, receiverEncryptedShare *paillier.Ciphertext,
-	sender *paillier.SecretKey, receiver *paillier.PublicKey) (D, F *paillier.Ciphertext, S, R *saferith.Nat, BetaNeg *saferith.Int) {
+func newMta(
+	senderSecretShare *saferith.Int,
+	receiverEncryptedShare *paillier.Ciphertext,
+	sender *paillier.PublicKey,
+	receiver *paillier.PublicKey) (D, F *paillier.Ciphertext, S, R *saferith.Nat, BetaNeg *saferith.Int) {
 	BetaNeg = sample.IntervalLPrime(rand.Reader)
 
 	F, R = sender.Enc(BetaNeg) // F = encᵢ(-β, r)

@@ -7,6 +7,11 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
 )
 
+var (
+	ErrInvalidParamsPartyID = errors.New("keyrepository: invalud partyID")
+	ErrKeyNotFound          = errors.New("keyrepository: key not found")
+)
+
 type Keys map[string]keyrepository.KeyData
 
 type KeyRepository struct {
@@ -28,7 +33,7 @@ func (kr *KeyRepository) Import(ID string, key keyrepository.KeyData) error {
 
 	// verify if the key is valid
 	if key.PartyID == "" {
-		return errors.New("invalud partyID")
+		return ErrInvalidParamsPartyID
 	}
 
 	if _, ok := kr.keys[ID]; !ok {
@@ -45,7 +50,7 @@ func (kr *KeyRepository) GetAll(ID string) (map[string]keyrepository.KeyData, er
 
 	ks, ok := kr.keys[ID]
 	if !ok {
-		return nil, errors.New("key not found")
+		return nil, ErrKeyNotFound
 	}
 
 	result := make(map[string]keyrepository.KeyData)
@@ -61,7 +66,7 @@ func (kr *KeyRepository) DeleteAll(ID string) error {
 
 	_, ok := kr.keys[ID]
 	if !ok {
-		return errors.New("key not found")
+		return ErrKeyNotFound
 	}
 
 	delete(kr.keys, ID)

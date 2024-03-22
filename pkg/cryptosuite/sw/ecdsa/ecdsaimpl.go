@@ -103,7 +103,7 @@ func (key ECDSAKey) withVSSKeyMgr(vssmgr comm_vss.VssKeyManager) ECDSAKey {
 
 func fromBytes(data []byte) (ECDSAKey, error) {
 	key := ECDSAKey{}
-	
+
 	raw := &rawECDSAKey{}
 	if err := cbor.Unmarshal(data, raw); err != nil {
 		return ECDSAKey{}, err

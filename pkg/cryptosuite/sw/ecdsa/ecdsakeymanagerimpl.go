@@ -24,7 +24,11 @@ type ECDSAKeyManager struct {
 	cfg          *Config
 }
 
-func NewECDSAKeyManager(store keystore.Keystore, schnorrstore keystore.Keystore, vssmgr comm_vss.VssKeyManager, cfg *Config) *ECDSAKeyManager {
+func NewECDSAKeyManager(
+	store keystore.Keystore,
+	schnorrstore keystore.Keystore,
+	vssmgr comm_vss.VssKeyManager,
+	cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
 		keystore:     store,
 		schnorrstore: schnorrstore,

@@ -50,15 +50,6 @@ type VssKey interface {
 
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
 	EvaluateByExponents(index curve.Scalar) (curve.Point, error)
-
-	// TODO much better to be removed
-	WithShareStore(ss LinkedVSSShareStore)
-
-	// ImportShare imports a share (x, f(x)) and stores it.
-	ImportShare(share *VSSShare) error
-
-	// GetShare returns a share (x, f(x)) for a given index.
-	GetShare(index curve.Scalar) (*VSSShare, error)
 }
 
 type VssKeyManager interface {

@@ -5,14 +5,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
 )
 
 var _ round.Round = (*round2)(nil)
@@ -20,14 +12,14 @@ var _ round.Round = (*round2)(nil)
 type round2 struct {
 	*round1
 
-	mpc_ks      comm_mpc_ks.MPCKeystore
-	elgamal_km  comm_elgamal.ElgamalKeyManager
-	paillier_km comm_paillier.PaillierKeyManager
-	pedersen_km comm_pedersen.PedersenKeyManager
-	ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	rid_km      comm_rid.RIDKeyManager
-	chainKey_km comm_rid.RIDKeyManager
-	commit_mgr  comm_commitment.CommitmentManager
+	// mpc_ks      comm_mpc_ks.MPCKeystore
+	// elgamal_km  comm_elgamal.ElgamalKeyManager
+	// paillier_km comm_paillier.PaillierKeyManager
+	// pedersen_km comm_pedersen.PedersenKeyManager
+	// ecdsa_km    comm_ecdsa.ECDSAKeyManager
+	// rid_km      comm_rid.RIDKeyManager
+	// chainKey_km comm_rid.RIDKeyManager
+	// commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -53,7 +45,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		Commitment:   body.Commitment,
 		Decommitment: nil,
 	}
-	if err := r.commit_mgr.Import(r.KeyID, msg.From, cmt); err != nil {
+	if err := r.commit_mgr.Import(r.ID, msg.From, cmt); err != nil {
 		return err
 	}
 
@@ -79,7 +71,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// TODO need keyID to get the key
-	elgamalKey, err := r.elgamal_km.GetKey(r.KeyID, string(r.SelfID()))
+	elgamalKey, err := r.elgamal_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -88,17 +80,17 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	rid, err := r.rid_km.GetKey(r.KeyID, string(r.SelfID()))
+	rid, err := r.rid_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GetKey(r.KeyID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
@@ -110,34 +102,19 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	selfShareSecret, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
-	if err != nil {
-		return nil, err
-	}
-	selfSharePublic, err := vssKey.EvaluateByExponents(r.SelfID().Scalar(r.Group()))
-	if err != nil {
-		return nil, err
-	}
-	selfShare := &comm_vss.VSSShare{
-		Index:  r.SelfID().Scalar(r.Group()),
-		Secret: selfShareSecret,
-		Public: selfSharePublic,
-	}
-	if err := vssKey.ImportShare(selfShare); err != nil {
-		return nil, err
-	}
+
 	exponents, err := vssKey.ExponentsRaw()
 	if err != nil {
 		return nil, err
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.KeyID, string(r.SelfID()))
+	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
 	}
 
 	// Send the message we created in Round1 to all
-	cmt, err := r.commit_mgr.Get(r.KeyID, r.SelfID())
+	cmt, err := r.commit_mgr.Get(r.ID, r.SelfID())
 	if err != nil {
 		return nil, err
 	}
@@ -158,14 +135,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	return &round3{
 		round2:             r,
-		mpc_ks:             r.mpc_ks,
-		elgamal_km:         r.elgamal_km,
-		paillier_km:        r.paillier_km,
-		pedersen_km:        r.pedersen_km,
-		ecdsa_km:           r.ecdsa_km,
-		rid_km:             r.rid_km,
-		chainKey_km:        r.chainKey_km,
-		commit_mgr:         r.commit_mgr,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
 }

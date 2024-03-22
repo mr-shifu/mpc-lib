@@ -7,23 +7,14 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 )
 
 var _ round.Round = (*round4)(nil)
 
 type round4 struct {
 	*round3
-	// DeltaShares[j] = δⱼ
-	DeltaShares map[party.ID]curve.Scalar
-
-	// BigDeltaShares[j] = Δⱼ = [kⱼ]•Γⱼ
-	BigDeltaShares map[party.ID]curve.Point
-
-	// Gamma = ∑ᵢ Γᵢ
-	Gamma curve.Point
-
-	// ChiShare = χᵢ
-	ChiShare curve.Scalar
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -52,8 +43,18 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	if body.DeltaShare.IsZero() || body.BigDeltaShare.IsIdentity() {
 		return round.ErrNilFields
 	}
-	r.BigDeltaShares[msg.From] = body.BigDeltaShare
-	r.DeltaShares[msg.From] = body.DeltaShare
+
+	bigDeltaShareFrom := body.BigDeltaShare
+	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
+	if err := r.bigDelta.ImportKey(r.cfg.ID(), string(msg.From), bigDeltaFrom); err != nil {
+		return err
+	}
+
+	deltaShareFrom := body.DeltaShare
+	deltaFrom := sw_ecdsa.NewECDSAKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
+	if err := r.delta.ImportKey(r.cfg.ID(), string(msg.From), deltaFrom); err != nil {
+		return err
+	}
 
 	// Mark the message as received
 	r.MessageBroadcasted[msg.From] = true
@@ -71,12 +72,36 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
+	kFromPek, err := r.signK_pek.GetKey(r.cfg.ID(), string(from))
+	if err != nil {
+		return err
+	}
+
+	bigDeltaShareFrom, err := r.bigDelta.GetKey(r.cfg.ID(), string(from))
+	if err != nil {
+		return err
+	}
+
+	gamma, err := r.gamma.GetKey(r.cfg.ID(), "ROOT")
+	if err != nil {
+		return err
+	}
+
+	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	if err != nil {
+		return err
+	}
+	pedTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
+	if err != nil {
+		return err
+	}
+
 	zkLogPublic := zklogstar.Public{
-		C:      r.K[from],
-		X:      r.BigDeltaShares[from],
-		G:      r.Gamma,
-		Prover: r.Paillier[from],
-		Aux:    r.Pedersen[to],
+		C:      kFromPek.Encoded(),
+		X:      bigDeltaShareFrom.PublicKeyRaw(),
+		G:      gamma.PublicKeyRaw(),
+		Prover: paillierFrom.PublicKeyRaw(),
+		Aux:    pedTo.PublicKeyRaw(),
 	}
 	if !body.ProofLog.Verify(r.HashForID(from), zkLogPublic) {
 		return errors.New("failed to validate log proof")
@@ -103,12 +128,28 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// δ = ∑ⱼ δⱼ
+	var deltaShares []comm_ecdsa.ECDSAKey
+	for _, j := range r.OtherPartyIDs() {
+		delta, err := r.delta.GetKey(r.cfg.ID(), string(j))
+		if err != nil {
+			return nil, err
+		}
+		deltaShares = append(deltaShares, delta)
+	}
+	selfdeltaShare, err := r.delta.GetKey(r.cfg.ID(), string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	Delta := selfdeltaShare.AddKeys(deltaShares...)
+
 	// Δ = ∑ⱼ Δⱼ
-	Delta := r.Group().NewScalar()
 	BigDelta := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		Delta.Add(r.DeltaShares[j])
-		BigDelta = BigDelta.Add(r.BigDeltaShares[j])
+		bigDeltaj, err := r.bigDelta.GetKey(r.cfg.ID(), string(j))
+		if err != nil {
+			return nil, err
+		}
+		BigDelta = BigDelta.Add(bigDeltaj.PublicKeyRaw())
 	}
 
 	// Δ == [δ]G
@@ -117,29 +158,42 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r.AbortRound(errors.New("computed Δ is inconsistent with [δ]G")), nil
 	}
 
+	// R = [δ⁻¹] Γ
+	gamma, err := r.gamma.GetKey(r.cfg.ID(), "ROOT")
+	if err != nil {
+		return nil, err
+	}
 	deltaInv := r.Group().NewScalar().Set(Delta).Invert() // δ⁻¹
-	BigR := deltaInv.Act(r.Gamma)                         // R = [δ⁻¹] Γ
+	BigR := deltaInv.Act(gamma.PublicKeyRaw())            // R = [δ⁻¹] Γ
 	R := BigR.XScalar()                                   // r = R|ₓ
 
-	// km = Hash(m)⋅kᵢ
-	km := curve.FromHash(r.Group(), r.Message)
-	km.Mul(r.KShare)
+	// rχᵢ
+	chiShare, err := r.chi.GetKey(r.cfg.ID(), string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	RChi := chiShare.Mul(R)
 
+	// km = Hash(m)⋅kᵢ
 	// σᵢ = rχᵢ + kᵢm
-	SigmaShare := r.Group().NewScalar().Set(R).Mul(r.ChiShare).Add(km)
+	m := curve.FromHash(r.Group(), r.Message)
+	selfKShare, err := r.signK.GetKey(r.cfg.ID(), string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+	SigmaShare := selfKShare.Commit(m, RChi)
+	if err := r.sigma.ImportSigma(r.cfg.ID(), string(r.SelfID()), SigmaShare); err != nil {
+		return nil, err
+	}
+	r.signature.ImportSignR(r.cfg.ID(), BigR)
 
 	// Send to all
-	err := r.BroadcastMessage(out, &broadcast5{SigmaShare: SigmaShare})
+	err = r.BroadcastMessage(out, &broadcast5{SigmaShare: SigmaShare})
 	if err != nil {
 		return r, err
 	}
 	return &round5{
 		round4:             r,
-		SigmaShares:        map[party.ID]curve.Scalar{r.SelfID(): SigmaShare},
-		Delta:              Delta,
-		BigDelta:           BigDelta,
-		BigR:               BigR,
-		R:                  R,
 		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
 }

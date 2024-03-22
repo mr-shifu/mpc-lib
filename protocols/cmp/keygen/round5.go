@@ -6,7 +6,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -14,7 +13,6 @@ var _ round.Round = (*round5)(nil)
 
 type round5 struct {
 	*round4
-	mpc_ks comm_mpc_ks.MPCKeystore
 
 	UpdatedConfig *config.Config
 
@@ -48,7 +46,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// 	r.SchnorrCommitments[from], nil) {
 	// 	return errors.New("failed to validate schnorr proof for received share")
 	// }
-	ecKey, err := r.ecdsa_km.GetKey(r.KeyID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
 	}

@@ -4,39 +4,18 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
-	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
-	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
 	*round1
-
-	// K[j] = Kⱼ = encⱼ(kⱼ)
-	K map[party.ID]*paillier.Ciphertext
-	// G[j] = Gⱼ = encⱼ(γⱼ)
-	G map[party.ID]*paillier.Ciphertext
-
-	// BigGammaShare[j] = Γⱼ = [γⱼ]•G
-	BigGammaShare map[party.ID]curve.Point
-
-	// GammaShare = γᵢ <- 𝔽
-	GammaShare *saferith.Int
-	// KShare = kᵢ  <- 𝔽
-	KShare curve.Scalar
-
-	// KNonce = ρᵢ <- ℤₙ
-	// used to encrypt Kᵢ = Encᵢ(kᵢ)
-	KNonce *saferith.Nat
-	// GNonce = νᵢ <- ℤₙ
-	// used to encrypt Gᵢ = Encᵢ(γᵢ)
-	GNonce *saferith.Nat
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -64,12 +43,24 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	if !r.Paillier[from].ValidateCiphertexts(body.K, body.G) {
+	paillierj, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	if err != nil {
+		return err
+	}
+
+	if !paillierj.ValidateCiphertexts(body.K, body.G) {
 		return errors.New("invalid K, G")
 	}
 
-	r.K[from] = body.K
-	r.G[from] = body.G
+	k_pekj := pek.NewPaillierEncodedkey(nil, body.K, nil, r.Group())
+	if _, err := r.signK_pek.ImportKey(r.ID, string(from), k_pekj); err != nil {
+		return err
+	}
+
+	gamma_pekj := pek.NewPaillierEncodedkey(nil, body.G, nil, r.Group())
+	if _, err := r.gamma_pek.ImportKey(r.ID, string(from), gamma_pekj); err != nil {
+		return err
+	}
 
 	// Mark the message as received
 	r.MessageBroadcasted[from] = true
@@ -91,10 +82,23 @@ func (r *round2) VerifyMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
+	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	if err != nil {
+		return err
+	}
+	pedersenTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
+	if err != nil {
+		return err
+	}
+
+	Kj, err := r.signK_pek.GetKey(r.ID, string(from))
+	if err != nil {
+		return err
+	}
 	if !body.ProofEnc.Verify(r.Group(), r.HashForID(from), zkenc.Public{
-		K:      r.K[from],
-		Prover: r.Paillier[from],
-		Aux:    r.Pedersen[to],
+		K:      Kj.Encoded(),
+		Prover: paillierFrom.PublicKeyRaw(),
+		Aux:    pedersenTo.PublicKeyRaw(),
 	}) {
 		return errors.New("failed to validate enc proof for K")
 	}
@@ -115,8 +119,14 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	// Retreive Gamma key from keystore
+	gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
+	if err != nil {
+		return r, err
+	}
+
 	if err := r.BroadcastMessage(out, &broadcast3{
-		BigGammaShare: r.BigGammaShare[r.SelfID()],
+		BigGammaShare: gamma.PublicKeyRaw(),
 	}); err != nil {
 		return r, err
 	}
@@ -130,25 +140,66 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	mtaOuts := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		DeltaBeta, DeltaD, DeltaF, DeltaProof := mta.ProveAffG(r.Group(), r.HashForID(r.SelfID()),
-			r.GammaShare, r.BigGammaShare[r.SelfID()], r.K[j],
-			r.SecretPaillier, r.Paillier[j], r.Pedersen[j])
-		ChiBeta, ChiD, ChiF, ChiProof := mta.ProveAffG(r.Group(),
-			r.HashForID(r.SelfID()), curve.MakeInt(r.SecretECDSA), r.ECDSA[r.SelfID()], r.K[j],
-			r.SecretPaillier, r.Paillier[j], r.Pedersen[j])
+		// TODO must be changed to signID
+		gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
+		if err != nil {
+			return err
+		}
+		eckey, err := r.ec.GetKey(r.cfg.ID(), string(r.SelfID()))
+		if err != nil {
+			return err
+		}		
+		paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
+		if err != nil {
+			return err
+		}
+		paillierj, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(j))
+		if err != nil {
+			return err
+		}
+		pedj, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(j))
+		if err != nil {
+			return err
+		}
+		k_pek, err := r.signK_pek.GetKey(r.cfg.ID(), string(j))
+		if err != nil {
+			return err
+		}
 
-		proof := zklogstar.NewProof(r.Group(), r.HashForID(r.SelfID()),
-			zklogstar.Public{
-				C:      r.G[r.SelfID()],
-				X:      r.BigGammaShare[r.SelfID()],
-				Prover: r.Paillier[r.SelfID()],
-				Aux:    r.Pedersen[j],
-			}, zklogstar.Private{
-				X:   r.GammaShare,
-				Rho: r.GNonce,
-			})
+		DeltaBeta, DeltaD, DeltaF, DeltaProof := gamma.NewMtAAffgProof(
+			r.HashForID(r.SelfID()),
+			k_pek.Encoded(),
+			paillierKey.PublicKey(),
+			paillierj.PublicKey(),
+			pedj.PublicKey(),
+		)
 
-		err := r.SendMessage(out, &message3{
+		ChiBeta, ChiD, ChiF, ChiProof := eckey.NewMtAAffgProof(
+			r.HashForID(r.SelfID()),
+			k_pek.Encoded(),
+			paillierKey.PublicKey(),
+			paillierj.PublicKey(),
+			pedj.PublicKey(),
+		)
+
+		gammaPEK, err := r.gamma_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
+		if err != nil {
+			return err
+		}
+		proof, err := gamma.NewZKLogstarProof(
+			r.HashForID(r.SelfID()),
+			gammaPEK,
+			gammaPEK.Encoded(),
+			gamma.PublicKeyRaw(),
+			nil,
+			paillierKey.PublicKey(),
+			pedj.PublicKey(),
+		)
+		if err != nil {
+			return err
+		}
+
+		err = r.SendMessage(out, &message3{
 			DeltaD:     DeltaD,
 			DeltaF:     DeltaF,
 			DeltaProof: DeltaProof,
@@ -163,24 +214,25 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			ChiBeta:   ChiBeta,
 		}
 	})
-	DeltaShareBetas := make(map[party.ID]*saferith.Int, len(otherIDs)-1)
-	ChiShareBetas := make(map[party.ID]*saferith.Int, len(otherIDs)-1)
+
 	for idx, mtaOutRaw := range mtaOuts {
 		j := otherIDs[idx]
 		m := mtaOutRaw.(mtaOut)
 		if m.err != nil {
 			return r, m.err
 		}
-		DeltaShareBetas[j] = m.DeltaBeta
-		ChiShareBetas[j] = m.ChiBeta
+		delta_mta := sw_mta.NewMtA(nil, m.DeltaBeta)
+		if _, err := r.delta_mta.ImportKey(r.cfg.ID(), string(j), delta_mta); err != nil {
+			return nil, err
+		}
+		chi_mta := sw_mta.NewMtA(nil, m.ChiBeta)
+		if _, err := r.chi_mta.ImportKey(r.cfg.ID(), string(j), chi_mta); err != nil {
+			return nil, err
+		}
 	}
 
 	return &round3{
 		round2:             r,
-		DeltaShareBeta:     DeltaShareBetas,
-		ChiShareBeta:       ChiShareBetas,
-		DeltaShareAlpha:    map[party.ID]*saferith.Int{},
-		ChiShareAlpha:      map[party.ID]*saferith.Int{},
 		MessageBroadcasted: make(map[party.ID]bool),
 		MessageForwarded:   make(map[party.ID]bool),
 	}, nil

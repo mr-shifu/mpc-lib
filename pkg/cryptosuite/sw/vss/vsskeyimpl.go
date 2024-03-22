@@ -13,8 +13,6 @@ import (
 type VssKey struct {
 	secrets   *polynomial.Polynomial
 	exponents *polynomial.Exponent
-
-	shares cs_vss.LinkedVSSShareStore
 }
 
 type rawVssKey struct {
@@ -23,11 +21,10 @@ type rawVssKey struct {
 	Exponents []byte
 }
 
-func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent, shares cs_vss.LinkedVSSShareStore) cs_vss.VssKey {
+func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) cs_vss.VssKey {
 	return &VssKey{
 		secrets:   secrets,
 		exponents: exponents,
-		shares:    shares,
 	}
 }
 
@@ -102,19 +99,6 @@ func (k *VssKey) Evaluate(index curve.Scalar) (curve.Scalar, error) {
 func (k *VssKey) EvaluateByExponents(index curve.Scalar) (curve.Point, error) {
 	// evaluate polynomial using exponents of coefficients
 	return k.exponents.Evaluate(index), nil
-}
-
-// EvaluateByExponents evaluates polynomial using exponents of coefficients.
-func (k *VssKey) WithShareStore(ss cs_vss.LinkedVSSShareStore) {
-	k.shares = ss
-}
-
-func (k *VssKey) GetShare(index curve.Scalar) (*cs_vss.VSSShare, error) {
-	return k.shares.Get(index)
-}
-
-func (k *VssKey) ImportShare(share *cs_vss.VSSShare) error {
-	return k.shares.Import(share)
 }
 
 func fromBytes(data []byte) (VssKey, error) {
