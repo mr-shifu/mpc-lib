@@ -35,6 +35,7 @@ import (
 	mpc_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/rid"
 
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
 
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	mpc_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/ecdsa"
@@ -84,7 +85,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	ec_vss_kr := krf.NewKeyRepository(nil)
-	ec_vss_km := mpc_ecdsa.NewECDSA(ecdsa_km, ec_vss_kr, nil, nil)
+	vss_mgr := mpc_vss.NewVSS(vss_km, vss_kr, ecdsa_km, ec_vss_kr)
 
 	rid_kr := krf.NewKeyRepository(nil)
 	rid_ks := ksf.NewKeystore(nil)
@@ -108,7 +109,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		paillier,
 		pedersen,
 		ecdsa,
-		ec_vss_km,
+		vss_mgr,
 		rid,
 		chainKey,
 		hash_mgr,
@@ -160,6 +161,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		paillier,
 		pedersen,
 		ecdsa,
+		vss_mgr,
 		gamma_mgr,
 		signK_mgr,
 		delta_mgr,
@@ -175,50 +177,6 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 
 	return mpc_keygen, mpc_sign
 }
-
-// func TestRound(t *testing.T) {
-// 	pl := pool.NewPool(0)
-// 	defer pl.TearDown()
-// 	group := curve.Secp256k1{}
-
-// 	N := 6
-// 	T := N - 1
-
-// 	t.Log("generating configs")
-// 	configs, partyIDs := test.GenerateConfig(group, N, T, mrand.New(mrand.NewSource(1)), pl)
-// 	t.Log("done generating configs")
-
-// 	partyIDs = partyIDs[:T+1]
-// 	publicPoint := configs[partyIDs[0]].PublicPoint()
-
-// 	messageToSign := []byte("hello")
-// 	messageHash := make([]byte, 64)
-// 	sha3.ShakeSum128(messageHash, messageToSign)
-
-// 	rounds := make([]round.Session, 0, N)
-// 	for _, partyID := range partyIDs {
-// 		c := configs[partyID]
-// 		r, err := StartSign(c, partyIDs, messageHash, pl)(nil)
-// 		require.NoError(t, err, "round creation should not result in an error")
-// 		rounds = append(rounds, r)
-// 	}
-
-// 	for {
-// 		err, done := test.Rounds(rounds, nil)
-// 		require.NoError(t, err, "failed to process round")
-// 		if done {
-// 			break
-// 		}
-// 	}
-
-// 	for _, r := range rounds {
-// 		require.IsType(t, &round.Output{}, r, "expected result round")
-// 		resultRound := r.(*round.Output)
-// 		require.IsType(t, &ecdsa.Signature{}, resultRound.Result, "expected taproot signature result")
-// 		signature := resultRound.Result.(*ecdsa.Signature)
-// 		assert.True(t, signature.Verify(publicPoint, messageHash), "expected valid signature")
-// 	}
-// }
 
 func TestSign(t *testing.T) {
 	keyID := uuid.NewString()

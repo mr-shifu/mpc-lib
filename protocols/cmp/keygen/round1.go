@@ -9,7 +9,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
@@ -17,6 +16,7 @@ import (
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -29,7 +29,8 @@ type round1 struct {
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
 	ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	ec_vss_km   comm_ecdsa.ECDSAKeyManager
+	// ec_vss_km   comm_ecdsa.ECDSAKeyManager
+	vss_mgr     comm_vss.VssKeyManager
 	rid_km      comm_rid.RIDKeyManager
 	chainKey_km comm_rid.RIDKeyManager
 	commit_mgr  comm_commitment.CommitmentManager
@@ -100,17 +101,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	selfShareSecret, err := vssKey.Evaluate(r.SelfID().Scalar(r.Group()))
-	if err != nil {
-		return nil, err
-	}
-	selfSharePublic, err := vssKey.EvaluateByExponents(r.SelfID().Scalar(r.Group()))
-	if err != nil {
-		return nil, err
-	}
-	vssShareKey := sw_ecdsa.NewECDSAKey(selfShareSecret, selfSharePublic, r.Group())
-	vssShareKeyID := vssKey.SKI()
-	if err := r.ec_vss_km.ImportKey(string(vssShareKeyID), string(r.SelfID()), vssShareKey); err != nil {
+
+	// generate VSS Share
+	if err := r.vss_mgr.GenerateVSSShare(r.ID, r.SelfID(), r.SelfID(), r.Group()); err != nil {
 		return nil, err
 	}
 

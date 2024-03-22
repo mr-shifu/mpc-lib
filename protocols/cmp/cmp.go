@@ -49,6 +49,8 @@ import (
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mta"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
+	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	mpc_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/mta"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
@@ -65,12 +67,13 @@ type MPC struct {
 	paillier   comm_paillier.PaillierKeyManager
 	pedersen   comm_pedersen.PedersenKeyManager
 	ec         comm_ecdsa.ECDSAKeyManager
-	ec_vss     comm_ecdsa.ECDSAKeyManager
 	rid        comm_rid.RIDKeyManager
 	chainKey   comm_rid.RIDKeyManager
 	hash_mgr   comm_hash.HashManager
 	mpc_ks     comm_mpckey.MPCKeystore
 	commit_mgr comm_commitment.CommitmentManager
+
+	vss_mgr comm_vss.VssKeyManager
 
 	gamma    comm_ecdsa.ECDSAKeyManager
 	signK    comm_ecdsa.ECDSAKeyManager
@@ -124,7 +127,7 @@ func NewMPC(
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	ec_vss_kr := krf.NewKeyRepository(nil)
-	ec_vss_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, ec_vss_kr, nil, nil)
+	vss_mgr := mpc_vss.NewVSS(vss_km, vss_kr, ecdsa_km, ec_vss_kr)
 
 	rid_ks := ksf.NewKeystore(nil)
 	rid_kr := krf.NewKeyRepository(nil)
@@ -189,7 +192,7 @@ func NewMPC(
 		paillier:   paillier,
 		pedersen:   pedersen,
 		ec:         ecdsa,
-		ec_vss:     ec_vss_mgr,
+		vss_mgr:    vss_mgr,
 		rid:        rid,
 		chainKey:   chainKey,
 		hash_mgr:   hash_mgr,
@@ -215,7 +218,7 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
-		mpc.ec_vss,
+		mpc.vss_mgr,
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,
@@ -232,6 +235,7 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
+		mpc.vss_mgr,
 		mpc.gamma,
 		mpc.signK,
 		mpc.delta,
@@ -279,7 +283,7 @@ func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, partici
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
-		mpc.ec_vss,
+		mpc.vss_mgr,
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,
@@ -299,6 +303,7 @@ func (mpc *MPC) Sign(signID string, keyID string, info round.Info, signers []par
 		mpc.paillier,
 		mpc.pedersen,
 		mpc.ec,
+		mpc.vss_mgr,
 		mpc.gamma,
 		mpc.signK,
 		mpc.delta,

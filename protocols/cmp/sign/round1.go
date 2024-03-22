@@ -11,6 +11,7 @@ import (
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pek"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -25,12 +26,15 @@ type round1 struct {
 	paillier_km comm_paillier.PaillierKeyManager
 	pedersen_km comm_pedersen.PedersenKeyManager
 
-	ec       comm_ecdsa.ECDSAKeyManager
+	ec comm_ecdsa.ECDSAKeyManager
+	// ec_vss   comm_ecdsa.ECDSAKeyManager
 	gamma    comm_ecdsa.ECDSAKeyManager
 	signK    comm_ecdsa.ECDSAKeyManager
 	delta    comm_ecdsa.ECDSAKeyManager
 	chi      comm_ecdsa.ECDSAKeyManager
 	bigDelta comm_ecdsa.ECDSAKeyManager
+
+	vss_mgr comm_vss.VssKeyManager
 
 	gamma_pek comm_pek.PaillierEncodedKeyManager
 	signK_pek comm_pek.PaillierEncodedKeyManager

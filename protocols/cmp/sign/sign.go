@@ -20,6 +20,7 @@ import (
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pek"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 )
 
@@ -38,12 +39,15 @@ type MPCSign struct {
 
 	pedersen_km comm_pedersen.PedersenKeyManager
 
-	ec       comm_ecdsa.ECDSAKeyManager
+	ec comm_ecdsa.ECDSAKeyManager
+	// ec_vss   comm_ecdsa.ECDSAKeyManager
 	gamma    comm_ecdsa.ECDSAKeyManager
 	signK    comm_ecdsa.ECDSAKeyManager
 	delta    comm_ecdsa.ECDSAKeyManager
 	chi      comm_ecdsa.ECDSAKeyManager
 	bigDelta comm_ecdsa.ECDSAKeyManager
+
+	vss_mgr comm_vss.VssKeyManager
 
 	gamma_pek comm_pek.PaillierEncodedKeyManager
 	signK_pek comm_pek.PaillierEncodedKeyManager
@@ -61,6 +65,8 @@ func NewMPCSign(
 	paillier_km comm_paillier.PaillierKeyManager,
 	pedersen_km comm_pedersen.PedersenKeyManager,
 	ec comm_ecdsa.ECDSAKeyManager,
+	// ec_vss comm_ecdsa.ECDSAKeyManager,
+	vss_mgr comm_vss.VssKeyManager,
 	gamma comm_ecdsa.ECDSAKeyManager,
 	signK comm_ecdsa.ECDSAKeyManager,
 	delta comm_ecdsa.ECDSAKeyManager,
@@ -79,17 +85,19 @@ func NewMPCSign(
 		paillier_km: paillier_km,
 		pedersen_km: pedersen_km,
 		ec:          ec,
-		gamma:       gamma,
-		signK:       signK,
-		delta:       delta,
-		chi:         chi,
-		bigDelta:    bigDelta,
-		gamma_pek:   gamma_pek,
-		signK_pek:   signK_pek,
-		delta_mta:   delta_mta,
-		chi_mta:     chi_mta,
-		sigma:       sigma,
-		signature:   signature,
+		// ec_vss:      ec_vss,
+		vss_mgr:   vss_mgr,
+		gamma:     gamma,
+		signK:     signK,
+		delta:     delta,
+		chi:       chi,
+		bigDelta:  bigDelta,
+		gamma_pek: gamma_pek,
+		signK_pek: signK_pek,
+		delta_mta: delta_mta,
+		chi_mta:   chi_mta,
+		sigma:     sigma,
+		signature: signature,
 	}
 }
 
@@ -117,16 +125,18 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 		lagrange := polynomial.Lagrange(group, signers)
 		clonedPubKey := info.Group.NewPoint()
 		for _, j := range helper.PartyIDs() {
-			ecKey, err := m.ec.GetKey(keyID, string(j))
+			vssKey, err := m.vss_mgr.GetShare(keyID, "ROOT", j)
 			if err != nil {
 				return nil, err
 			}
-			clonedj := ecKey.CloneByMultiplier(lagrange[j])
+			clonedj := vssKey.CloneByMultiplier(lagrange[j])
 			if err := m.ec.ImportKey(signID, string(j), clonedj); err != nil {
 				return nil, err
 			}
+			fmt.Printf("Party: %s, clonedj: %v\n", j, clonedj.PublicKeyRaw())
 			clonedPubKey = clonedPubKey.Add(clonedj.PublicKeyRaw())
 		}
+		fmt.Printf("Roto cloned: %v\n", clonedPubKey)
 		cloned := sw_ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
 		if err := m.ec.ImportKey(signID, "ROOT", cloned); err != nil {
 			return nil, err
@@ -151,6 +161,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
 			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
 			delta:       m.delta,

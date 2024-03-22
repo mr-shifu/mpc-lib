@@ -152,7 +152,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 		return errors.New("failed to validate VSS share")
 	}
 	vssShareKey := sw_ecdsa.NewECDSAKey(Share, PublicShare, r.Group())
-	if err := r.ec_vss_km.ImportKey(string(vssKey.SKI()), string(r.SelfID()), vssShareKey); err != nil {
+	if err := r.vss_mgr.ImportShare(r.ID, from, r.SelfID(), vssShareKey); err != nil {
 		return err
 	}
 
@@ -181,39 +181,38 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
+	vssPoly, err := r.vss_mgr.GetKey(r.ID, "ROOT")
+	if err != nil {
+		return nil, err
+	}
+	for _, j := range r.PartyIDs() {
+		vssPub, err := vssPoly.EvaluateByExponents(j.Scalar(r.Group()))
+		if err != nil {
+			return nil, err
+		}
+		vssKeyShare := sw_ecdsa.NewECDSAKey(nil, vssPub, r.Group())
+		if err := r.vss_mgr.ImportShare(r.ID, "ROOT", j, vssKeyShare); err != nil {
+			return nil, err
+		}
+	}
+
 	// Sum all VSS shares to generate MPC VSS Share
 	var vss_shares []comm_ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
-		ecKey, err := r.ecdsa_km.GetKey(r.ID, string(j))
-		if err != nil {
-			return nil, err
-		}
-		vssKey, err := ecKey.VSS()
-		if err != nil {
-			return nil, err
-		}
-		vss_share, err := r.ec_vss_km.GetKey(string(vssKey.SKI()), string(r.SelfID()))
+		vss_share, err := r.vss_mgr.GetShare(r.ID, j, r.SelfID())
 		if err != nil {
 			return nil, err
 		}
 		vss_shares = append(vss_shares, vss_share)
 	}
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
-	if err != nil {
-		return nil, err
-	}
-	vssKey, err := ecKey.VSS()
-	if err != nil {
-		return nil, err
-	}
-	selfVSSShare, err := r.ec_vss_km.GetKey(string(vssKey.SKI()), string(r.SelfID()))
+	selfVSSShare, err := r.vss_mgr.GetShare(r.ID, r.SelfID(), r.SelfID())
 	if err != nil {
 		return nil, err
 	}
 	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
 	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
 	vssShareKey := sw_ecdsa.NewECDSAKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
-	if err := r.ec_vss_km.ImportKey(r.ID, "ROOT", vssShareKey); err != nil {
+	if err := r.vss_mgr.ImportShare(r.ID, "ROOT", r.SelfID(), vssShareKey); err != nil {
 		return nil, err
 	}
 
@@ -284,6 +283,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
 	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
+	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
 	proof, err := ecKey.GenerateSchnorrProof(h)
 	if err != nil {
 		return r, err
