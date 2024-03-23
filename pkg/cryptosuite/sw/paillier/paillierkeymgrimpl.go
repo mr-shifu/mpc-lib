@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
-	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
@@ -24,7 +24,7 @@ func NewPaillierKeyManager(store keystore.Keystore, pl *pool.Pool) *PaillierKeyM
 }
 
 // GenerateKey generates a new Paillier key pair.
-func (mgr *PaillierKeyManager) GenerateKey() (cs_paillier.PaillierKey, error) {
+func (mgr *PaillierKeyManager) GenerateKey() (comm_paillier.PaillierKey, error) {
 	// generate a new Paillier key pair
 	pk, sk := pailliercore.KeyGen(mgr.pl)
 	key := PaillierKey{sk, pk}
@@ -48,7 +48,7 @@ func (mgr *PaillierKeyManager) GenerateKey() (cs_paillier.PaillierKey, error) {
 }
 
 // GetKey returns a Paillier key by its SKI.
-func (mgr *PaillierKeyManager) GetKey(ski []byte) (cs_paillier.PaillierKey, error) {
+func (mgr *PaillierKeyManager) GetKey(ski []byte) (comm_paillier.PaillierKey, error) {
 	// get the key from the keystore
 	keyID := hex.EncodeToString(ski)
 	decoded, err := mgr.keystore.Get(keyID)
@@ -66,13 +66,7 @@ func (mgr *PaillierKeyManager) GetKey(ski []byte) (cs_paillier.PaillierKey, erro
 }
 
 // ImportKey imports a Paillier key from its byte representation.
-func (mgr *PaillierKeyManager) ImportKey(data []byte) (cs_paillier.PaillierKey, error) {
-	// convert []byte to PaillierKey
-	key, err := fromBytes(data)
-	if err != nil {
-		return nil, errors.New("invalid key data")
-	}
-
+func (mgr *PaillierKeyManager) ImportKey(key comm_paillier.PaillierKey) (comm_paillier.PaillierKey, error) {
 	// encode the key into binary
 	kb, err := key.Bytes()
 	if err != nil {

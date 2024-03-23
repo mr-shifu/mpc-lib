@@ -7,7 +7,7 @@ import (
 
 type PaillierKeyManager interface {
 	GenerateKey(keyID string, partyID string) (comm_paillier.PaillierKey, error)
-	ImportKey(keyID string, partyID string, data []byte) (comm_paillier.PaillierKey, error)
+	ImportKey(keyID string, partyID string, key comm_paillier.PaillierKey) error
 	GetKey(keyID string, partyID string) (comm_paillier.PaillierKey, error)
 	DerivePedersenKey(keyID string, partyID string) (comm_pedersen.PedersenKey, error)
 }

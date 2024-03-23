@@ -131,12 +131,8 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	paillier_byte, err := sw_paillier.NewPaillierKey(nil, paillier.NewPublicKey(body.N)).Bytes()
-	if err != nil {
-		return err
-	}
-	_, err = r.paillier_km.ImportKey(r.ID, string(from), paillier_byte)
-	if err != nil {
+	paillierFrom := sw_paillier.NewPaillierKey(nil, paillier.NewPublicKey(body.N))
+	if err = r.paillier_km.ImportKey(r.ID, string(from), paillierFrom); err != nil {
 		return err
 	}
 
