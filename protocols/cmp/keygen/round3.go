@@ -121,11 +121,13 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	if _, err := r.rid_km.ImportKey(r.ID, string(from), body.RID); err != nil {
+	ridFrom, err := r.rid_km.ImportKey(r.ID, string(from), body.RID)
+	if err != nil {
 		return err
 	}
 
-	if _, err := r.chainKey_km.ImportKey(r.ID, string(from), body.C); err != nil {
+	chainKeyFrom, err := r.chainKey_km.ImportKey(r.ID, string(from), body.C)
+	if err != nil {
 		return err
 	}
 
@@ -133,7 +135,8 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if _, err := r.paillier_km.ImportKey(r.ID, string(from), paillier_byte); err != nil {
+	_, err = r.paillier_km.ImportKey(r.ID, string(from), paillier_byte)
+	if err != nil {
 		return err
 	}
 
@@ -141,7 +144,8 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if _, err := r.pedersen_km.ImportKey(r.ID, string(from), ped_byte); err != nil {
+	pedersenKeyFrom, err := r.pedersen_km.ImportKey(r.ID, string(from), ped_byte)
+	if err != nil {
 		return err
 	}
 
@@ -151,10 +155,10 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 	pub := body.VSSPolynomial.Constant()
 	k := sw_ecdsa.NewECDSAKey(nil, pub, pub.Curve())
-	err = r.ecdsa_km.ImportKey(r.ID, string(from), k)
-	if err != nil {
+	if err = r.ecdsa_km.ImportKey(r.ID, string(from), k); err != nil {
 		return err
 	}
+
 	fromKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
 	if err != nil {
 		return err
@@ -166,11 +170,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	elgamal, err := r.elgamal_km.ImportKey(r.ID, string(from), body.ElGamalPublic)
-	if err != nil {
-		return err
-	}
-	elgamal_bytes, err := elgamal.PublicKey().Bytes()
+	elgamalFrom, err := r.elgamal_km.ImportKey(r.ID, string(from), body.ElGamalPublic)
 	if err != nil {
 		return err
 	}
@@ -185,15 +185,14 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	if !r.Hash().Clone().Decommit(cmt.Commitment, body.Decommitment,
-		[]byte(body.RID),
-		[]byte(body.C),
-		vss_bytes,
+	if !r.Hash().Clone().Decommit(
+		cmt.Commitment,
+		body.Decommitment,
+		ridFrom,
+		chainKeyFrom,
+		elgamalFrom.PublicKey(),
+		pedersenKeyFrom.PublicKey(),
 		body.SchnorrCommitments,
-		elgamal_bytes,
-		body.N,
-		body.S,
-		body.T,
 	) {
 		return errors.New("failed to decommit")
 	}

@@ -12,15 +12,6 @@ var _ round.Round = (*round2)(nil)
 type round2 struct {
 	*round1
 
-	// mpc_ks      comm_mpc_ks.MPCKeystore
-	// elgamal_km  comm_elgamal.ElgamalKeyManager
-	// paillier_km comm_paillier.PaillierKeyManager
-	// pedersen_km comm_pedersen.PedersenKeyManager
-	// ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	// rid_km      comm_rid.RIDKeyManager
-	// chainKey_km comm_rid.RIDKeyManager
-	// commit_mgr  comm_commitment.CommitmentManager
-
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
 }

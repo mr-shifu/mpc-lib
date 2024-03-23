@@ -124,43 +124,19 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	// commit to data in message 2
-	// TODO Hash func must be fixed to handle cryptosuite keys
-	ped_pub := pedersenKey.PublicKeyRaw()
-	if err != nil {
-		return nil, err
-	}
-	elgamal_bytes, err := elgamlKey.PublicKey().Bytes()
-	if err != nil {
-		return nil, err
-	}
-	vssExponents, err := vssKey.ExponentsRaw()
-	if err != nil {
-		return nil, err
-	}
-	vssExponents_bytes, err := vssExponents.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	selfRID_bytes, err := selfRID.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	chainKey_bytes, err := chainKey.Bytes()
+	vssExponents, err := vssKey.Exponents()
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: make Commit to accept Key.Public() instead of key.PublicKeyRaw()
 	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
-		selfRID_bytes,
-		chainKey_bytes,
-		vssExponents_bytes,
+		selfRID,
+		chainKey,
+		vssExponents,
+		elgamlKey.PublicKey(),
+		pedersenKey.PublicKey(),
 		schnorrCommitment,
-		elgamal_bytes,
-		ped_pub.N(),
-		ped_pub.S(),
-		ped_pub.T(),
 	)
 	if err != nil {
 		return r, errors.New("failed to commit")

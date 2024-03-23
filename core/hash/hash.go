@@ -98,6 +98,16 @@ func (hash *Hash) WriteAny(data ...interface{}) error {
 				TheDomain: name.String(),
 				Bytes:     bytes,
 			}
+		case encoding.KeyMarshaler:
+			name := reflect.TypeOf(t)
+			bytes, err := t.Bytes()
+			if err != nil {
+				return fmt.Errorf("hash.WriteAny: %s: %w", name.String(), err)
+			}
+			toBeWritten = BytesWithDomain{
+				TheDomain: name.String(),
+				Bytes:     bytes,
+			}
 		default:
 			// This should panic or something
 			return fmt.Errorf("hash.WriteAny: invalid type provided as input")

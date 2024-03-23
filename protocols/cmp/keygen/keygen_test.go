@@ -113,7 +113,6 @@ func newMPCKeygen() *MPCKeygen {
 	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
 
 	ec_vss_kr := inmem_keyrepo.NewKeyRepository()
-	// ec_vss_km := mpc_ecdsa.NewECDSA(ecdsa_km, ec_vss_kr, nil, nil)
 	vss_mgr := mpc_vss.NewVSS(vss_km, vss_kr, ecdsa_km, ec_vss_kr)
 
 	rid_kr := inmem_keyrepo.NewKeyRepository()
@@ -138,7 +137,6 @@ func newMPCKeygen() *MPCKeygen {
 		paillier,
 		pedersen,
 		ecdsa,
-		// ec_vss_km,
 		vss_mgr,
 		rid,
 		chainKey,
