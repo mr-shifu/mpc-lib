@@ -140,12 +140,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	ped_byte, err := sw_pedersen.NewPedersenKey(nil, pedersen.New(arith.ModulusFromN(body.N), body.S, body.T)).PublicKey().Bytes()
+	pedersenFrom := sw_pedersen.NewPedersenKey(nil, pedersen.New(arith.ModulusFromN(body.N), body.S, body.T))
 	if err != nil {
 		return err
 	}
-	pedersenKeyFrom, err := r.pedersen_km.ImportKey(r.ID, string(from), ped_byte)
-	if err != nil {
+	if err := r.pedersen_km.ImportKey(r.ID, string(from), pedersenFrom); err != nil {
 		return err
 	}
 
@@ -191,7 +190,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		ridFrom,
 		chainKeyFrom,
 		elgamalFrom.PublicKey(),
-		pedersenKeyFrom.PublicKey(),
+		pedersenFrom.PublicKey(),
 		body.SchnorrCommitments,
 	) {
 		return errors.New("failed to decommit")

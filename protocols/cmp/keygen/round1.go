@@ -80,11 +80,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	pedersen_kb, err := pedersenKey.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersen_kb)
+	r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersenKey)
 
 	// generate ElGamal key
 	elgamlKey, err := r.elgamal_km.GenerateKey(r.ID, string(r.SelfID()))

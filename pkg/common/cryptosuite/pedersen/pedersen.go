@@ -42,7 +42,7 @@ type PedersenKeyManager interface {
 	GenerateKey() (PedersenKey, error)
 
 	// ImportKey imports a Pedersen key.
-	ImportKey(data []byte) (PedersenKey, error)
+	ImportKey(key PedersenKey) (PedersenKey, error)
 
 	// GetKey returns a Pedersen key by its SKI.
 	GetKey(ski []byte) (PedersenKey, error)
