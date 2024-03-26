@@ -66,10 +66,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	ekb, err := elgamalKey.Bytes()
-	if err != nil {
-		return nil, err
-	}
 
 	rid, err := r.rid_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
@@ -99,6 +95,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
+	paillier, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
+	if err != nil {
+		return nil, err
+	}
+
 	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
@@ -110,16 +111,37 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
+	ec_bytes, err := ecKey.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	elgamal_bytes, err := elgamalKey.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	paillier_bytes, err := paillier.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	ped_bytes, err := ped.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	exponents_bytes, err := exponents.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
 	err = r.BroadcastMessage(out, &broadcast3{
 		RID:                rid.Raw(),
 		C:                  chainKey.Raw(),
-		VSSPolynomial:      exponents,
+		EcdsaKey:           ec_bytes,
+		VSSPolynomial:      exponents_bytes,
 		SchnorrCommitments: schnorrCommitment,
-		ElGamalPublic:      ekb,
-		N:                  ped.PublicKeyRaw().N(),
-		S:                  ped.PublicKeyRaw().S(),
-		T:                  ped.PublicKeyRaw().T(),
-		Decommitment:       cmt.Decommitment,
+		PaillierKey:        paillier_bytes,
+		ElgamalKey:         elgamal_bytes,
+		PedersenKey:        ped_bytes,
+		Decommitment: cmt.Decommitment,
 	})
 	if err != nil {
 		return r, err

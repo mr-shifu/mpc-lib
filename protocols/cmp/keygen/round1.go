@@ -80,7 +80,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersenKey); err != nil {
+	if _, err := r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersenKey); err != nil {
 		return nil, err
 	}
 
