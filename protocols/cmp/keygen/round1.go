@@ -127,13 +127,14 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	// TODO: make Commit to accept Key.Public() instead of key.PublicKeyRaw()
 	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
 		selfRID,
 		chainKey,
 		vssExponents,
 		elgamlKey.PublicKey(),
-		pedersenKey.PublicKey(),
+		pedersenKey.PublicKeyRaw().N(),
+		pedersenKey.PublicKeyRaw().S(),
+		pedersenKey.PublicKeyRaw().T(),
 		schnorrCommitment,
 	)
 	if err != nil {

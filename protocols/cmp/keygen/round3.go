@@ -144,10 +144,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	vss_bytes, err := body.VSSPolynomial.MarshalBinary()
-	if err != nil {
-		return err
-	}
 	pub := body.VSSPolynomial.Constant()
 	k := sw_ecdsa.NewECDSAKey(nil, pub, pub.Curve())
 	if err = r.ecdsa_km.ImportKey(r.ID, string(from), k); err != nil {
@@ -158,10 +154,23 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
+	vss_bytes, err := body.VSSPolynomial.MarshalBinary()
+	if err != nil {
+		return err
+	}
 	if err := fromKey.ImportVSSSecrets(vss_bytes); err != nil {
 		return err
 	}
 	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
+		return err
+	}
+
+	vssKeyFrom, err := fromKey.VSS()
+	if err != nil {
+		return err
+	}
+	exponentsFrom, err := vssKeyFrom.Exponents()
+	if err != nil {
 		return err
 	}
 
@@ -185,8 +194,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		body.Decommitment,
 		ridFrom,
 		chainKeyFrom,
+		exponentsFrom,
 		elgamalFrom.PublicKey(),
-		pedersenFrom.PublicKey(),
+		body.N,
+		body.S,
+		body.T,
 		body.SchnorrCommitments,
 	) {
 		return errors.New("failed to decommit")
@@ -258,11 +270,6 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(rid, r.SelfID())
 
 	// Prove N is a blum prime with zkmod
-	// mod := zkmod.NewProof(h.Clone(), zkmod.Private{
-	// 	P:   r.PaillierSecret.P(),
-	// 	Q:   r.PaillierSecret.Q(),
-	// 	Phi: r.PaillierSecret.Phi(),
-	// }, zkmod.Public{N: r.PaillierPublic[r.SelfID()].N()}, r.Pool)
 	pk, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
@@ -270,12 +277,6 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	mod := pk.NewZKModProof(h.Clone(), r.Pool)
 
 	// prove s, t are correct as aux parameters with zkprm
-	// prm := zkprm.NewProof(zkprm.Private{
-	// 	Lambda: r.PedersenSecret,
-	// 	Phi:    r.PaillierSecret.Phi(),
-	// 	P:      r.PaillierSecret.P(),
-	// 	Q:      r.PaillierSecret.Q(),
-	// }, h.Clone(), zkprm.Public{Aux: r.Pedersen[r.SelfID()]}, r.Pool)
 	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
 	if err != nil {
 		return nil, err
