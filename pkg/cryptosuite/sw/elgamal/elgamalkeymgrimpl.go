@@ -7,8 +7,8 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
-	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	cs_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
 type Config struct {
@@ -51,23 +51,36 @@ func (mgr *ElgamalKeyManager) GenerateKey() (cs_elgamal.ElgamalKey, error) {
 	return key, nil
 }
 
-func (mgr *ElgamalKeyManager) ImportKey(data []byte) (cs_elgamal.ElgamalKey, error) {
+func (mgr *ElgamalKeyManager) ImportKey(raw interface{}) (cs_elgamal.ElgamalKey, error) {
+	var err error
+	var key ElgamalKey
+
+	switch raw := raw.(type) {
+	case []byte:
+		key, err = fromBytes(raw)
+		if err != nil {
+			return ElgamalKey{}, err
+		}
+	case ElgamalKey:
+		key = raw
+	}
+
 	// decode the key
-	k, err := fromBytes(data)
+	kb, err := key.Bytes()
 	if err != nil {
-		return ElgamalKey{}, err
+		return nil, err
 	}
 
 	// get key SKI and encode it to hex string as keyID
-	ski := k.SKI()
+	ski := key.SKI()
 	keyID := hex.EncodeToString(ski)
 
 	// import the decoded key to the keystore with keyID
-	if err := mgr.keystore.Import(keyID, data); err != nil {
+	if err := mgr.keystore.Import(keyID, kb); err != nil {
 		return ElgamalKey{}, err
 	}
 
-	return k, err
+	return key, err
 }
 
 func (mgr *ElgamalKeyManager) GetKey(ski []byte) (cs_elgamal.ElgamalKey, error) {

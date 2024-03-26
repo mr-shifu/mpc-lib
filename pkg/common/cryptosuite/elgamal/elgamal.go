@@ -26,7 +26,7 @@ type ElgamalKeyManager interface {
 	GenerateKey() (ElgamalKey, error)
 
 	// Import imports a Elgamal key from its byte representation.
-	ImportKey(data []byte) (ElgamalKey, error)
+	ImportKey(data interface{}) (ElgamalKey, error)
 
 	// GetKey returns a Elgamal key by its SKI.
 	GetKey(ski []byte) (ElgamalKey, error)

@@ -39,8 +39,8 @@ func (e *ElgamalKeyManager) GenerateKey(keyID string, partyID string) (comm_elga
 	return key, nil
 }
 
-func (e *ElgamalKeyManager) ImportKey(keyID string, partyID string, data []byte) (comm_elgamal.ElgamalKey, error) {
-	key, err := e.km.ImportKey(data)
+func (e *ElgamalKeyManager) ImportKey(keyID string, partyID string, raw interface{}) (comm_elgamal.ElgamalKey, error) {
+	key, err := e.km.ImportKey(raw)
 	if err != nil {
 		return nil, err
 	}
