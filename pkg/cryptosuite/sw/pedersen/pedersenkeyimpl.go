@@ -2,10 +2,10 @@ package pedersen
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/fxamacker/cbor/v2"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
@@ -19,6 +19,11 @@ type PedersenKey struct {
 	public *pedersencore.Parameters // n, s, t
 }
 
+type rawPedersenKey struct {
+	Secret []byte
+	Public []byte
+}
+
 func NewPedersenKey(s *saferith.Nat, p *pedersencore.Parameters) PedersenKey {
 	return PedersenKey{
 		secret: s,
@@ -28,29 +33,44 @@ func NewPedersenKey(s *saferith.Nat, p *pedersencore.Parameters) PedersenKey {
 
 // Bytes returns the byte representation of the key.
 func (k PedersenKey) Bytes() ([]byte, error) {
-	pkb, err := k.public.MarshalBiinary()
-	if err != nil {
-		return nil, err
-	}
-	plb := make([]byte, 2)
-	binary.LittleEndian.PutUint16(plb, uint16(len(pkb)))
+	// pkb, err := k.public.MarshalBiinary()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// plb := make([]byte, 2)
+	// binary.LittleEndian.PutUint16(plb, uint16(len(pkb)))
 
-	buf := make([]byte, 0)
-	buf = append(buf, plb...)
-	buf = append(buf, pkb...)
+	// buf := make([]byte, 0)
+	// buf = append(buf, plb...)
+	// buf = append(buf, pkb...)
+
+	// if k.Private() {
+	// 	skb, err := k.secret.MarshalBinary()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	slb := make([]byte, 2)
+	// 	binary.LittleEndian.PutUint16(slb, uint16(len(skb)))
+	// 	buf = append(buf, slb...)
+	// 	buf = append(buf, skb...)
+	// }
+	raw := &rawPedersenKey{}
 
 	if k.Private() {
 		skb, err := k.secret.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		slb := make([]byte, 2)
-		binary.LittleEndian.PutUint16(slb, uint16(len(skb)))
-		buf = append(buf, slb...)
-		buf = append(buf, skb...)
+		raw.Secret = skb
 	}
 
-	return buf, nil
+	pkb, err := k.public.MarshalBiinary()
+	if err != nil {
+		return nil, err
+	}
+	raw.Public = pkb
+
+	return cbor.Marshal(raw)
 }
 
 // SKI returns the serialized key identifier.
@@ -92,30 +112,45 @@ func (k PedersenKey) Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool {
 }
 
 func fromBytes(data []byte) (PedersenKey, error) {
-	if len(data) == 0 {
-		return PedersenKey{}, ErrEmptyEncodedData
-	}
+	// if len(data) == 0 {
+	// 	return PedersenKey{}, ErrEmptyEncodedData
+	// }
 
-	plb := data[:2]
-	pLen := binary.LittleEndian.Uint16(plb)
-	if pLen == 0 {
-		return PedersenKey{}, ErrEmptyEncodedData
-	}
-	p := new(pedersencore.Parameters)
-	if err := p.UnmarshalBiinary(data[2 : pLen+2]); err != nil {
+	// plb := data[:2]
+	// pLen := binary.LittleEndian.Uint16(plb)
+	// if pLen == 0 {
+	// 	return PedersenKey{}, ErrEmptyEncodedData
+	// }
+	// p := new(pedersencore.Parameters)
+	// if err := p.UnmarshalBiinary(data[2 : pLen+2]); err != nil {
+	// 	return PedersenKey{}, err
+	// }
+
+	// slb := data[pLen+2 : pLen+4]
+	// sLen := binary.LittleEndian.Uint16(slb)
+	// if sLen == 0 {
+	// 	return PedersenKey{
+	// 		secret: nil,
+	// 		public: p,
+	// 	}, nil
+	// }
+	// s := new(saferith.Nat)
+	// if err := s.UnmarshalBinary(data[pLen+4 : pLen+4+sLen]); err != nil {
+	// 	return PedersenKey{}, err
+	// }
+
+	raw := &rawPedersenKey{}
+	if err := cbor.Unmarshal(data, raw); err != nil {
 		return PedersenKey{}, err
 	}
 
-	slb := data[pLen+2 : pLen+4]
-	sLen := binary.LittleEndian.Uint16(slb)
-	if sLen == 0 {
-		return PedersenKey{
-			secret: nil,
-			public: p,
-		}, nil
-	}
 	s := new(saferith.Nat)
-	if err := s.UnmarshalBinary(data[pLen+4 : pLen+4+sLen]); err != nil {
+	if err := s.UnmarshalBinary(raw.Secret); err != nil {
+		return PedersenKey{}, err
+	}
+
+	p := new(pedersencore.Parameters)
+	if err := p.UnmarshalBiinary(raw.Public); err != nil {
 		return PedersenKey{}, err
 	}
 
