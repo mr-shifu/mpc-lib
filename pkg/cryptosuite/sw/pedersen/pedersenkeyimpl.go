@@ -112,50 +112,26 @@ func (k PedersenKey) Verify(a, b, e *saferith.Int, S, T *saferith.Nat) bool {
 }
 
 func fromBytes(data []byte) (PedersenKey, error) {
-	// if len(data) == 0 {
-	// 	return PedersenKey{}, ErrEmptyEncodedData
-	// }
-
-	// plb := data[:2]
-	// pLen := binary.LittleEndian.Uint16(plb)
-	// if pLen == 0 {
-	// 	return PedersenKey{}, ErrEmptyEncodedData
-	// }
-	// p := new(pedersencore.Parameters)
-	// if err := p.UnmarshalBiinary(data[2 : pLen+2]); err != nil {
-	// 	return PedersenKey{}, err
-	// }
-
-	// slb := data[pLen+2 : pLen+4]
-	// sLen := binary.LittleEndian.Uint16(slb)
-	// if sLen == 0 {
-	// 	return PedersenKey{
-	// 		secret: nil,
-	// 		public: p,
-	// 	}, nil
-	// }
-	// s := new(saferith.Nat)
-	// if err := s.UnmarshalBinary(data[pLen+4 : pLen+4+sLen]); err != nil {
-	// 	return PedersenKey{}, err
-	// }
-
 	raw := &rawPedersenKey{}
 	if err := cbor.Unmarshal(data, raw); err != nil {
 		return PedersenKey{}, err
 	}
 
-	s := new(saferith.Nat)
-	if err := s.UnmarshalBinary(raw.Secret); err != nil {
-		return PedersenKey{}, err
+	key := PedersenKey{}
+
+	if len(raw.Secret) != 0 {
+		s := new(saferith.Nat)
+		if err := s.UnmarshalBinary(raw.Secret); err != nil {
+			return PedersenKey{}, err
+		}
+		key.secret = s
 	}
 
 	p := new(pedersencore.Parameters)
 	if err := p.UnmarshalBiinary(raw.Public); err != nil {
 		return PedersenKey{}, err
 	}
+	key.public = p
 
-	return PedersenKey{
-		secret: s,
-		public: p,
-	}, nil
+	return key, nil
 }
