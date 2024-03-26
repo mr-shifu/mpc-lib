@@ -66,7 +66,20 @@ func (mgr *PaillierKeyManager) GetKey(ski []byte) (comm_paillier.PaillierKey, er
 }
 
 // ImportKey imports a Paillier key from its byte representation.
-func (mgr *PaillierKeyManager) ImportKey(key comm_paillier.PaillierKey) (comm_paillier.PaillierKey, error) {
+func (mgr *PaillierKeyManager) ImportKey(raw interface{}) (comm_paillier.PaillierKey, error) {
+	var err error
+	var key PaillierKey
+
+	switch raw := raw.(type) {
+	case []byte:
+		key, err = fromBytes(raw)
+		if err != nil {
+			return PaillierKey{}, err
+		}
+	case PaillierKey:
+		key = raw
+	}
+	
 	// encode the key into binary
 	kb, err := key.Bytes()
 	if err != nil {

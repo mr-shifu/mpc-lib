@@ -33,20 +33,20 @@ func (e *PaillierKeyManager) GenerateKey(keyID string, partyID string) (comm_pai
 	return key, nil
 }
 
-func (e *PaillierKeyManager) ImportKey(keyID string, partyID string, key comm_paillier.PaillierKey) (error) {
-	key, err := e.km.ImportKey(key)
+func (e *PaillierKeyManager) ImportKey(keyID string, partyID string, raw interface{}) (comm_paillier.PaillierKey, error) {
+	key, err := e.km.ImportKey(raw)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := e.kr.Import(keyID, keyrepository.KeyData{
 		PartyID: partyID,
 		SKI:     key.SKI(),
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return key, nil
 }
 
 func (e *PaillierKeyManager) GetKey(keyID string, partyID string) (comm_paillier.PaillierKey, error) {
