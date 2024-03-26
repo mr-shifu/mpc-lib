@@ -49,16 +49,17 @@ func (e *ECDSAKeyManager) GenerateKey(keyID string, partyID string) (comm_ecdsa.
 	return key, nil
 }
 
-func (e *ECDSAKeyManager) ImportKey(keyID string, partyID string, key comm_ecdsa.ECDSAKey) error {
-	if _, err := e.km.ImportKey(key); err != nil {
-		return err
+func (e *ECDSAKeyManager) ImportKey(keyID string, partyID string, raw interface{}) (comm_ecdsa.ECDSAKey, error) {
+	key, err := e.km.ImportKey(raw)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := e.kr.Import(keyID, keyrepository.KeyData{
 		PartyID: partyID,
 		SKI:     key.SKI(),
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	if e.vsskr != nil {
@@ -66,11 +67,11 @@ func (e *ECDSAKeyManager) ImportKey(keyID string, partyID string, key comm_ecdsa
 			PartyID: partyID,
 			SKI:     key.SKI(),
 		}); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return key, nil
 }
 
 func (e *ECDSAKeyManager) GetKey(keyID string, partyID string) (comm_ecdsa.ECDSAKey, error) {
@@ -148,7 +149,7 @@ func (e *ECDSAKeyManager) GenerateMPCKeyFromShares(keyID string, selfID party.ID
 
 	// Import MPC public Key
 	k := e.km.NewKey(nil, mpcPublicKey, group)
-	if err := e.ImportKey(keyID, "ROOT", k); err != nil {
+	if _, err := e.ImportKey(keyID, "ROOT", k); err != nil {
 		return err
 	}
 

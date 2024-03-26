@@ -94,7 +94,7 @@ type ECDSAKeyManager interface {
 	GenerateKey() (ECDSAKey, error)
 
 	// Import imports a ECDSA key from its byte representation.
-	ImportKey(key ECDSAKey) (ECDSAKey, error)
+	ImportKey(raw interface{}) (ECDSAKey, error)
 
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(ski []byte) (ECDSAKey, error)

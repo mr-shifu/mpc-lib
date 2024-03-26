@@ -3,7 +3,6 @@ package ecdsa
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
@@ -67,12 +66,20 @@ func (mgr *ECDSAKeyManager) GenerateKey() (comm_ecdsa.ECDSAKey, error) {
 		withVSSKeyMgr(mgr.vssmgr), nil
 }
 
-func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) (comm_ecdsa.ECDSAKey, error) {
-	k, ok := key.(ECDSAKey)
-	if !ok {
-		return nil, errors.New("invalid key type")
-	}
+func (mgr *ECDSAKeyManager) ImportKey(raw interface{}) (comm_ecdsa.ECDSAKey, error) {
+	var err error
+	var key ECDSAKey
 
+	switch raw := raw.(type) {
+	case []byte:
+		key, err = fromBytes(raw)
+		if err != nil {
+			return ECDSAKey{}, err
+		}
+	case ECDSAKey:
+		key = raw
+	}
+	
 	// decode the key
 	kb, err := key.Bytes()
 	if err != nil {
@@ -88,7 +95,7 @@ func (mgr *ECDSAKeyManager) ImportKey(key comm_ecdsa.ECDSAKey) (comm_ecdsa.ECDSA
 		return nil, err
 	}
 
-	return k.
+	return key.
 		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.WithKeyID(keyID))).
 		withVSSKeyMgr(mgr.vssmgr), nil
 }
