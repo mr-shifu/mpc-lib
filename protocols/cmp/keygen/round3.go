@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -69,13 +68,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil || body.SchnorrCommitments == nil {
 	// 	return round.ErrNilFields
 	// }
-	// check RID length
-	if err := body.RID.Validate(); err != nil {
-		return fmt.Errorf("rid: %w", err)
-	}
-	if err := body.C.Validate(); err != nil {
-		return fmt.Errorf("chainkey: %w", err)
-	}
+
 	// check decommitment
 	if err := body.Decommitment.Validate(); err != nil {
 		return err

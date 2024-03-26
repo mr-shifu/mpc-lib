@@ -38,6 +38,11 @@ func (mgr *RIDManager) GenerateKey() (cs_rid.RID, error) {
 
 // Import imports a RID key from its byte representation.
 func (mgr *RIDManager) ImportKey(data []byte) (cs_rid.RID, error) {
+	// validate data as rid
+	if err := types.RID(data).Validate(); err != nil {
+		return nil, err
+	}
+	
 	// generate a unique keyID to be used as SKI
 	keyID := uuid.New().String()
 
