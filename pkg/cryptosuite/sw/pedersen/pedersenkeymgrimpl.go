@@ -25,7 +25,20 @@ func (mgr *PedersenKeyManager) GenerateKey() (comm_pedersen.PedersenKey, error) 
 }
 
 // ImportKey imports a Pedersen key.
-func (mgr *PedersenKeyManager) ImportKey(key comm_pedersen.PedersenKey) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManager) ImportKey(raw interface{}) (comm_pedersen.PedersenKey, error) {
+	var err error
+	var key PedersenKey
+
+	switch raw := raw.(type) {
+	case []byte:
+		key, err = fromBytes(raw)
+		if err != nil {
+			return nil, err
+		}
+	case PedersenKey:
+		key = raw
+	}
+	
 	// encode key to binary
 	kb, err := key.Bytes()
 	if err != nil {

@@ -16,20 +16,20 @@ func NewPedersenKeyManager(km comm_pedersen.PedersenKeyManager, kr keyrepository
 	return &PedersenKeyManager{km, kr}
 }
 
-func (e *PedersenKeyManager) ImportKey(keyID string, partyID string, key comm_pedersen.PedersenKey) error {
-	key, err := e.km.ImportKey(key)
+func (e *PedersenKeyManager) ImportKey(keyID string, partyID string, raw interface{}) (comm_pedersen.PedersenKey, error) {
+	key, err := e.km.ImportKey(raw)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := e.kr.Import(keyID, keyrepository.KeyData{
 		PartyID: partyID,
 		SKI:     key.SKI(),
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	return  nil
+	return  key, nil
 }
 
 func (e *PedersenKeyManager) GetKey(keyID string, partyID string) (comm_pedersen.PedersenKey, error) {

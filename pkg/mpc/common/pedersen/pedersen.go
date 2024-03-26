@@ -5,6 +5,6 @@ import (
 )
 
 type PedersenKeyManager interface {
-	ImportKey(keyID string, partyID string, key comm_pedersen.PedersenKey) error
+	ImportKey(keyID string, partyID string, raw interface{}) (comm_pedersen.PedersenKey, error)
 	GetKey(keyID string, partyID string) (comm_pedersen.PedersenKey, error)
 }
