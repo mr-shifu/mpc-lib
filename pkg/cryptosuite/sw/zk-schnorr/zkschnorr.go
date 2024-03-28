@@ -62,6 +62,9 @@ func (zksch *ZKSchnorr) NewCommitment(group curve.Curve) (curve.Point, error) {
 }
 
 func (zksch *ZKSchnorr) ImportCommitment(commitment curve.Point, group curve.Curve) error {
+	if commitment == nil {
+		return errors.New("commitment is nil")
+	}
 	if !isValidCommitment(commitment) {
 		return errors.New("invalid commitment")
 	}

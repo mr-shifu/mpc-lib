@@ -62,18 +62,8 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	// TODO Combine key validation at key import
-
-	// check nil
-	// if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil || body.SchnorrCommitments == nil {
-	// 	return round.ErrNilFields
-	// }
-
-	// check decommitment
-	if err := body.Decommitment.Validate(); err != nil {
-		return err
-	}
-
+	// TODO verify vss polynomial
+	
 	// Save all X, VSSCommitments
 	// VSSPolynomial := body.VSSPolynomial
 	// check that the constant coefficient is 0
@@ -98,16 +88,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// // check deg(Fⱼ) = t
 	// if VSSPolynomial.Degree() != r.Threshold() {
 	// 	return errors.New("vss polynomial has incorrect degree")
-	// }
-
-	// Set Paillier
-	// if err := paillier.ValidateN(body.N); err != nil {
-	// 	return err
-	// }
-
-	// Verify Pedersen
-	// if err := pedersen.ValidateParameters(body.N, body.S, body.T); err != nil {
-	// 	return err
 	// }
 
 	ridFrom, err := r.rid_km.ImportKey(r.ID, string(from), body.RID)
@@ -155,6 +135,9 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Verify decommit
+	if err := body.Decommitment.Validate(); err != nil {
+		return err
+	}
 	cmt, err := r.commit_mgr.Get(r.ID, from)
 	if err != nil {
 		return err

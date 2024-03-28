@@ -46,13 +46,13 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 
 	bigDeltaShareFrom := body.BigDeltaShare
 	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
-	if err := r.bigDelta.ImportKey(r.cfg.ID(), string(msg.From), bigDeltaFrom); err != nil {
+	if _, err := r.bigDelta.ImportKey(r.cfg.ID(), string(msg.From), bigDeltaFrom); err != nil {
 		return err
 	}
 
 	deltaShareFrom := body.DeltaShare
 	deltaFrom := sw_ecdsa.NewECDSAKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
-	if err := r.delta.ImportKey(r.cfg.ID(), string(msg.From), deltaFrom); err != nil {
+	if _, err := r.delta.ImportKey(r.cfg.ID(), string(msg.From), deltaFrom); err != nil {
 		return err
 	}
 
