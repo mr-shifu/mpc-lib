@@ -7,7 +7,7 @@ import (
 
 type RID struct {
 	secret types.RID
-	keyID  string
+	// keyID  string
 }
 
 // Bytes returns the byte representation of the key.
@@ -17,7 +17,7 @@ func (r *RID) Bytes() ([]byte, error) {
 
 // SKI returns the serialized key identifier.
 func (r *RID) SKI() []byte {
-	return []byte(r.keyID)
+	return nil
 }
 
 // Private returns true if the key is private.
