@@ -3,15 +3,16 @@ package sign
 import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	comm_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mta"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	comm_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pek"
-	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -19,30 +20,30 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
-	cfg       comm_config.SignConfig
-	signature comm_result.Signature
+	cfg       config.SignConfig
+	signature result.Signature
 
-	hash_mgr    comm_hash.HashManager
-	paillier_km comm_paillier.PaillierKeyManager
-	pedersen_km comm_pedersen.PedersenKeyManager
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
 
-	ec comm_ecdsa.ECDSAKeyManager
-	// ec_vss   comm_ecdsa.ECDSAKeyManager
-	gamma    comm_ecdsa.ECDSAKeyManager
-	signK    comm_ecdsa.ECDSAKeyManager
-	delta    comm_ecdsa.ECDSAKeyManager
-	chi      comm_ecdsa.ECDSAKeyManager
-	bigDelta comm_ecdsa.ECDSAKeyManager
+	ec ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
 
-	vss_mgr comm_vss.VssKeyManager
+	vss_mgr vss.VssKeyManager
 
-	gamma_pek comm_pek.PaillierEncodedKeyManager
-	signK_pek comm_pek.PaillierEncodedKeyManager
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
 
-	delta_mta comm_mta.MtAManager
-	chi_mta   comm_mta.MtAManager
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 
-	sigma comm_result.SigmaStore
+	sigma result.SigmaStore
 
 	Message []byte
 }
@@ -69,13 +70,19 @@ func (round1) StoreMessage(round.Message) error { return nil }
 // In two rounds, we compare the hashes received and if they are different then we abort.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Retreive Paillier Key to encode K and Gamma
-	paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
+	kopts := keyopts.Options{}
+	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+
+	paillierKey, err := r.paillier_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
 
+	sopts := keyopts.Options{}
+	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+
 	// Generate Gamma ECDSA key to mask K and store its SKI to Gamma keyrpository
-	gamma, err := r.gamma.GenerateKey(r.cfg.ID(), string(r.SelfID()))
+	gamma, err := r.gamma.GenerateKey(sopts)
 	if err != nil {
 		return r, err
 	}
@@ -85,12 +92,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
-	if _, err := r.gamma_pek.ImportKey(r.cfg.ID(), string(r.SelfID()), gammaPEK); err != nil {
+	if _, err := r.gamma_pek.Import(gammaPEK, sopts); err != nil {
 		return r, err
 	}
 
 	// Generate K Scalar using ecdsa keymanager and store its SKI to K keyrepository
-	KShare, err := r.signK.GenerateKey(r.cfg.ID(), string(r.SelfID()))
+	KShare, err := r.signK.GenerateKey(sopts)
 	if err != nil {
 		return r, err
 	}
@@ -100,7 +107,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := r.signK_pek.ImportKey(r.cfg.ID(), string(r.SelfID()), KSharePEK); err != nil {
+	if _, err := r.signK_pek.Import(KSharePEK, sopts); err != nil {
 		return r, err
 	}
 
@@ -112,7 +119,10 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	errors := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		pedj, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(j))
+		partyKopts := keyopts.Options{}
+		partyKopts.Set("id", r.cfg.KeyID(), "partyid", string(j))
+
+		pedj, err := r.pedersen_km.GetKey(partyKopts)
 		if err != nil {
 			return err
 		}

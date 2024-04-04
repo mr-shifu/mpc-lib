@@ -10,167 +10,169 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
-	"github.com/mr-shifu/mpc-lib/pkg/commitstore"
-	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/keygen"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 
-	sw_elgamal "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/commitment"
-	mpc_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
-
-	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	mpc_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/paillier"
-
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
-	sw_pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
-
-	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	mpc_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/pedersen"
-
-	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	mpc_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/rid"
-
-	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
-
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	mpc_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/ecdsa"
-
-	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	mpc_mta "github.com/mr-shifu/mpc-lib/pkg/mpc/mta"
-	mpc_pek "github.com/mr-shifu/mpc-lib/pkg/mpc/pekmanager"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 )
 
 func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	pl := pool.NewPool(0)
 
+	ksf := keystore.InmemoryKeystoreFactory{}
+	krf := keyopts.InMemoryKeyOptsFactory{}
+	vf := vault.InmemoryVaultFactory{}
+
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
-	ksf := keystore.InmemoryKeystoreFactory{}
-	krf := keyrepository.InMemoryKeyRepositoryFactory{}
+	elgamal_keyopts := krf.NewKeyOpts(nil)
+	elgamal_vault := vf.NewVault(nil)
+	elgamal_ks := ksf.NewKeystore(elgamal_vault, elgamal_keyopts, nil)
+	elgamal_km := elgamal.NewElgamalKeyManager(elgamal_ks, &elgamal.Config{Group: curve.Secp256k1{}})
 
-	elgamal_kr := krf.NewKeyRepository(nil)
-	elgamal_ks := ksf.NewKeystore(nil)
-	elgamal_km := sw_elgamal.NewElgamalKeyManager(elgamal_ks, &sw_elgamal.Config{Group: curve.Secp256k1{}})
-	elgamal := mpc_elgamal.NewElgamal(elgamal_km, elgamal_kr)
+	paillier_keyopts := krf.NewKeyOpts(nil)
+	paillier_vault := vf.NewVault(nil)
+	paillier_ks := ksf.NewKeystore(paillier_vault, paillier_keyopts, nil)
+	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
 
-	paillier_kr := krf.NewKeyRepository(nil)
-	paillier_ks := ksf.NewKeystore(nil)
-	paillier_km := sw_paillier.NewPaillierKeyManager(paillier_ks, pl)
-	paillier := mpc_paillier.NewPaillierKeyManager(paillier_km, paillier_kr)
+	pedersen_keyopts := krf.NewKeyOpts(nil)
+	pedersen_vault := vf.NewVault(nil)
+	pedersen_ks := ksf.NewKeystore(pedersen_vault, pedersen_keyopts, nil)
+	pedersen_km := pedersen.NewPedersenKeymanager(pedersen_ks)
 
-	pedersen_kr := krf.NewKeyRepository(nil)
-	pedersen_ks := ksf.NewKeystore(nil)
-	pedersen_km := sw_pedersen.NewPedersenKeymanager(pedersen_ks)
-	pedersen := mpc_pedersen.NewPedersenKeyManager(pedersen_km, pedersen_kr)
+	vss_keyopts := krf.NewKeyOpts(nil)
+	vss_vault := vf.NewVault(nil)
+	vss_ks := ksf.NewKeystore(vss_vault, vss_keyopts, nil)
+	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
-	vss_kr := krf.NewKeyRepository(nil)
-	vss_ks := ksf.NewKeystore(nil)
-	vss_km := sw_vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	ec_keyopts := krf.NewKeyOpts(nil)
+	ec_vault := vf.NewVault(nil)
+	ec_ks := ksf.NewKeystore(ec_vault, ec_keyopts, nil)
+	sch_keyopts := krf.NewKeyOpts(nil)
+	sch_vault := vf.NewVault(nil)
+	sch_ks := ksf.NewKeystore(sch_vault, sch_keyopts, nil)
+	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	pek_ks := ksf.NewKeystore(nil)
-	pek_mgr := sw_pek.NewPaillierEncodedKeyManager(pek_ks)
+	ec_vss_keyopts := krf.NewKeyOpts(nil)
+	ec_vss_ks := ksf.NewKeystore(ec_vault, ec_vss_keyopts, nil)
+	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	ecdsa_ks := ksf.NewKeystore(nil)
-	ecdsa_kr := krf.NewKeyRepository(nil)
-	sch_ks := ksf.NewKeystore(nil)
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
-	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
+	rid_keyopts := krf.NewKeyOpts(nil)
+	rid_vault := vf.NewVault(nil)
+	rid_ks := ksf.NewKeystore(rid_vault, rid_keyopts, nil)
+	rid_km := rid.NewRIDManager(rid_ks)
 
-	ec_vss_kr := krf.NewKeyRepository(nil)
-	vss_mgr := mpc_vss.NewVSS(vss_km, vss_kr, ecdsa_km, ec_vss_kr)
+	chainKey_keyopts := krf.NewKeyOpts(nil)
+	chainKey_vault := vf.NewVault(nil)
+	chainKey_ks := ksf.NewKeystore(chainKey_vault, chainKey_keyopts, nil)
+	chainKey_km := rid.NewRIDManager(chainKey_ks)
 
-	rid_kr := krf.NewKeyRepository(nil)
-	rid_ks := ksf.NewKeystore(nil)
-	rid_km := sw_rid.NewRIDManager(rid_ks)
-	rid := mpc_rid.NewRIDKeyManager(rid_km, rid_kr)
+	hahs_keyopts := krf.NewKeyOpts(nil)
+	hahs_vault := vf.NewVault(nil)
+	hash_ks := ksf.NewKeystore(hahs_vault, hahs_keyopts, nil)
+	hash_mgr := hash.NewHashManager(hash_ks)
 
-	chainKey_kr := krf.NewKeyRepository(nil)
-	chainKey_ks := ksf.NewKeystore(nil)
-	chainKey_km := sw_rid.NewRIDManager(chainKey_ks)
-	chainKey := mpc_rid.NewRIDKeyManager(chainKey_km, chainKey_kr)
-
-	hash_ks := ksf.NewKeystore(nil)
-	hash_mgr := sw_hash.NewHashManager(hash_ks)
-
-	commitstore := commitstore.NewInMemoryCommitstore()
-	commit_kr := krf.NewKeyRepository(nil)
-	commit_mgr := commitment.NewCommitmentManager(commitstore, commit_kr)
+	commit_keyopts := keyopts.NewInMemoryKeyOpts()
+	commit_vault := vault.NewInMemoryVault()
+	commit_ks := keystore.NewInMemoryKeystore(commit_vault, commit_keyopts)
+	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	mpc_keygen := keygen.NewMPCKeygen(
-		elgamal,
-		paillier,
-		pedersen,
-		ecdsa,
-		vss_mgr,
-		rid,
-		chainKey,
+		elgamal_km,
+		paillier_km,
+		pedersen_km,
+		ecdsa_km,
+		ec_vss_km,
+		vss_km,
+		rid_km,
+		chainKey_km,
 		hash_mgr,
 		mpc_ks,
 		commit_mgr,
 		pl,
 	)
 
-	sigma_kr := krf.NewKeyRepository(nil)
-	sigma_ks := ksf.NewKeystore(nil)
-	sigma := mpc_result.NewSigmaStore(sigma_ks, sigma_kr)
-
 	sign_cfg := mpc_config.NewSignConfigManager()
-
 	signature := mpc_result.NewSignStore()
 
-	gamma_kr := krf.NewKeyRepository(nil)
-	gamma_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, gamma_kr, nil, nil)
+	sigma_kr := krf.NewKeyOpts(nil)
+	sigma_vault := vf.NewVault(nil)
+	sigma_ks := ksf.NewKeystore(sigma_vault, sigma_kr, nil)
+	sigma := mpc_result.NewSigmaStore(sigma_ks)
 
-	signK_kr := krf.NewKeyRepository(nil)
-	signK_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, signK_kr, nil, nil)
+	gamma_kr := krf.NewKeyOpts(nil)
+	gamma_ks := ksf.NewKeystore(ec_vault, gamma_kr, nil)
+	gamma_km := ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	delta_kr := krf.NewKeyRepository(nil)
-	delta_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, delta_kr, nil, nil)
+	signK_kr := krf.NewKeyOpts(nil)
+	signK_ks := ksf.NewKeystore(ec_vault, signK_kr, nil)
+	signK_km := ecdsa.NewECDSAKeyManager(signK_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	chi_kr := krf.NewKeyRepository(nil)
-	chi_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, chi_kr, nil, nil)
+	delta_kr := krf.NewKeyOpts(nil)
+	delta_ks := ksf.NewKeystore(ec_vault, delta_kr, nil)
+	delta_km := ecdsa.NewECDSAKeyManager(delta_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	bigDelta_kr := krf.NewKeyRepository(nil)
-	bigDelta_mgr := mpc_ecdsa.NewECDSA(ecdsa_km, bigDelta_kr, nil, nil)
+	chi_kr := krf.NewKeyOpts(nil)
+	chi_ks := ksf.NewKeystore(ec_vault, chi_kr, nil)
+	chi_km := ecdsa.NewECDSAKeyManager(chi_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	gamma_pek_kr := krf.NewKeyRepository(nil)
-	gamma_pek := mpc_pek.NewPaillierKeyManager(pek_mgr, gamma_pek_kr)
+	bigDelta_kr := krf.NewKeyOpts(nil)
+	bigDelta_ks := ksf.NewKeystore(ec_vault, bigDelta_kr, nil)
+	bigDelta_km := ecdsa.NewECDSAKeyManager(bigDelta_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	signK_pek_kr := krf.NewKeyRepository(nil)
-	signK_pek := mpc_pek.NewPaillierKeyManager(pek_mgr, signK_pek_kr)
+	gamma_pek_vault := vf.NewVault(nil)
+	gamma_pek_kr := krf.NewKeyOpts(nil)
+	gamma_pek_ks := ksf.NewKeystore(gamma_pek_vault, gamma_pek_kr, nil)
+	gamma_pek_mgr := pek.NewPaillierEncodedKeyManager(gamma_pek_ks)
 
-	delta_mta_kr := krf.NewKeyRepository(nil)
-	mta_ks := ksf.NewKeystore(nil)
-	mta_km := sw_mta.NewMtAManager(mta_ks)
-	delta_mta := mpc_mta.NewPaillierKeyManager(mta_km, delta_mta_kr)
+	signK_pek_vault := vf.NewVault(nil)
+	signK_pek_kr := krf.NewKeyOpts(nil)
+	signK_pek_ks := ksf.NewKeystore(signK_pek_vault, signK_pek_kr, nil)
+	signK_pek_mgr := pek.NewPaillierEncodedKeyManager(signK_pek_ks)
 
-	chi_mta_kr := krf.NewKeyRepository(nil)
-	chi_mta := mpc_mta.NewPaillierKeyManager(mta_km, chi_mta_kr)
+	delta_mta_vault := vf.NewVault(nil)
+	delta_mta_kr := krf.NewKeyOpts(nil)
+	delta_mta_ks := ksf.NewKeystore(delta_mta_vault, delta_mta_kr, nil)
+	delta_mta_km := sw_mta.NewMtAManager(delta_mta_ks)
+
+	chi_mta_vault := vf.NewVault(nil)
+	chi_mta_kr := krf.NewKeyOpts(nil)
+	chi_mta_ks := ksf.NewKeystore(chi_mta_vault, chi_mta_kr, nil)
+	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
 
 	mpc_sign := NewMPCSign(
 		sign_cfg,
 		hash_mgr,
-		paillier,
-		pedersen,
-		ecdsa,
-		vss_mgr,
-		gamma_mgr,
-		signK_mgr,
-		delta_mgr,
-		chi_mgr,
-		bigDelta_mgr,
-		gamma_pek,
-		signK_pek,
-		delta_mta,
-		chi_mta,
+		paillier_km,
+		pedersen_km,
+		ecdsa_km,
+		ec_vss_km,
+		vss_km,
+		gamma_km,
+		signK_km,
+		delta_km,
+		chi_km,
+		bigDelta_km,
+		gamma_pek_mgr,
+		signK_pek_mgr,
+		delta_mta_km,
+		chi_mta_km,
 		sigma,
 		signature,
 	)
