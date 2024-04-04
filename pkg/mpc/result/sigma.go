@@ -5,24 +5,22 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
 type SigmaStore struct {
 	lock   sync.RWMutex
 	sigmas keystore.Keystore
-	repo   keyrepository.KeyRepository
 }
 
-func NewSigmaStore(s keystore.Keystore, r keyrepository.KeyRepository) *SigmaStore {
+func NewSigmaStore(s keystore.Keystore) *SigmaStore {
 	return &SigmaStore{
 		sigmas: s,
-		repo:   r,
 	}
 }
 
-func (s *SigmaStore) ImportSigma(signID, partyID string, sigma curve.Scalar) error {
+func (s *SigmaStore) ImportSigma(sigma curve.Scalar, opts keyopts.Options) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -31,33 +29,18 @@ func (s *SigmaStore) ImportSigma(signID, partyID string, sigma curve.Scalar) err
 		return err
 	}
 	sigmaID := uuid.New().String()
-	if err := s.sigmas.Import(sigmaID, sb); err != nil {
+	if err := s.sigmas.Import(sigmaID, sb, opts); err != nil {
 		return err
 	}
-
-	s.repo.Import(signID, keyrepository.KeyData{
-		PartyID: partyID,
-		SKI:     []byte(sigmaID),
-	})
 
 	return nil
 }
 
-func (s *SigmaStore) GetSigma(signID, partyID string) (curve.Scalar, error) {
+func (s *SigmaStore) GetSigma(opts keyopts.Options) (curve.Scalar, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	keys, err := s.repo.GetAll(signID)
-	if err != nil {
-		return nil, err
-	}
-
-	k, ok := keys[partyID]
-	if !ok {
-		return nil, nil
-	}
-
-	sb, err := s.sigmas.Get(string(k.SKI))
+	sb, err := s.sigmas.Get(opts)
 	if err != nil {
 		return nil, err
 	}
