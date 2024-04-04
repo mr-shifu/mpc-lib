@@ -4,7 +4,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round2)(nil)
@@ -32,11 +32,12 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	if err := body.Commitment.Validate(); err != nil {
 		return err
 	}
-	cmt := &commitstore.Commitment{
-		Commitment:   body.Commitment,
-		Decommitment: nil,
-	}
-	if err := r.commit_mgr.Import(r.ID, msg.From, cmt); err != nil {
+
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(msg.From))
+
+	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
+	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
 		return err
 	}
 
@@ -61,23 +62,26 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
 	// TODO need keyID to get the key
-	elgamalKey, err := r.elgamal_km.GetKey(r.ID, string(r.SelfID()))
+	elgamalKey, err := r.elgamal_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	rid, err := r.rid_km.GetKey(r.ID, string(r.SelfID()))
+	rid, err := r.rid_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GetKey(r.ID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +89,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	vssKey, err := ecKey.VSS()
+	vssKey, err := ecKey.VSS(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -95,18 +99,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	paillier, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
+	paillier, err := r.paillier_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
+	ped, err := r.pedersen_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// Send the message we created in Round1 to all
-	cmt, err := r.commit_mgr.Get(r.ID, r.SelfID())
+	cmt, err := r.commit_mgr.Get(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +145,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		PaillierKey:        paillier_bytes,
 		ElgamalKey:         elgamal_bytes,
 		PedersenKey:        ped_bytes,
-		Decommitment: cmt.Decommitment,
+		Decommitment:       cmt.Decommitment(),
 	})
 	if err != nil {
 		return r, err

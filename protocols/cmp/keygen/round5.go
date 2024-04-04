@@ -6,6 +6,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -36,6 +37,10 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(from))
+
+
 	// TODO implement SchnorrResponse validation
 	// if !body.SchnorrResponse.IsValid() {
 	// 	return round.ErrNilFields
@@ -46,7 +51,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// 	r.SchnorrCommitments[from], nil) {
 	// 	return errors.New("failed to validate schnorr proof for received share")
 	// }
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
 	if err != nil {
 		return err
 	}
