@@ -14,9 +14,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
-	"github.com/mr-shifu/mpc-lib/pkg/commitstore"
-	"github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,9 +26,10 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	keyID := uuid.New().String()
 	ksf := &keystore.InmemoryKeystoreFactory{}
-	krf := &keyrepository.InMemoryKeyRepositoryFactory{}
-	commit_ks := commitstore.NewInMemoryCommitstore()
-	mpc := NewMPC(ksf, krf, commit_ks, pl)
+	krf := &keyopts.InMemoryKeyOptsFactory{}
+	vf := &vault.InmemoryVaultFactory{}
+
+	mpc := NewMPC(ksf, krf, vf, pl)
 
 	h, err := protocol.NewMultiHandler(
 		mpc.Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl),
@@ -99,9 +100,10 @@ func TestStart(t *testing.T) {
 	}
 
 	ksf := &keystore.InmemoryKeystoreFactory{}
-	krf := &keyrepository.InMemoryKeyRepositoryFactory{}
-	commit_ks := commitstore.NewInMemoryCommitstore()
-	mpc := NewMPC(ksf, krf, commit_ks, pl)
+	krf := &keyopts.InMemoryKeyOptsFactory{}
+	vf := &vault.InmemoryVaultFactory{}
+
+	mpc := NewMPC(ksf, krf, vf, pl)
 
 	m := []byte("HELLO")
 	selfID := partyIDs[0]
