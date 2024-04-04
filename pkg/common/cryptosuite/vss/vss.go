@@ -3,6 +3,7 @@ package vss
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type VSSShare struct {
@@ -55,17 +56,19 @@ type VssKey interface {
 type VssKeyManager interface {
 	// GenerateSecrets generates a Polynomail of a specified degree with secret as constant value
 	// and stores coefficients and expponents of coefficients.
-	GenerateSecrets(secret curve.Scalar, degree int) (VssKey, error)
+	GenerateSecrets(secret curve.Scalar, degree int, opts keyopts.Options) (VssKey, error)
 
 	// ImportSecrets imports exponents of coefficients and returns VssKey.
-	ImportSecrets(exponents []byte) (VssKey, error)
+	ImportSecrets(key VssKey, opts keyopts.Options) (VssKey, error)
 
 	// GetSecrets returns VssKey of coefficients.
-	GetSecrets(ski []byte) (VssKey, error)
+	GetSecrets(opts keyopts.Options) (VssKey, error)
 
 	// Evaluate evaluates polynomial at a scalar using coefficients.
-	Evaluate(ski []byte, index curve.Scalar) (curve.Scalar, error)
+	Evaluate(index curve.Scalar,opts keyopts.Options) (curve.Scalar, error)
 
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
-	EvaluateByExponents(ski []byte, index curve.Scalar) (curve.Point, error)
+	EvaluateByExponents(index curve.Scalar, opts keyopts.Options) (curve.Point, error)
+
+	SumExponents(optsList ...keyopts.Options) (VssKey, error)
 }
