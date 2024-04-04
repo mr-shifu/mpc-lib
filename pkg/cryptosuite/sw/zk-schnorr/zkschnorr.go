@@ -27,7 +27,7 @@ type ZKSchnorr struct {
 	// proof
 	z curve.Scalar
 
-	store keystore.KeyLinkedStore
+	store keystore.KeyAccessor
 }
 
 type rawZKSchnorr struct {
@@ -38,7 +38,7 @@ type rawZKSchnorr struct {
 	Z        []byte
 }
 
-func NewZKSchnorr(zks keystore.KeyLinkedStore) *ZKSchnorr {
+func NewZKSchnorr(zks keystore.KeyAccessor) *ZKSchnorr {
 	return &ZKSchnorr{
 		store: zks,
 	}
