@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
@@ -38,7 +39,14 @@ func (mgr *PedersenKeyManager) ImportKey(raw interface{}) (comm_pedersen.Pederse
 	case PedersenKey:
 		key = raw
 	}
-	
+
+	if key.public.N() == nil || key.public.S() == nil || key.public.T() == nil {
+		return nil, errors.New("empty parameters in Pedersen key")
+	}
+	if err := pedersen.ValidateParameters(key.public.N(), key.public.S(), key.public.T()); err != nil {
+		return nil, errors.New("invalid Pedersen key")
+	}
+
 	// encode key to binary
 	kb, err := key.Bytes()
 	if err != nil {

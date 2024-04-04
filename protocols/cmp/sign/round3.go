@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
@@ -36,7 +35,7 @@ type message3 struct {
 
 type broadcast3 struct {
 	round.NormalBroadcastContent
-	BigGammaShare curve.Point // BigGammaShare = Γⱼ
+	BigGammaShare []byte
 }
 
 // StoreBroadcastMessage implements round.BroadcastRound.
@@ -47,12 +46,12 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if !ok || body == nil {
 		return round.ErrInvalidContent
 	}
-	if body.BigGammaShare.IsIdentity() {
-		return round.ErrNilFields
-	}
+	// if body.BigGammaShare.IsIdentity() {
+	// 	return round.ErrNilFields
+	// }
 
-	gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
-	if err := r.gamma.ImportKey(r.cfg.ID(), string(msg.From), gamma); err != nil {
+	// gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
+	if _, err := r.gamma.ImportKey(r.cfg.ID(), string(msg.From), body.BigGammaShare); err != nil {
 		return err
 	}
 
@@ -197,7 +196,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Gamma = Gamma.Add(gammaj.PublicKeyRaw())
 	}
 	gammaRoot := sw_ecdsa.NewECDSAKey(nil, Gamma, Gamma.Curve())
-	if err := r.gamma.ImportKey(r.cfg.ID(), "ROOT", gammaRoot); err != nil {
+	if _, err := r.gamma.ImportKey(r.cfg.ID(), "ROOT", gammaRoot); err != nil {
 		return nil, err
 	}
 
@@ -208,7 +207,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	bigDeltaShare := KShare.Act(Gamma, false)
 	bigDelta := sw_ecdsa.NewECDSAKey(nil, bigDeltaShare, bigDeltaShare.Curve())
-	if err := r.bigDelta.ImportKey(r.cfg.ID(), string(r.SelfID()), bigDelta); err != nil {
+	if _, err := r.bigDelta.ImportKey(r.cfg.ID(), string(r.SelfID()), bigDelta); err != nil {
 		return nil, err
 	}
 
@@ -230,7 +229,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
 	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
-	if err := r.delta.ImportKey(r.cfg.ID(), string(r.SelfID()), deltaShare); err != nil {
+	if _, err := r.delta.ImportKey(r.cfg.ID(), string(r.SelfID()), deltaShare); err != nil {
 		return nil, err
 	}
 
@@ -251,7 +250,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	ChaiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
 	chiShare := sw_ecdsa.NewECDSAKey(ChaiShareScalar, ChaiShareScalar.ActOnBase(), ChaiShareScalar.Curve())
-	if err := r.chi.ImportKey(r.cfg.ID(), string(r.SelfID()), chiShare); err != nil {
+	if _, err := r.chi.ImportKey(r.cfg.ID(), string(r.SelfID()), chiShare); err != nil {
 		return nil, err
 	}
 
@@ -267,7 +266,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
-	
+
 	KSharePEK, err := r.signK_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
 	if err != nil {
 		return nil, err
@@ -284,10 +283,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 		proofLog, err := KShare.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
-			KSharePEK, // PEK
+			KSharePEK,           // PEK
 			KSharePEK.Encoded(), // C
-			bigDeltaShare, // X
-			Gamma, 	// G
+			bigDeltaShare,       // X
+			Gamma,               // G
 			paillier.PublicKey(),
 			pedj.PublicKey(),
 		)
@@ -335,7 +334,7 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 // BroadcastContent implements round.BroadcastRound.
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
-		BigGammaShare: r.Group().NewPoint(),
+		// BigGammaShare: r.Group().NewPoint(),
 	}
 }
 

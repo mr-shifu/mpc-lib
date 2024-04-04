@@ -60,6 +60,10 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int) (comm
 
 // ImportSecrets imports exponents of coefficients in []byte format and returns VssKey.
 func (mgr *VssKeyManager) ImportSecrets(data []byte) (comm_vss.VssKey, error) {
+	if data == nil {
+		return nil, errors.New("invalid exponents")
+	}
+	
 	exponents := polynomial.NewEmptyExponent(mgr.group)
 	if err := exponents.UnmarshalBinary(data); err != nil {
 		return nil, err

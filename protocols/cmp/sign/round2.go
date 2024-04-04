@@ -124,9 +124,14 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
+	
+	gamma_bytes, err := gamma.Bytes()
+	if err != nil {
+		return r, err
+	}
 
 	if err := r.BroadcastMessage(out, &broadcast3{
-		BigGammaShare: gamma.PublicKeyRaw(),
+		BigGammaShare: gamma_bytes,
 	}); err != nil {
 		return r, err
 	}

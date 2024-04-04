@@ -79,7 +79,11 @@ func (mgr *PaillierKeyManager) ImportKey(raw interface{}) (comm_paillier.Paillie
 	case PaillierKey:
 		key = raw
 	}
-	
+
+	if err := pailliercore.ValidateN(key.ParamN()); err != nil {
+		return nil, errors.New("invalid Paillier key")
+	}
+
 	// encode the key into binary
 	kb, err := key.Bytes()
 	if err != nil {

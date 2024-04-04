@@ -130,7 +130,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 				return nil, err
 			}
 			clonedj := vssKey.CloneByMultiplier(lagrange[j])
-			if err := m.ec.ImportKey(signID, string(j), clonedj); err != nil {
+			if _, err := m.ec.ImportKey(signID, string(j), clonedj); err != nil {
 				return nil, err
 			}
 			fmt.Printf("Party: %s, clonedj: %v\n", j, clonedj.PublicKeyRaw())
@@ -138,7 +138,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 		}
 		fmt.Printf("Roto cloned: %v\n", clonedPubKey)
 		cloned := sw_ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
-		if err := m.ec.ImportKey(signID, "ROOT", cloned); err != nil {
+		if _, err := m.ec.ImportKey(signID, "ROOT", cloned); err != nil {
 			return nil, err
 		}
 
