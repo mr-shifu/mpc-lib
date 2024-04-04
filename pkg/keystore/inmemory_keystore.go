@@ -2,9 +2,10 @@ package keystore
 
 import (
 	"errors"
-	"sync"
 
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 )
 
 var (
@@ -12,43 +13,68 @@ var (
 )
 
 type InMemoryKeystore struct {
-	lock sync.RWMutex
-	keys map[string][]byte
+	v  vault.Vault
+	kr keyopts.KeyOpts
 }
 
-func NewInMemoryKeystore() *InMemoryKeystore {
+func NewInMemoryKeystore(v vault.Vault, kr keyopts.KeyOpts) *InMemoryKeystore {
 	return &InMemoryKeystore{
-		keys: make(map[string][]byte),
+		v:  v,
+		kr: kr,
 	}
 }
 
-func (store *InMemoryKeystore) Import(keyID string, key []byte) error {
-	store.lock.Lock()
-	defer store.lock.Unlock()
-
-	store.keys[keyID] = key
-	return nil
-}
-
-func (store *InMemoryKeystore) Get(keyID string) ([]byte, error) {
-	store.lock.RLock()
-	defer store.lock.RUnlock()
-
-	key, ok := store.keys[keyID]
-	if !ok {
-		return nil, ErrKeyNotFound
+func (ks *InMemoryKeystore) Import(ski string, key []byte, opts keyopts.Options) error {
+	// store key to vault
+	if err := ks.v.Import(ski, key); err != nil {
+		return err
 	}
-	return key, nil
-}
 
-func (store *InMemoryKeystore) Delete(keyID string) error {
-	store.lock.Lock()
-	defer store.lock.Unlock()
+	// import key metadata to key repository
+	if err := ks.kr.Import(ski, opts); err != nil {
+		return err
+	}
 
-	delete(store.keys, keyID)
 	return nil
 }
 
-func (store *InMemoryKeystore) WithKeyID(keyID string) keystore.KeyLinkedStore {
-	return NewInMemoryKeyLinkedStore(keyID, store)
+func (ks *InMemoryKeystore) Update(key []byte, opts keyopts.Options) error {
+	kd, err := ks.kr.Get(opts)
+	if err != nil {
+		return err
+	}
+	if kd.SKI == "" {
+		return ErrKeyNotFound
+	}
+	return ks.v.Import(kd.SKI, key)
+}
+
+func (ks *InMemoryKeystore) Get(opts keyopts.Options) ([]byte, error) {
+	kd, err := ks.kr.Get(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return ks.v.Get(kd.SKI)
+}
+
+func (ks *InMemoryKeystore) Delete(opts keyopts.Options) error {
+	kd, err := ks.kr.Get(opts)
+	if err != nil {
+		return err
+	}
+
+	if err := ks.v.Delete(kd.SKI); err != nil {
+		return err
+	}
+
+	if err := ks.kr.Delete(opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ks *InMemoryKeystore) KeyAccessor(ski string, opts keyopts.Options) keystore.KeyAccessor {
+	return NewInMemoryKeyAccessor(ski, opts, ks)
 }
