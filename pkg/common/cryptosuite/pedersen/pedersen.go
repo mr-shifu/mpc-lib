@@ -2,10 +2,11 @@ package pedersen
 
 import (
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	pedersencore "github.com/mr-shifu/mpc-lib/core/pedersen"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type PedersenKey interface {
@@ -39,17 +40,17 @@ type PedersenKey interface {
 
 type PedersenKeyManager interface {
 	// GenerateKey generates a new Pedersen key pair.
-	GenerateKey() (PedersenKey, error)
+	GenerateKey(opts keyopts.Options) (PedersenKey, error)
 
 	// ImportKey imports a Pedersen key.
-	ImportKey(key interface{}) (PedersenKey, error)
+	ImportKey(key interface{}, opts keyopts.Options) (PedersenKey, error)
 
 	// GetKey returns a Pedersen key by its SKI.
-	GetKey(ski []byte) (PedersenKey, error)
+	GetKey(opts keyopts.Options) (PedersenKey, error)
 
 	// Commit returns the commitment of the given value.
-	Commit(ski []byte, x, y *saferith.Int) *saferith.Nat
+	Commit(x, y *saferith.Int, opts keyopts.Options) *saferith.Nat
 
 	// Verify returns true if the given commitment is valid.
-	Verify(ski []byte, a, b, e *saferith.Int, S, T *saferith.Nat) bool
+	Verify(a, b, e *saferith.Int, S, T *saferith.Nat, opts keyopts.Options) bool
 }

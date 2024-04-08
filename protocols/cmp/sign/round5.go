@@ -7,6 +7,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round5)(nil)
@@ -36,8 +37,11 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+
 	// r.SigmaShares[msg.From] = body.SigmaShare
-	if err := r.sigma.ImportSigma(r.cfg.ID(), string(msg.From), body.SigmaShare); err != nil {
+	if err := r.sigma.ImportSigma(body.SigmaShare, soptsFrom); err != nil {
 		return err
 	}
 
@@ -63,10 +67,18 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	soptsRoot := keyopts.Options{}
+	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+
+	koptsRoot := keyopts.Options{}
+	koptsRoot.Set("id", r.cfg.KeyID(), "partyid", string("ROOT"))
+
 	// compute σ = ∑ⱼ σⱼ
 	Sigma := r.Group().NewScalar()
 	for _, j := range r.PartyIDs() {
-		sigmaShare, err := r.sigma.GetSigma(r.cfg.ID(), string(j))
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		sigmaShare, err := r.sigma.GetSigma(soptsj)
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +93,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		S: Sigma,
 	}
 
-	ecKey, err := r.ec.GetKey(r.cfg.ID(), "ROOT")
+	ecKey, err := r.ec.GetKey(soptsRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +101,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return r.AbortRound(errors.New("failed to validate signature")), nil
 	}
 
-	ecKey, err = r.ec.GetKey(r.cfg.KeyID(), "ROOT")
+	ecKey, err = r.ec.GetKey(koptsRoot)
 	if err != nil {
 		return nil, err
 	}

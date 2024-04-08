@@ -10,15 +10,22 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/zk"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAffG(t *testing.T) {
-	hs := keystore.NewInMemoryKeystore()
-	mgr := hash.NewHashManager(hs)
-	h := mgr.NewHasher("test")
+	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
+	hahs_vault := vault.NewInMemoryVault()
+	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
+	hash_mgr := hash.NewHashManager(hash_ks)
+
+	opts := keyopts.Options{}
+	opts.Set("id", "1", "partyid", "a")
+	h := hash_mgr.NewHasher("test", opts)
 
 	group := curve.Secp256k1{}
 	verifierPaillier := zk.VerifierPaillierPublic

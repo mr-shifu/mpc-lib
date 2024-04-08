@@ -1,6 +1,9 @@
 package mta
 
-import "github.com/cronokirby/saferith"
+import (
+	"github.com/cronokirby/saferith"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+)
 
 type MtA interface {
 	Bytes() ([]byte, error)
@@ -11,8 +14,8 @@ type MtA interface {
 }
 
 type MtAManager interface {
-	Get(keyID string) (MtA, error)
-	Import(keyID string, key MtA) error
-	SetAlpha(keyID string, alpha *saferith.Int) error
-	SetBeta(keyID string, beta *saferith.Int) error
+	Get(opts keyopts.Options) (MtA, error)
+	Import(key MtA, opts keyopts.Options) error
+	SetAlpha(alpha *saferith.Int, opts keyopts.Options) error
+	SetBeta(beta *saferith.Int, opts keyopts.Options) error
 }

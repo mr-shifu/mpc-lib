@@ -8,6 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type PedersenKeyManager struct {
@@ -21,12 +22,12 @@ func NewPedersenKeymanager(ks keystore.Keystore) *PedersenKeyManager {
 }
 
 // GenerateKey generates a new Pedersen key pair.
-func (mgr *PedersenKeyManager) GenerateKey() (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManager) GenerateKey(opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
 	return nil, errors.New("not implemented")
 }
 
 // ImportKey imports a Pedersen key.
-func (mgr *PedersenKeyManager) ImportKey(raw interface{}) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManager) ImportKey(raw interface{}, opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
 	var err error
 	var key PedersenKey
 
@@ -58,7 +59,7 @@ func (mgr *PedersenKeyManager) ImportKey(raw interface{}) (comm_pedersen.Pederse
 	keyID := hex.EncodeToString(ski)
 
 	// store key to keystore
-	if err := mgr.ks.Import(keyID, kb); err != nil {
+	if err := mgr.ks.Import(keyID, kb, opts); err != nil {
 		return nil, err
 	}
 
@@ -66,9 +67,9 @@ func (mgr *PedersenKeyManager) ImportKey(raw interface{}) (comm_pedersen.Pederse
 }
 
 // GetKey returns a Pedersen key by its SKI.
-func (mgr *PedersenKeyManager) GetKey(ski []byte) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManager) GetKey(opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
 	// retreive key from keystore
-	kb, err := mgr.ks.Get(hex.EncodeToString(ski))
+	kb, err := mgr.ks.Get(opts)
 	if err != nil {
 		return PedersenKey{}, err
 	}
@@ -78,8 +79,8 @@ func (mgr *PedersenKeyManager) GetKey(ski []byte) (comm_pedersen.PedersenKey, er
 }
 
 // Commit returns the commitment of the given value.
-func (mgr *PedersenKeyManager) Commit(ski []byte, x, y *saferith.Int) *saferith.Nat {
-	key, err := mgr.GetKey(ski)
+func (mgr *PedersenKeyManager) Commit(x, y *saferith.Int, opts keyopts.Options) *saferith.Nat {
+	key, err := mgr.GetKey(opts)
 	if err != nil {
 		return nil
 	}
@@ -87,8 +88,8 @@ func (mgr *PedersenKeyManager) Commit(ski []byte, x, y *saferith.Int) *saferith.
 }
 
 // Verify returns true if the given commitment is valid.
-func (mgr *PedersenKeyManager) Verify(ski []byte, a, b, e *saferith.Int, S, T *saferith.Nat) bool {
-	key, err := mgr.GetKey(ski)
+func (mgr *PedersenKeyManager) Verify(a, b, e *saferith.Int, S, T *saferith.Nat, opts keyopts.Options) bool {
+	key, err := mgr.GetKey(opts)
 	if err != nil {
 		return false
 	}

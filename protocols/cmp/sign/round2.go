@@ -10,6 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round2)(nil)
@@ -43,7 +44,13 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	paillierj, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	koptsFrom := keyopts.Options{}
+	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+
+	paillierj, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
 		return err
 	}
@@ -53,12 +60,12 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	k_pekj := pek.NewPaillierEncodedkey(nil, body.K, nil, r.Group())
-	if _, err := r.signK_pek.ImportKey(r.ID, string(from), k_pekj); err != nil {
+	if _, err := r.signK_pek.Import(k_pekj, soptsFrom); err != nil {
 		return err
 	}
 
 	gamma_pekj := pek.NewPaillierEncodedkey(nil, body.G, nil, r.Group())
-	if _, err := r.gamma_pek.ImportKey(r.ID, string(from), gamma_pekj); err != nil {
+	if _, err := r.gamma_pek.Import(gamma_pekj, soptsFrom); err != nil {
 		return err
 	}
 
@@ -82,16 +89,25 @@ func (r *round2) VerifyMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	koptsFrom := keyopts.Options{}
+	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+
+	koptsTo := keyopts.Options{}
+	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+
+	paillierFrom, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
 		return err
 	}
-	pedersenTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
+	pedersenTo, err := r.pedersen_km.GetKey(koptsTo)
 	if err != nil {
 		return err
 	}
 
-	Kj, err := r.signK_pek.GetKey(r.ID, string(from))
+	Kj, err := r.signK_pek.Get(soptsFrom)
 	if err != nil {
 		return err
 	}
@@ -119,12 +135,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	sopts := keyopts.Options{}
+	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+
+	kopts := keyopts.Options{}
+	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+
 	// Retreive Gamma key from keystore
-	gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
+	gamma, err := r.gamma.GetKey(sopts)
 	if err != nil {
 		return r, err
 	}
-	
+
 	gamma_bytes, err := gamma.Bytes()
 	if err != nil {
 		return r, err
@@ -145,28 +167,34 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	mtaOuts := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+
+		koptsj := keyopts.Options{}
+		koptsj.Set("id", r.cfg.KeyID(), "partyid", string(j))
+
 		// TODO must be changed to signID
-		gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
+		gamma, err := r.gamma.GetKey(sopts)
 		if err != nil {
 			return err
 		}
-		eckey, err := r.ec.GetKey(r.cfg.ID(), string(r.SelfID()))
-		if err != nil {
-			return err
-		}		
-		paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
+		eckey, err := r.ec.GetKey(sopts)
 		if err != nil {
 			return err
 		}
-		paillierj, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(j))
+		paillierKey, err := r.paillier_km.GetKey(kopts)
 		if err != nil {
 			return err
 		}
-		pedj, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(j))
+		paillierj, err := r.paillier_km.GetKey(koptsj)
 		if err != nil {
 			return err
 		}
-		k_pek, err := r.signK_pek.GetKey(r.cfg.ID(), string(j))
+		pedj, err := r.pedersen_km.GetKey(koptsj)
+		if err != nil {
+			return err
+		}
+		k_pek, err := r.signK_pek.Get(soptsj)
 		if err != nil {
 			return err
 		}
@@ -187,7 +215,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			pedj.PublicKey(),
 		)
 
-		gammaPEK, err := r.gamma_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
+		gammaPEK, err := r.gamma_pek.Get(sopts)
 		if err != nil {
 			return err
 		}
@@ -226,12 +254,16 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if m.err != nil {
 			return r, m.err
 		}
+		
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+
 		delta_mta := sw_mta.NewMtA(nil, m.DeltaBeta)
-		if _, err := r.delta_mta.ImportKey(r.cfg.ID(), string(j), delta_mta); err != nil {
+		if err := r.delta_mta.Import(delta_mta, soptsj); err != nil {
 			return nil, err
 		}
 		chi_mta := sw_mta.NewMtA(nil, m.ChiBeta)
-		if _, err := r.chi_mta.ImportKey(r.cfg.ID(), string(j), chi_mta); err != nil {
+		if err := r.chi_mta.Import(chi_mta, soptsj); err != nil {
 			return nil, err
 		}
 	}

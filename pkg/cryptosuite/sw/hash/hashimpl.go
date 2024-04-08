@@ -22,10 +22,10 @@ import (
 type Hash struct {
 	h     *blake3.Hasher
 	state []core_hash.BytesWithDomain
-	store keystore.KeyLinkedStore
+	store keystore.KeyAccessor
 }
 
-func New(store keystore.KeyLinkedStore, initialData ...core_hash.WriterToWithDomain) comm_hash.Hash {
+func New(store keystore.KeyAccessor, initialData ...core_hash.WriterToWithDomain) comm_hash.Hash {
 	hash := &Hash{h: blake3.New(), store: store}
 	_, _ = hash.h.WriteString("CMP-BLAKE")
 	for _, d := range initialData {
@@ -34,7 +34,7 @@ func New(store keystore.KeyLinkedStore, initialData ...core_hash.WriterToWithDom
 	return hash
 }
 
-func Restore(store keystore.KeyLinkedStore) (comm_hash.Hash, error) {
+func Restore(store keystore.KeyAccessor) (comm_hash.Hash, error) {
 	hash := &Hash{h: blake3.New(), store: store}
 
 	ss, err := hash.store.Get()

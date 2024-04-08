@@ -8,31 +8,38 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPaillier(t *testing.T) {
 	pl := pool.NewPool(0)
-	ks := keystore.NewInMemoryKeystore()
+
+	ks_vault := vault.NewInMemoryVault()
+	ks_kr := keyopts.NewInMemoryKeyOpts()
+	ks := keystore.NewInMemoryKeystore(ks_vault, ks_kr)
 
 	mgr := NewPaillierKeyManager(ks, pl)
 
 	// generate a new Paillier key pair
-	key, err := mgr.GenerateKey()
+	opts := keyopts.Options{}
+	opts.Set("ID", 123, "partyID", 1)
+	key, err := mgr.GenerateKey(opts)
 	assert.NoError(t, err)
 
 	// retrieve the key from the keystore
-	newKey, err := mgr.GetKey(key.SKI())
+	newKey, err := mgr.GetKey(opts)
 	assert.NoError(t, err)
 	assert.Equal(t, key.SKI(), newKey.SKI())
 
 	// encode
 	sc := sample.Scalar(rand.Reader, curve.Secp256k1{})
 	msg := curve.MakeInt(sc)
-	ct, _ := mgr.Encode(key.SKI(), msg)
+	ct, _ := mgr.Encode(msg, opts)
 
-	m, err := mgr.Decode(key.SKI(), ct)
+	m, err := mgr.Decode(ct, opts)
 	assert.NoError(t, err)
 
 	eq := m.Eq(msg)
@@ -40,15 +47,15 @@ func TestPaillier(t *testing.T) {
 
 	// encode with nonce
 	nonce := sample.UnitModN(rand.Reader, key.ParamN())
-	ctn := mgr.EncWithNonce(key.SKI(), msg, nonce)
+	ctn := mgr.EncWithNonce(msg, nonce, opts)
 
-	m, _, err = mgr.DecodeWithNonce(key.SKI(), ctn)
+	m, _, err = mgr.DecodeWithNonce(ctn, opts)
 	assert.NoError(t, err)
 
 	eq = m.Eq(msg)
 	assert.Equal(t, eq, saferith.Choice(0x1))
 
-	v, err := mgr.ValidateCiphertexts(key.SKI(), ct, ctn)
+	v, err := mgr.ValidateCiphertexts(opts, ct, ctn)
 	assert.NoError(t, err)
 	assert.True(t, v)
 }

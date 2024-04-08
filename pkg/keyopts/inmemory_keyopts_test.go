@@ -1,33 +1,38 @@
-package keyrepository
+package keyopts
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/mr-shifu/mpc-lib/pkg/common/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestImportKeys(t *testing.T) {
-	kr := NewKeyRepository()
+	kr := NewInMemoryKeyOpts()
 
 	keyID := "1"
-	keys := []keyrepository.KeyData{
+	keys := []keyopts.KeyData{
 		{
-			SKI:     []byte("ski"),
+			SKI:     "ski",
 			PartyID: "Party1",
 		},
 		{
-			SKI:     []byte("ski"),
+			SKI:     "ski",
 			PartyID: "Party2",
 		},
 	}
 	for _, key := range keys {
-		err := kr.Import(keyID, key)
+		opts := make(Options)
+		err := opts.Set("ID", keyID, "PartyID", key.PartyID)
+		assert.NoError(t, err)
+		err = kr.Import(key.SKI, opts)
 		assert.NoError(t, err, "Import should not return an error")
 	}
 
-	ks, err := kr.GetAll(keyID)
+	opts := make(Options)
+	opts.Set("ID", "1")
+	ks, err := kr.GetAll(opts)
 	assert.NoError(t, err, "GetAll should not return an error")
 	assert.Len(t, ks, len(keys), fmt.Sprintf("GetAll should return %d key", len(keys)))
 }
