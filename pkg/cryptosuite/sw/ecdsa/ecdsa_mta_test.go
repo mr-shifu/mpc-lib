@@ -13,7 +13,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,21 +33,36 @@ func TestMtA(t *testing.T) {
 
 	partyIDs := []string{"a", "b", "c"}
 
-	hs := keystore.NewInMemoryKeystore()
-	mgr := hash.NewHashManager(hs)
-	h := mgr.NewHasher("test")
+	opts := keyopts.Options{}
+	opts.Set("id", "123", "partyid", "a")
 
-	paillier_ks := keystore.NewInMemoryKeystore()
+	hash_vault := vault.NewInMemoryVault()
+	hash_kr := keyopts.NewInMemoryKeyOpts()
+	hs := keystore.NewInMemoryKeystore(hash_vault, hash_kr)
+	mgr := hash.NewHashManager(hs)
+	h := mgr.NewHasher("123", opts)
+
+	paillier_vault := vault.NewInMemoryVault()
+	paillier_kr := keyopts.NewInMemoryKeyOpts()
+	paillier_ks := keystore.NewInMemoryKeystore(paillier_vault, paillier_kr)
 	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
 
-	vss_ks := keystore.NewInMemoryKeystore()
+	vss_vault := vault.NewInMemoryVault()
+	vss_kr := keyopts.NewInMemoryKeyOpts()
+	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_kr)
 	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
 	// mta_ks := keystore.NewInMemoryKeystore()
 	// mta_mgr := mta.NewMtAManager(mta_ks)
 
-	ecdsa_ks := keystore.NewInMemoryKeystore()
-	sch_ks := keystore.NewInMemoryKeystore()
+	ecdsa_vault := vault.NewInMemoryVault()
+	ecdsa_kr := keyopts.NewInMemoryKeyOpts()
+	ecdsa_ks := keystore.NewInMemoryKeystore(ecdsa_vault, ecdsa_kr)
+
+	sch_vault := vault.NewInMemoryVault()
+	sch_kr := keyopts.NewInMemoryKeyOpts()
+	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
+
 	ec_km := NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &Config{Group: curve.Secp256k1{}})
 
 	pks := make(map[string]paillier.PaillierKey, 0)
@@ -56,19 +73,22 @@ func TestMtA(t *testing.T) {
 	Ks := make(map[string]*paillierencodedkey.PaillierEncodedKey, 0)
 
 	for _, party := range partyIDs {
-		pk, _ := paillier_km.GenerateKey()
+		pk, _ := paillier_km.GenerateKey(opts)
 		pks[party] = pk.(paillier.PaillierKey)
 
 		ped, _ := pk.DerivePedersenKey()
 		peds[party] = ped.(pedersen.PedersenKey)
 
-		gamma, _ := ec_km.GenerateKey()
+		opts := keyopts.Options{}
+		opts.Set("id", "123", "partyid", party)
+
+		gamma, _ := ec_km.GenerateKey(opts)
 		gammas[party] = gamma.(ECDSAKey)
 
 		G, _ := gamma.EncodeByPaillier(pk.PublicKey())
 		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKey)
 
-		k, _ := ec_km.GenerateKey()
+		k, _ := ec_km.GenerateKey(opts)
 		ks[party] = k.(ECDSAKey)
 
 		K, _ := k.EncodeByPaillier(pk.PublicKey())

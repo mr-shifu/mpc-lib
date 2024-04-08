@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/elgamal"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	cs_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
@@ -20,29 +21,31 @@ type ElgamalKey struct {
 	group     curve.Curve
 }
 
+type rawElgamalKey struct {
+	Group  string
+	Secret []byte
+	Public []byte
+}
+
 func (key ElgamalKey) Bytes() ([]byte, error) {
-	pk, err := key.publicKey.MarshalBinary()
+	raw := &rawElgamalKey{}
+
+	raw.Group = key.group.Name()
+
+	pub, err := key.publicKey.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	gn := key.group.Name()
-
-	buf := make([]byte, 0)
-	buf = append(buf, uint8(len(gn)))
-	buf = append(buf, []byte(gn)...)
-	buf = append(buf, uint8(len(pk)))
-	buf = append(buf, pk...)
+	raw.Public = pub
 
 	if key.Private() {
-		sk, err := key.secretKey.MarshalBinary()
+		priv, err := key.secretKey.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		buf = append(buf, uint8(len(sk)))
-		buf = append(buf, sk...)
+		raw.Secret = priv
 	}
-
-	return buf, nil
+	return cbor.Marshal(raw)
 }
 
 func (key ElgamalKey) SKI() []byte {
@@ -79,38 +82,33 @@ func (key ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error
 }
 
 func fromBytes(data []byte) (ElgamalKey, error) {
-	if len(data) < 2 {
-		return ElgamalKey{}, ErrInvalidKey
+	key := ElgamalKey{}
+
+	raw := &rawElgamalKey{}
+	if err := cbor.Unmarshal(data, raw); err != nil {
+		return ElgamalKey{}, err
 	}
 
-	gnLen := int(data[0])
-	if len(data) < 2+gnLen {
-		return ElgamalKey{}, ErrInvalidKey
-	}
-	gn := string(data[1 : 1+gnLen])
 	var group curve.Curve
-	switch gn {
+	switch raw.Group {
 	case "secp256k1":
 		group = curve.Secp256k1{}
 	}
+	key.group = group
 
-	pkLen := int(data[1+gnLen])
-	if len(data) < 2+gnLen+pkLen {
-		return ElgamalKey{}, ErrInvalidKey
+	if len(raw.Secret) > 0 {
+		secret := group.NewScalar()
+		if err := secret.UnmarshalBinary(raw.Secret); err != nil {
+			return ElgamalKey{}, err
+		}
+		key.secretKey = secret
 	}
-	pk := group.NewPoint()
-	if err := pk.UnmarshalBinary(data[2+gnLen : 2+gnLen+pkLen]); err != nil {
+
+	pub := group.NewPoint()
+	if err := pub.UnmarshalBinary(raw.Public); err != nil {
 		return ElgamalKey{}, err
 	}
+	key.publicKey = pub
 
-	skLen := int(data[2+gnLen+pkLen])
-	if len(data) < 2+gnLen+pkLen+skLen {
-		return ElgamalKey{}, ErrInvalidKey
-	}
-	sk := group.NewScalar()
-	if err := sk.UnmarshalBinary(data[3+gnLen+pkLen:]); err != nil {
-		return ElgamalKey{}, err
-	}
-
-	return ElgamalKey{sk, pk, group}, nil
+	return key, nil
 }

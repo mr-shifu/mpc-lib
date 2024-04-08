@@ -27,7 +27,7 @@ type ZKSchnorr struct {
 	// proof
 	z curve.Scalar
 
-	store keystore.KeyLinkedStore
+	store keystore.KeyAccessor
 }
 
 type rawZKSchnorr struct {
@@ -38,7 +38,7 @@ type rawZKSchnorr struct {
 	Z        []byte
 }
 
-func NewZKSchnorr(zks keystore.KeyLinkedStore) *ZKSchnorr {
+func NewZKSchnorr(zks keystore.KeyAccessor) *ZKSchnorr {
 	return &ZKSchnorr{
 		store: zks,
 	}
@@ -62,6 +62,9 @@ func (zksch *ZKSchnorr) NewCommitment(group curve.Curve) (curve.Point, error) {
 }
 
 func (zksch *ZKSchnorr) ImportCommitment(commitment curve.Point, group curve.Curve) error {
+	if commitment == nil {
+		return errors.New("commitment is nil")
+	}
 	if !isValidCommitment(commitment) {
 		return errors.New("invalid commitment")
 	}

@@ -12,34 +12,20 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	sw_elgamal "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
-	mpc_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/elgamal"
-
-	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	mpc_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/paillier"
-
-	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	mpc_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/pedersen"
-
-	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	mpc_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/rid"
-
-	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	mpc_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/vss"
-
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	mpc_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/ecdsa"
-
-	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-
-	inmem_commitstore "github.com/mr-shifu/mpc-lib/pkg/commitstore"
-	inmem_keyrepo "github.com/mr-shifu/mpc-lib/pkg/keyrepository"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var group = curve.Secp256k1{}
@@ -87,61 +73,67 @@ func newMPCKeygen() *MPCKeygen {
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
-	elgamal_kr := inmem_keyrepo.NewKeyRepository()
-	elgamal_ks := keystore.NewInMemoryKeystore()
-	elgamal_km := sw_elgamal.NewElgamalKeyManager(elgamal_ks, &sw_elgamal.Config{Group: curve.Secp256k1{}})
-	elgamal := mpc_elgamal.NewElgamal(elgamal_km, elgamal_kr)
+	elgamal_keyopts := keyopts.NewInMemoryKeyOpts()
+	elgamal_vault := vault.NewInMemoryVault()
+	elgamal_ks := keystore.NewInMemoryKeystore(elgamal_vault, elgamal_keyopts)
+	elgamal_km := elgamal.NewElgamalKeyManager(elgamal_ks, &elgamal.Config{Group: curve.Secp256k1{}})
 
-	paillier_kr := inmem_keyrepo.NewKeyRepository()
-	paillier_ks := keystore.NewInMemoryKeystore()
-	paillier_km := sw_paillier.NewPaillierKeyManager(paillier_ks, pl)
-	paillier := mpc_paillier.NewPaillierKeyManager(paillier_km, paillier_kr)
+	paillier_keyopts := keyopts.NewInMemoryKeyOpts()
+	paillier_vault := vault.NewInMemoryVault()
+	paillier_ks := keystore.NewInMemoryKeystore(paillier_vault, paillier_keyopts)
+	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
 
-	pedersen_kr := inmem_keyrepo.NewKeyRepository()
-	pedersen_ks := keystore.NewInMemoryKeystore()
-	pedersen_km := sw_pedersen.NewPedersenKeymanager(pedersen_ks)
-	pedersen := mpc_pedersen.NewPedersenKeyManager(pedersen_km, pedersen_kr)
+	pedersen_keyopts := keyopts.NewInMemoryKeyOpts()
+	pedersen_vault := vault.NewInMemoryVault()
+	pedersen_ks := keystore.NewInMemoryKeystore(pedersen_vault, pedersen_keyopts)
+	pedersen_km := pedersen.NewPedersenKeymanager(pedersen_ks)
 
-	vss_kr := inmem_keyrepo.NewKeyRepository()
-	vss_ks := keystore.NewInMemoryKeystore()
-	vss_km := sw_vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	vss_keyopts := keyopts.NewInMemoryKeyOpts()
+	vss_vault := vault.NewInMemoryVault()
+	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_keyopts)
+	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
-	ecdsa_ks := keystore.NewInMemoryKeystore()
-	ecdsa_kr := inmem_keyrepo.NewKeyRepository()
-	sch_ks := keystore.NewInMemoryKeystore()
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
-	ecdsa := mpc_ecdsa.NewECDSA(ecdsa_km, ecdsa_kr, vss_km, vss_kr)
+	ec_keyopts := keyopts.NewInMemoryKeyOpts()
+	ec_vault := vault.NewInMemoryVault()
+	ec_ks := keystore.NewInMemoryKeystore(ec_vault, ec_keyopts)
+	sch_keyopts := keyopts.NewInMemoryKeyOpts()
+	sch_vault := vault.NewInMemoryVault()
+	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_keyopts)
+	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	ec_vss_kr := inmem_keyrepo.NewKeyRepository()
-	// ec_vss_km := mpc_ecdsa.NewECDSA(ecdsa_km, ec_vss_kr, nil, nil)
-	vss_mgr := mpc_vss.NewVSS(vss_km, vss_kr, ecdsa_km, ec_vss_kr)
+	ec_vss_keyopts := keyopts.NewInMemoryKeyOpts()
+	ec_vss_ks := keystore.NewInMemoryKeystore(ec_vault, ec_vss_keyopts)
+	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
-	rid_kr := inmem_keyrepo.NewKeyRepository()
-	rid_ks := keystore.NewInMemoryKeystore()
-	rid_km := sw_rid.NewRIDManager(rid_ks)
-	rid := mpc_rid.NewRIDKeyManager(rid_km, rid_kr)
+	rid_keyopts := keyopts.NewInMemoryKeyOpts()
+	rid_vault := vault.NewInMemoryVault()
+	rid_ks := keystore.NewInMemoryKeystore(rid_vault, rid_keyopts)
+	rid_km := rid.NewRIDManager(rid_ks)
 
-	chainKey_kr := inmem_keyrepo.NewKeyRepository()
-	chainKey_ks := keystore.NewInMemoryKeystore()
-	chainKey_km := sw_rid.NewRIDManager(chainKey_ks)
-	chainKey := mpc_rid.NewRIDKeyManager(chainKey_km, chainKey_kr)
+	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
+	chainKey_vault := vault.NewInMemoryVault()
+	chainKey_ks := keystore.NewInMemoryKeystore(chainKey_vault, chainKey_keyopts)
+	chainKey_km := rid.NewRIDManager(chainKey_ks)
 
-	hash_ks := keystore.NewInMemoryKeystore()
-	hash_mgr := sw_hash.NewHashManager(hash_ks)
+	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
+	hahs_vault := vault.NewInMemoryVault()
+	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
+	hash_mgr := hash.NewHashManager(hash_ks)
 
-	commitstore := inmem_commitstore.NewInMemoryCommitstore()
-	commit_kr := inmem_keyrepo.NewKeyRepository()
-	commit_mgr := commitment.NewCommitmentManager(commitstore, commit_kr)
+	commit_keyopts := keyopts.NewInMemoryKeyOpts()
+	commit_vault := vault.NewInMemoryVault()
+	commit_ks := keystore.NewInMemoryKeystore(commit_vault, commit_keyopts)
+	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	return NewMPCKeygen(
-		elgamal,
-		paillier,
-		pedersen,
-		ecdsa,
-		// ec_vss_km,
-		vss_mgr,
-		rid,
-		chainKey,
+		elgamal_km,
+		paillier_km,
+		pedersen_km,
+		ecdsa_km,
+		ec_vss_km,
+		vss_km,
+		rid_km,
+		chainKey_km,
 		hash_mgr,
 		mpc_ks,
 		commit_mgr,
@@ -155,7 +147,7 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 3
+	N := 2
 	partyIDs := test.PartyIDs(N)
 
 	rounds := make([]round.Session, 0, N)

@@ -4,6 +4,7 @@ import (
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type PaillierEncodedKey interface {
@@ -17,6 +18,6 @@ type PaillierEncodedKey interface {
 }
 
 type PaillierEncodedKeyManager interface {
-	Get(keyID string) (PaillierEncodedKey, error)
-	Import(keyID string, key PaillierEncodedKey) (PaillierEncodedKey, error)
+	Get(opts keyopts.Options) (PaillierEncodedKey, error)
+	Import(raw interface{}, opts keyopts.Options) (PaillierEncodedKey, error)
 }

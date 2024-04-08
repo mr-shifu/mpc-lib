@@ -8,15 +8,16 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -27,9 +28,10 @@ type MPCKeygen struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
 	vss_mgr     vss.VssKeyManager
-	rid_km      rid.RIDKeyManager
-	chainKey_km rid.RIDKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
 	hash_mgr    hash.HashManager
 	mpc_ks      mpckey.MPCKeystore
 	commit_mgr  commitment.CommitmentManager
@@ -42,9 +44,10 @@ func NewMPCKeygen(
 	paillier paillier.PaillierKeyManager,
 	pedersen pedersen.PedersenKeyManager,
 	ecdsa ecdsa.ECDSAKeyManager,
+	ec_vss_km ecdsa.ECDSAKeyManager,
 	vss_mgr vss.VssKeyManager,
-	rid rid.RIDKeyManager,
-	chainKey rid.RIDKeyManager,
+	rid rid.RIDManager,
+	chainKey rid.RIDManager,
 	hash_mgr hash.HashManager,
 	mpc_ks mpckey.MPCKeystore,
 	commit_mgr commitment.CommitmentManager,
@@ -56,6 +59,7 @@ func NewMPCKeygen(
 		paillier_km: paillier,
 		pedersen_km: pedersen,
 		ecdsa_km:    ecdsa,
+		ec_vss_km:   ec_vss_km,
 		vss_mgr:     vss_mgr,
 		rid_km:      rid,
 		chainKey_km: chainKey,
@@ -67,7 +71,9 @@ func NewMPCKeygen(
 func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *config.Config) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
 		// m.keys[keyID] = info
-		h := m.hash_mgr.NewHasher(keyID)
+		opts := keyopts.Options{}
+		opts.Set("id", keyID, "partyid", string(info.SelfID))
+		h := m.hash_mgr.NewHasher(keyID, opts)
 
 		var helper *round.Helper
 		if c == nil {
@@ -102,11 +108,11 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 		}
 
 		// sample fᵢ(X) deg(fᵢ) = t, fᵢ(0) = secretᵢ
-		key, err := m.ecdsa_km.GenerateKey(keyID, string(helper.SelfID()))
+		key, err := m.ecdsa_km.GenerateKey(opts)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
-		if err := key.GenerateVSSSecrets(helper.Threshold()); err != nil {
+		if err := key.GenerateVSSSecrets(helper.Threshold(), opts); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
@@ -133,6 +139,7 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
 			ecdsa_km:    m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
 			vss_mgr:     m.vss_mgr,
 			rid_km:      m.rid_km,
 			chainKey_km: m.chainKey_km,

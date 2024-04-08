@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -8,15 +9,15 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
-	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/mpc/common/commitment"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/mpc/common/ecdsa"
-	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/mpc/common/elgamal"
-	comm_mpc_ks "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/mpc/common/paillier"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/mpc/common/pedersen"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/mpc/common/rid"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/mpc/common/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -24,16 +25,16 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
-	mpc_ks      comm_mpc_ks.MPCKeystore
-	elgamal_km  comm_elgamal.ElgamalKeyManager
-	paillier_km comm_paillier.PaillierKeyManager
-	pedersen_km comm_pedersen.PedersenKeyManager
-	ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	// ec_vss_km   comm_ecdsa.ECDSAKeyManager
-	vss_mgr     comm_vss.VssKeyManager
-	rid_km      comm_rid.RIDKeyManager
-	chainKey_km comm_rid.RIDKeyManager
-	commit_mgr  comm_commitment.CommitmentManager
+	mpc_ks      mpckey.MPCKeystore
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 
 	// PreviousSecretECDSA = sk'ᵢ
 	// Contains the previous secret ECDSA key share which is being refreshed
@@ -70,40 +71,48 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // - commit to message.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// generate Paillier and Pedersen
-	_, err := r.paillier_km.GenerateKey(r.ID, string(r.SelfID()))
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	paillierKey, err := r.paillier_km.GenerateKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// derive Pedersen from Paillier
-	pedersenKey, err := r.paillier_km.DerivePedersenKey(r.ID, string(r.SelfID()))
+	pedersenKey, err := paillierKey.DerivePedersenKey()
 	if err != nil {
 		return nil, err
 	}
-	pedersen_kb, err := pedersenKey.Bytes()
-	if err != nil {
+	if _, err := r.pedersen_km.ImportKey(pedersenKey, opts); err != nil {
 		return nil, err
 	}
-	r.pedersen_km.ImportKey(r.ID, string(r.SelfID()), pedersen_kb)
 
 	// generate ElGamal key
-	elgamlKey, err := r.elgamal_km.GenerateKey(r.ID, string(r.SelfID()))
+	elgamlKey, err := r.elgamal_km.GenerateKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// save our own share already so we are consistent with what we receive from others
-	key, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	key, err := r.ecdsa_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
-	vssKey, err := key.VSS()
+	vssKey, err := key.VSS(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate VSS Share
-	if err := r.vss_mgr.GenerateVSSShare(r.ID, r.SelfID(), r.SelfID(), r.Group()); err != nil {
+	share, err := r.vss_mgr.Evaluate(r.SelfID().Scalar(r.Group()), opts)
+	if err != nil {
+		return nil, err
+	}
+	sharePublic := share.ActOnBase()
+	shareKey := r.ecdsa_km.NewKey(share, sharePublic, r.Group())
+	vssOpts := keyopts.Options{}
+	vssOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+	if _, err := r.ec_vss_km.ImportKey(shareKey, vssOpts); err != nil {
 		return nil, err
 	}
 
@@ -114,62 +123,37 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Sample RIDᵢ
-	selfRID, err := r.rid_km.GenerateKey(r.ID, string(r.SelfID()))
+	selfRID, err := r.rid_km.GenerateKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GenerateKey(r.ID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GenerateKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// commit to data in message 2
-	// TODO Hash func must be fixed to handle cryptosuite keys
-	ped_pub := pedersenKey.PublicKeyRaw()
-	if err != nil {
-		return nil, err
-	}
-	elgamal_bytes, err := elgamlKey.PublicKey().Bytes()
-	if err != nil {
-		return nil, err
-	}
-	vssExponents, err := vssKey.ExponentsRaw()
-	if err != nil {
-		return nil, err
-	}
-	vssExponents_bytes, err := vssExponents.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	selfRID_bytes, err := selfRID.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	chainKey_bytes, err := chainKey.Bytes()
+	vssExponents, err := vssKey.Exponents()
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: make Commit to accept Key.Public() instead of key.PublicKeyRaw()
 	SelfCommitment, Decommitment, err := r.Hash().Clone().Commit(
-		selfRID_bytes,
-		chainKey_bytes,
-		vssExponents_bytes,
+		selfRID,
+		chainKey,
+		vssExponents,
+		elgamlKey.PublicKey(),
+		pedersenKey.PublicKeyRaw().N(),
+		pedersenKey.PublicKeyRaw().S(),
+		pedersenKey.PublicKeyRaw().T(),
 		schnorrCommitment,
-		elgamal_bytes,
-		ped_pub.N(),
-		ped_pub.S(),
-		ped_pub.T(),
 	)
 	if err != nil {
 		return r, errors.New("failed to commit")
 	}
 
-	if err := r.commit_mgr.Import(r.ID, r.SelfID(), &commitstore.Commitment{
-		Commitment:   SelfCommitment,
-		Decommitment: Decommitment,
-	}); err != nil {
+	cmt := r.commit_mgr.NewCommitment(SelfCommitment, Decommitment)
+	if err := r.commit_mgr.Import(cmt, opts); err != nil {
 		return r, err
 	}
 

@@ -1,5 +1,7 @@
 package rid
 
+import "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+
 type RID interface {
 	// Bytes returns the byte representation of the key.
 	Bytes() ([]byte, error)
@@ -22,17 +24,17 @@ type RID interface {
 
 type RIDManager interface {
 	// GenerateKey generates a new RID key pair.
-	GenerateKey() (RID, error)
+	GenerateKey(opts keyopts.Options) (RID, error)
 
 	// Import imports a RID key from its byte representation.
-	ImportKey(data []byte) (RID, error)
+	ImportKey(data []byte, opts keyopts.Options) (RID, error)
 
 	// GetKey returns a RID key by its SKI.
-	GetKey(keyID string) (RID, error)
+	GetKey(opts keyopts.Options) (RID, error)
 
 	// modifies the receiver by taking the XOR with the argument.
-	XOR(keyID string, message []byte) (RID, error)
+	XOR(message []byte, opts keyopts.Options) (RID, error)
 
 	// Validate ensure that the RID is the correct length and is not identically 0.
-	Validate(keyID string) error
+	Validate(opts keyopts.Options) error
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round4)(nil)
@@ -44,15 +45,18 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+
 	bigDeltaShareFrom := body.BigDeltaShare
 	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
-	if err := r.bigDelta.ImportKey(r.cfg.ID(), string(msg.From), bigDeltaFrom); err != nil {
+	if _, err := r.bigDelta.ImportKey(bigDeltaFrom, soptsFrom); err != nil {
 		return err
 	}
 
 	deltaShareFrom := body.DeltaShare
 	deltaFrom := sw_ecdsa.NewECDSAKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
-	if err := r.delta.ImportKey(r.cfg.ID(), string(msg.From), deltaFrom); err != nil {
+	if _, err := r.delta.ImportKey(deltaFrom, soptsFrom); err != nil {
 		return err
 	}
 
@@ -72,26 +76,38 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	kFromPek, err := r.signK_pek.GetKey(r.cfg.ID(), string(from))
+	koptsFrom := keyopts.Options{}
+	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+
+	koptsTo := keyopts.Options{}
+	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+
+	soptsRoot := keyopts.Options{}
+	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+
+	kFromPek, err := r.signK_pek.Get(soptsFrom)
 	if err != nil {
 		return err
 	}
 
-	bigDeltaShareFrom, err := r.bigDelta.GetKey(r.cfg.ID(), string(from))
+	bigDeltaShareFrom, err := r.bigDelta.GetKey(soptsFrom)
 	if err != nil {
 		return err
 	}
 
-	gamma, err := r.gamma.GetKey(r.cfg.ID(), "ROOT")
+	gamma, err := r.gamma.GetKey(soptsRoot)
 	if err != nil {
 		return err
 	}
 
-	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	paillierFrom, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
 		return err
 	}
-	pedTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
+	pedTo, err := r.pedersen_km.GetKey(koptsTo)
 	if err != nil {
 		return err
 	}
@@ -127,16 +143,24 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	sopts := keyopts.Options{}
+	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+
+	soptsRoot := keyopts.Options{}
+	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
+
 	// δ = ∑ⱼ δⱼ
 	var deltaShares []comm_ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
-		delta, err := r.delta.GetKey(r.cfg.ID(), string(j))
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		delta, err := r.delta.GetKey(soptsj)
 		if err != nil {
 			return nil, err
 		}
 		deltaShares = append(deltaShares, delta)
 	}
-	selfdeltaShare, err := r.delta.GetKey(r.cfg.ID(), string(r.SelfID()))
+	selfdeltaShare, err := r.delta.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +169,9 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Δ = ∑ⱼ Δⱼ
 	BigDelta := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		bigDeltaj, err := r.bigDelta.GetKey(r.cfg.ID(), string(j))
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		bigDeltaj, err := r.bigDelta.GetKey(soptsj)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +185,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// R = [δ⁻¹] Γ
-	gamma, err := r.gamma.GetKey(r.cfg.ID(), "ROOT")
+	gamma, err := r.gamma.GetKey(soptsRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +194,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	R := BigR.XScalar()                                   // r = R|ₓ
 
 	// rχᵢ
-	chiShare, err := r.chi.GetKey(r.cfg.ID(), string(r.SelfID()))
+	chiShare, err := r.chi.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
@@ -177,12 +203,12 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// km = Hash(m)⋅kᵢ
 	// σᵢ = rχᵢ + kᵢm
 	m := curve.FromHash(r.Group(), r.Message)
-	selfKShare, err := r.signK.GetKey(r.cfg.ID(), string(r.SelfID()))
+	selfKShare, err := r.signK.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
 	SigmaShare := selfKShare.Commit(m, RChi)
-	if err := r.sigma.ImportSigma(r.cfg.ID(), string(r.SelfID()), SigmaShare); err != nil {
+	if err := r.sigma.ImportSigma(SigmaShare, sopts); err != nil {
 		return nil, err
 	}
 	r.signature.ImportSignR(r.cfg.ID(), BigR)

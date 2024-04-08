@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round3)(nil)
@@ -36,7 +36,7 @@ type message3 struct {
 
 type broadcast3 struct {
 	round.NormalBroadcastContent
-	BigGammaShare curve.Point // BigGammaShare = Γⱼ
+	BigGammaShare []byte
 }
 
 // StoreBroadcastMessage implements round.BroadcastRound.
@@ -47,12 +47,15 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if !ok || body == nil {
 		return round.ErrInvalidContent
 	}
-	if body.BigGammaShare.IsIdentity() {
-		return round.ErrNilFields
-	}
+	// if body.BigGammaShare.IsIdentity() {
+	// 	return round.ErrNilFields
+	// }
 
-	gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
-	if err := r.gamma.ImportKey(r.cfg.ID(), string(msg.From), gamma); err != nil {
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+
+	// gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
+	if _, err := r.gamma.ImportKey(body.BigGammaShare, soptsFrom); err != nil {
 		return err
 	}
 
@@ -72,34 +75,46 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	paillierFrom, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(from))
+	koptsFrom := keyopts.Options{}
+	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+
+	koptsTo := keyopts.Options{}
+	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+
+	soptsTo := keyopts.Options{}
+	soptsTo.Set("id", r.cfg.ID(), "partyid", string(to))
+
+	paillierFrom, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
 		return err
 	}
-	paillierTo, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(to))
+	paillierTo, err := r.paillier_km.GetKey(koptsTo)
 	if err != nil {
 		return err
 	}
-	pedTo, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(to))
+	pedTo, err := r.pedersen_km.GetKey(koptsTo)
 	if err != nil {
 		return err
 	}
 
-	gammaFrom, err := r.gamma.GetKey(r.cfg.ID(), string(from))
+	gammaFrom, err := r.gamma.GetKey(soptsFrom)
 	if err != nil {
 		return err
 	}
-	gammaFrom_pek, err := r.gamma_pek.GetKey(r.cfg.ID(), string(from))
-	if err != nil {
-		return err
-	}
-
-	eckeyFrom, err := r.ec.GetKey(r.cfg.ID(), string(from))
+	gammaFrom_pek, err := r.gamma_pek.Get(soptsFrom)
 	if err != nil {
 		return err
 	}
 
-	shareKTo_pek, err := r.signK_pek.GetKey(r.cfg.ID(), string(to))
+	eckeyFrom, err := r.ec.GetKey(soptsFrom)
+	if err != nil {
+		return err
+	}
+
+	shareKTo_pek, err := r.signK_pek.Get(soptsTo)
 	if err != nil {
 		return err
 	}
@@ -147,8 +162,14 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 func (r *round3) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message3)
 
+	kopts := keyopts.Options{}
+	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+
+	soptsFrom := keyopts.Options{}
+	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+
 	// αᵢⱼ
-	paillierKey, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
+	paillierKey, err := r.paillier_km.GetKey(kopts)
 	if err != nil {
 		return err
 	}
@@ -162,10 +183,10 @@ func (r *round3) StoreMessage(msg round.Message) error {
 		return fmt.Errorf("failed to decrypt alpha share for chi: %w", err)
 	}
 
-	if err := r.delta_mta.SetAlpha(r.cfg.ID(), string(from), DeltaShareAlpha); err != nil {
+	if err := r.delta_mta.SetAlpha(DeltaShareAlpha, soptsFrom); err != nil {
 		return err
 	}
-	if er := r.chi_mta.SetAlpha(r.cfg.ID(), string(from), ChiShareAlpha); er != nil {
+	if er := r.chi_mta.SetAlpha(ChiShareAlpha, soptsFrom); er != nil {
 		return nil
 	}
 
@@ -187,36 +208,48 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	sopts := keyopts.Options{}
+	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+
+	kopts := keyopts.Options{}
+	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+
 	// Γ = ∑ⱼ Γⱼ
 	Gamma := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		gammaj, err := r.gamma.GetKey(r.cfg.ID(), string(j))
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		gammaj, err := r.gamma.GetKey(soptsj)
 		if err != nil {
 			return nil, err
 		}
 		Gamma = Gamma.Add(gammaj.PublicKeyRaw())
 	}
+	soptsRoot := keyopts.Options{}
+	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
 	gammaRoot := sw_ecdsa.NewECDSAKey(nil, Gamma, Gamma.Curve())
-	if err := r.gamma.ImportKey(r.cfg.ID(), "ROOT", gammaRoot); err != nil {
+	if _, err := r.gamma.ImportKey(gammaRoot, soptsRoot); err != nil {
 		return nil, err
 	}
 
 	// Δᵢ = [kᵢ]Γ
-	KShare, err := r.signK.GetKey(r.cfg.ID(), string(r.SelfID()))
+	KShare, err := r.signK.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
 	bigDeltaShare := KShare.Act(Gamma, false)
 	bigDelta := sw_ecdsa.NewECDSAKey(nil, bigDeltaShare, bigDeltaShare.Curve())
-	if err := r.bigDelta.ImportKey(r.cfg.ID(), string(r.SelfID()), bigDelta); err != nil {
+	if _, err := r.bigDelta.ImportKey(bigDelta, sopts); err != nil {
 		return nil, err
 	}
 
 	// δᵢ = γᵢ kᵢ + ∑ⱼ δᵢⱼ
 	deltaSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
 		//δᵢ += αᵢⱼ + βᵢⱼ
-		deltaj, err := r.delta_mta.GetKey(r.cfg.ID(), string(j))
+		deltaj, err := r.delta_mta.Get(soptsj)
 		if err != nil {
 			return nil, err
 		}
@@ -224,20 +257,22 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		deltaSum = deltaSum.Add(deltaSum, deltaj.Beta(), -1)
 	}
 	deltaSumScalar := r.Group().NewScalar().SetNat(deltaSum.Mod(r.Group().Order()))
-	gamma, err := r.gamma.GetKey(r.cfg.ID(), string(r.SelfID()))
+	gamma, err := r.gamma.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
 	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
 	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
-	if err := r.delta.ImportKey(r.cfg.ID(), string(r.SelfID()), deltaShare); err != nil {
+	if _, err := r.delta.ImportKey(deltaShare, sopts); err != nil {
 		return nil, err
 	}
 
 	// χᵢ = xᵢ kᵢ + ∑ⱼ χᵢⱼ
 	chiSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
-		chij, err := r.chi_mta.GetKey(r.cfg.ID(), string(j))
+		soptsj := keyopts.Options{}
+		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		chij, err := r.chi_mta.Get(soptsj)
 		if err != nil {
 			return nil, err
 		}
@@ -245,13 +280,13 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		chiSum = chiSum.Add(chiSum, chij.Beta(), -1)
 	}
 	chiSumScalar := r.Group().NewScalar().SetNat(chiSum.Mod(r.Group().Order()))
-	eckey, err := r.ec.GetKey(r.cfg.ID(), string(r.SelfID()))
+	eckey, err := r.ec.GetKey(sopts)
 	if err != nil {
 		return nil, err
 	}
-	ChaiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
-	chiShare := sw_ecdsa.NewECDSAKey(ChaiShareScalar, ChaiShareScalar.ActOnBase(), ChaiShareScalar.Curve())
-	if err := r.chi.ImportKey(r.cfg.ID(), string(r.SelfID()), chiShare); err != nil {
+	ChiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
+	chiShare := sw_ecdsa.NewECDSAKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
+	if _, err := r.chi.ImportKey(chiShare, sopts); err != nil {
 		return nil, err
 	}
 
@@ -263,12 +298,12 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	paillier, err := r.paillier_km.GetKey(r.cfg.KeyID(), string(r.SelfID()))
+	paillier, err := r.paillier_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
-	
-	KSharePEK, err := r.signK_pek.GetKey(r.cfg.ID(), string(r.SelfID()))
+
+	KSharePEK, err := r.signK_pek.Get(sopts)
 	if err != nil {
 		return nil, err
 	}
@@ -277,17 +312,20 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	errs := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		pedj, err := r.pedersen_km.GetKey(r.cfg.KeyID(), string(j))
+		koptsj := keyopts.Options{}
+		koptsj.Set("id", r.cfg.KeyID(), "partyid", string(j))
+
+		pedj, err := r.pedersen_km.GetKey(koptsj)
 		if err != nil {
 			return err
 		}
 
 		proofLog, err := KShare.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
-			KSharePEK, // PEK
+			KSharePEK,           // PEK
 			KSharePEK.Encoded(), // C
-			bigDeltaShare, // X
-			Gamma, 	// G
+			bigDeltaShare,       // X
+			Gamma,               // G
 			paillier.PublicKey(),
 			pedj.PublicKey(),
 		)
@@ -335,7 +373,7 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 // BroadcastContent implements round.BroadcastRound.
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
-		BigGammaShare: r.Group().NewPoint(),
+		// BigGammaShare: r.Group().NewPoint(),
 	}
 }
 

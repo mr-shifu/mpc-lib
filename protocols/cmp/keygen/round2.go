@@ -4,22 +4,13 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/commitstore"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
 	*round1
-
-	// mpc_ks      comm_mpc_ks.MPCKeystore
-	// elgamal_km  comm_elgamal.ElgamalKeyManager
-	// paillier_km comm_paillier.PaillierKeyManager
-	// pedersen_km comm_pedersen.PedersenKeyManager
-	// ecdsa_km    comm_ecdsa.ECDSAKeyManager
-	// rid_km      comm_rid.RIDKeyManager
-	// chainKey_km comm_rid.RIDKeyManager
-	// commit_mgr  comm_commitment.CommitmentManager
 
 	// Number of Broacasted Messages received
 	MessageBroadcasted map[party.ID]bool
@@ -41,11 +32,12 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	if err := body.Commitment.Validate(); err != nil {
 		return err
 	}
-	cmt := &commitstore.Commitment{
-		Commitment:   body.Commitment,
-		Decommitment: nil,
-	}
-	if err := r.commit_mgr.Import(r.ID, msg.From, cmt); err != nil {
+
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(msg.From))
+
+	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
+	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
 		return err
 	}
 
@@ -70,27 +62,26 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
 	// TODO need keyID to get the key
-	elgamalKey, err := r.elgamal_km.GetKey(r.ID, string(r.SelfID()))
-	if err != nil {
-		return nil, err
-	}
-	ekb, err := elgamalKey.Bytes()
+	elgamalKey, err := r.elgamal_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	rid, err := r.rid_km.GetKey(r.ID, string(r.SelfID()))
+	rid, err := r.rid_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	chainKey, err := r.chainKey_km.GetKey(r.ID, string(r.SelfID()))
+	chainKey, err := r.chainKey_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +89,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	vssKey, err := ecKey.VSS()
+	vssKey, err := ecKey.VSS(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +99,39 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
+	paillier, err := r.paillier_km.GetKey(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	ped, err := r.pedersen_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// Send the message we created in Round1 to all
-	cmt, err := r.commit_mgr.Get(r.ID, r.SelfID())
+	cmt, err := r.commit_mgr.Get(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	ec_bytes, err := ecKey.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	elgamal_bytes, err := elgamalKey.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	paillier_bytes, err := paillier.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	ped_bytes, err := ped.PublicKey().Bytes()
+	if err != nil {
+		return nil, err
+	}
+	exponents_bytes, err := exponents.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -122,13 +139,13 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	err = r.BroadcastMessage(out, &broadcast3{
 		RID:                rid.Raw(),
 		C:                  chainKey.Raw(),
-		VSSPolynomial:      exponents,
+		EcdsaKey:           ec_bytes,
+		VSSPolynomial:      exponents_bytes,
 		SchnorrCommitments: schnorrCommitment,
-		ElGamalPublic:      ekb,
-		N:                  ped.PublicKeyRaw().N(),
-		S:                  ped.PublicKeyRaw().S(),
-		T:                  ped.PublicKeyRaw().T(),
-		Decommitment:       cmt.Decommitment,
+		PaillierKey:        paillier_bytes,
+		ElgamalKey:         elgamal_bytes,
+		PedersenKey:        ped_bytes,
+		Decommitment:       cmt.Decommitment(),
 	})
 	if err != nil {
 		return r, err

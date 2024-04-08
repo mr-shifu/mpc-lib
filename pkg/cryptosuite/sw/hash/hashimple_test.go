@@ -10,18 +10,24 @@ import (
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHash_WriteAny(t *testing.T) {
-	hs := keystore.NewInMemoryKeystore()
+	v := vault.NewInMemoryVault()
+	kr := keyopts.NewInMemoryKeyOpts()
+	hs := keystore.NewInMemoryKeystore(v, kr)
 	mgr := NewHashManager(hs)
 
 	var err error
 
 	testFunc := func(vs ...interface{}) error {
-		h := mgr.NewHasher("test")
+		opts := keyopts.Options{}
+		opts.Set("ID", 123, "partyID", 1)
+		h := mgr.NewHasher("test", opts)
 
 		for _, v := range vs {
 			err = h.WriteAny(v)
@@ -43,13 +49,17 @@ func TestHash_WriteAny(t *testing.T) {
 }
 
 func TestHash_WriteAny_Collision(t *testing.T) {
-	hs := keystore.NewInMemoryKeystore()
+	v := vault.NewInMemoryVault()
+	kr := keyopts.NewInMemoryKeyOpts()
+	hs := keystore.NewInMemoryKeystore(v, kr)
 	mgr := NewHashManager(hs)
 
 	var err error
 
 	testFunc := func(vs ...interface{}) ([]byte, error) {
-		h := mgr.NewHasher("test")
+		opts := keyopts.Options{}
+		opts.Set("ID", 123, "partyID", 1)
+		h := mgr.NewHasher("test", opts)
 
 		for _, v := range vs {
 			err = h.WriteAny(v)
@@ -77,9 +87,14 @@ func TestHash_WriteAny_Collision(t *testing.T) {
 }
 
 func TestHash_Clone(t *testing.T) {
-	hs := keystore.NewInMemoryKeystore()
+	v := vault.NewInMemoryVault()
+	kr := keyopts.NewInMemoryKeyOpts()
+	hs := keystore.NewInMemoryKeystore(v, kr)
 	mgr := NewHashManager(hs)
-	h := mgr.NewHasher("test")
+	
+	opts := keyopts.Options{}
+	opts.Set("ID", 123, "partyID", 1)
+	h := mgr.NewHasher("test", opts)
 
 	h1 := h.Clone()
 	h2 := h.Clone()

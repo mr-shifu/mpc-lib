@@ -12,6 +12,7 @@ import (
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type ECDSAKey interface {
@@ -59,11 +60,11 @@ type ECDSAKey interface {
 
 	SchnorrProof() (curve.Scalar, error)
 
-	GenerateVSSSecrets(degree int) error
+	GenerateVSSSecrets(degree int, opts keyopts.Options) error
 
-	ImportVSSSecrets(exponents []byte) error
+	// ImportVSSSecrets(k vss.VssKey, opts keyopts.Options) error
 
-	VSS() (vss.VssKey, error)
+	VSS(opts keyopts.Options) (vss.VssKey, error)
 
 	EncodeByPaillier(pk paillier.PaillierKey) (comm_pek.PaillierEncodedKey, error)
 
@@ -91,11 +92,11 @@ type ECDSAKeyManager interface {
 	NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey
 
 	// GenerateKey generates a new ECDSA key pair.
-	GenerateKey() (ECDSAKey, error)
+	GenerateKey(opts keyopts.Options) (ECDSAKey, error)
 
 	// Import imports a ECDSA key from its byte representation.
-	ImportKey(key ECDSAKey) (ECDSAKey, error)
+	ImportKey(raw interface{}, opts keyopts.Options) (ECDSAKey, error)
 
 	// GetKey returns a ECDSA key by its SKI.
-	GetKey(ski []byte) (ECDSAKey, error)
+	GetKey(opts keyopts.Options) (ECDSAKey, error)
 }

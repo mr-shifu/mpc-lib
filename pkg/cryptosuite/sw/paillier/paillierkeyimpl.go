@@ -3,10 +3,10 @@ package paillier
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/cronokirby/saferith"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
@@ -21,6 +21,11 @@ type PaillierKey struct {
 	publicKey *pailliercore.PublicKey
 }
 
+type rawPaillierKey struct {
+	SecretKey []byte
+	PublicKey []byte
+}
+
 func NewPaillierKey(sk *pailliercore.SecretKey, pk *pailliercore.PublicKey) PaillierKey {
 	return PaillierKey{sk, pk}
 }
@@ -29,37 +34,23 @@ func NewPaillierKey(sk *pailliercore.SecretKey, pk *pailliercore.PublicKey) Pail
 // The encoded data is structured as follows:
 // | N length | N | SecretKey Length | P Length | P | Q length | Q |
 func (k PaillierKey) Bytes() ([]byte, error) {
-	// encode public key Modulus N
-	nb, err := k.publicKey.N().MarshalBinary()
+	raw := &rawPaillierKey{}
+
+	if k.Private() {
+		sb, err := k.secretKey.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		raw.SecretKey = sb
+	}
+
+	pkb, err := k.publicKey.N().MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
+	raw.PublicKey = pkb
 
-	// write public key encoded into buffer
-	buf := make([]byte, 0)
-
-	nl := make([]byte, 2)
-	binary.LittleEndian.PutUint16(nl, uint16(len(nb)))
-
-	buf = append(buf, nl...)
-	buf = append(buf, nb...)
-
-	// if secret key exists then encode secret key params (P, Q)
-	if k.secretKey == nil {
-		return buf, nil
-	}
-	skb, err := k.secretKey.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	// write secret key encoded into buffer
-	sl := make([]byte, 2)
-	binary.LittleEndian.PutUint16(sl, uint16(len(skb)))
-	buf = append(buf, sl...)
-	buf = append(buf, skb...)
-
-	return buf, nil
+	return cbor.Marshal(raw)
 }
 
 // SKI returns the Subject Key Identifier of the key derived from N param of public key.
@@ -144,33 +135,54 @@ func (k PaillierKey) Sample(t *saferith.Nat) (*saferith.Nat, *big.Int) {
 
 // fromBytes returns a Paillier key from its binary encoded data.
 func fromBytes(data []byte) (PaillierKey, error) {
-	nlb := data[:2]
-	nl := binary.LittleEndian.Uint16(nlb)
-	if nl == 0 {
-		return PaillierKey{}, nil
-	}
-	nb := data[2 : nl+2]
+	// nlb := data[:2]
+	// nl := binary.LittleEndian.Uint16(nlb)
+	// if nl == 0 {
+	// 	return PaillierKey{}, nil
+	// }
+	// nb := data[2 : nl+2]
 
-	// decode public key Modulus N
+	// // decode public key Modulus N
+	// n := new(saferith.Modulus)
+	// if err := n.UnmarshalBinary(nb); err != nil {
+	// 	return PaillierKey{}, err
+	// }
+	// pk := pailliercore.NewPublicKey(n)
+
+	// // if secret key exists then decode secret key params (P, Q)
+	// slb := data[nl+2 : nl+4]
+	// sl := binary.LittleEndian.Uint16(slb)
+	// if sl == 0 {
+	// 	return PaillierKey{publicKey: pailliercore.NewPublicKey(n)}, nil
+	// }
+
+	// // decode secret key params (P, Q)
+	// sb := data[nl+4 : nl+4+sl]
+	// sk := new(pailliercore.SecretKey)
+	// if err := sk.UnmarshalBinary(sb); err != nil {
+	// 	return PaillierKey{}, err
+	// }
+
+	key := PaillierKey{}
+
+	raw := &rawPaillierKey{}
+	if err := cbor.Unmarshal(data, raw); err != nil {
+		return PaillierKey{}, err
+	}
+
 	n := new(saferith.Modulus)
-	if err := n.UnmarshalBinary(nb); err != nil {
+	if err := n.UnmarshalBinary(raw.PublicKey); err != nil {
 		return PaillierKey{}, err
 	}
-	pk := pailliercore.NewPublicKey(n)
+	key.publicKey = pailliercore.NewPublicKey(n)
 
-	// if secret key exists then decode secret key params (P, Q)
-	slb := data[nl+2 : nl+4]
-	sl := binary.LittleEndian.Uint16(slb)
-	if sl == 0 {
-		return PaillierKey{publicKey: pailliercore.NewPublicKey(n)}, nil
+	if raw.SecretKey != nil {
+		sk := new(pailliercore.SecretKey)
+		if err := sk.UnmarshalBinary(raw.SecretKey); err != nil {
+			return PaillierKey{}, err
+		}
+		key.secretKey = sk
 	}
 
-	// decode secret key params (P, Q)
-	sb := data[nl+4 : nl+4+sl]
-	sk := new(pailliercore.SecretKey)
-	if err := sk.UnmarshalBinary(sb); err != nil {
-		return PaillierKey{}, err
-	}
-
-	return PaillierKey{sk, pk}, nil
+	return key, nil
 }

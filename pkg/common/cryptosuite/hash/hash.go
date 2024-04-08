@@ -4,6 +4,7 @@ import (
 	"io"
 
 	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type Hash interface {
@@ -16,6 +17,6 @@ type Hash interface {
 }
 
 type HashManager interface {
-	NewHasher(keyID string, data ...core_hash.WriterToWithDomain) Hash
-	RestoreHasher(keyID string) (Hash, error)
+	NewHasher(keyID string, opts keyopts.Options, data ...core_hash.WriterToWithDomain) Hash
+	RestoreHasher(keyID string, opts keyopts.Options) (Hash, error)
 }

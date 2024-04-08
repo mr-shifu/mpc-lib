@@ -9,7 +9,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 )
 
 func TestNewSession(t *testing.T) {
@@ -104,9 +106,14 @@ func TestNewSession(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			keyID := uuid.New().String()
 
-			hs := keystore.NewInMemoryKeystore()
-			hash_mgr := hash.NewHashManager(hs)
-			h := hash_mgr.NewHasher(keyID)
+			hahs_keyopts := keyopts.NewInMemoryKeyOpts()
+			hahs_vault := vault.NewInMemoryVault()
+			hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
+			hash_mgr := hash.NewHashManager(hash_ks)
+
+			opts := keyopts.Options{}
+			opts.Set("id", keyID, "partyid", "a")
+			h := hash_mgr.NewHasher("test", opts)
 
 			info := round.Info{
 				ProtocolID:       "TEST",

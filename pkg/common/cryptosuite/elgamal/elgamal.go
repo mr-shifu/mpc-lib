@@ -1,6 +1,9 @@
 package elgamal
 
-import "github.com/mr-shifu/mpc-lib/core/math/curve"
+import (
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+)
 
 type ElgamalKey interface {
 	// Bytes returns the byte representation of the key.
@@ -23,14 +26,14 @@ type ElgamalKey interface {
 
 type ElgamalKeyManager interface {
 	// GenerateKey generates a new Elgamal key pair.
-	GenerateKey() (ElgamalKey, error)
+	GenerateKey(opts keyopts.Options) (ElgamalKey, error)
 
 	// Import imports a Elgamal key from its byte representation.
-	ImportKey(data []byte) (ElgamalKey, error)
+	ImportKey(data interface{}, opts keyopts.Options) (ElgamalKey, error)
 
 	// GetKey returns a Elgamal key by its SKI.
-	GetKey(ski []byte) (ElgamalKey, error)
+	GetKey(pts keyopts.Options) (ElgamalKey, error)
 
 	// Encrypt returns the encryption of `message` as ciphertext and nonce.
-	Encrypt(ski []byte, message curve.Scalar) ([]byte, curve.Scalar, error)
+	Encrypt(message curve.Scalar, opts keyopts.Options) ([]byte, curve.Scalar, error)
 }

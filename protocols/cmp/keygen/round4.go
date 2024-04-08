@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -11,7 +12,9 @@ import (
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	comm_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
@@ -47,12 +50,15 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(from))
+
 	// verify zkmod
-	ped, err := r.pedersen_km.GetKey(r.ID, string(from))
+	ped, err := r.pedersen_km.GetKey(fromOpts)
 	if err != nil {
 		return err
 	}
-	paillier, err := r.paillier_km.GetKey(r.ID, string(from))
+	paillier, err := r.paillier_km.GetKey(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -81,7 +87,13 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	paillierKey, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
+	selfOpts := keyopts.Options{}
+	selfOpts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(from))
+
+	paillierKey, err := r.paillier_km.GetKey(selfOpts)
 	if err != nil {
 		return err
 	}
@@ -89,13 +101,13 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return errors.New("invalid ciphertext")
 	}
 
-	ped, err := r.pedersen_km.GetKey(r.ID, string(r.SelfID()))
+	ped, err := r.pedersen_km.GetKey(selfOpts)
 	if err != nil {
 		return err
 	}
 
 	// verify zkfac
-	paillierj, err := r.paillier_km.GetKey(r.ID, string(from))
+	paillierj, err := r.paillier_km.GetKey(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -118,8 +130,14 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 func (r *round4) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message4)
 
+	selfOpts := keyopts.Options{}
+	selfOpts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", string(from))
+
 	// decrypt share
-	paillierKey, err := r.paillier_km.GetKey(r.ID, string(r.SelfID()))
+	paillierKey, err := r.paillier_km.GetKey(selfOpts)
 	if err != nil {
 		return err
 	}
@@ -133,12 +151,11 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// verify share with VSS
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(from))
+	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
 	if err != nil {
 		return err
 	}
-	vssKey, err := ecKey.VSS()
-	// vssKey, err := r.vss_km.GetKey(r.ID, string(r.SelfID()))
+	vssKey, err := ecKey.VSS(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -151,8 +168,11 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	if !PublicShare.Equal(ExpectedPublicShare) {
 		return errors.New("failed to validate VSS share")
 	}
+
+	vssShareOpts := keyopts.Options{}
+	vssShareOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
 	vssShareKey := sw_ecdsa.NewECDSAKey(Share, PublicShare, r.Group())
-	if err := r.vss_mgr.ImportShare(r.ID, from, r.SelfID(), vssShareKey); err != nil {
+	if _, err := r.ec_vss_km.ImportKey(vssShareKey, vssShareOpts); err != nil {
 		return err
 	}
 
@@ -176,22 +196,67 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	// Sum all VSS Exponents Shares to generate MPC VSS Exponent
-	if err := r.ecdsa_km.GenerateMPCKeyFromShares(r.ID, r.SelfID(), r.Group()); err != nil {
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
+	// Calculate MPC public Key
+	mpcPublicKey := r.Group().NewPoint()
+	for _, partyID := range r.PartyIDs() {
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+
+		vssKey, err := r.vss_mgr.GetSecrets(partyOpts)
+		if err != nil {
+			return nil, err
+		}
+		exp, err := vssKey.ExponentsRaw()
+		if err != nil {
+			return nil, err
+		}
+		pub := exp.Constant()
+		mpcPublicKey = mpcPublicKey.Add(pub)
+	}
+
+	// Import MPC public Key
+	rootOpts := keyopts.Options{}
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	k := r.ecdsa_km.NewKey(nil, mpcPublicKey, r.Group())
+	if _, err := r.ecdsa_km.ImportKey(k, rootOpts); err != nil {
 		return nil, err
 	}
 
-	vssPoly, err := r.vss_mgr.GetKey(r.ID, "ROOT")
+	// Sum all VSS Exponents Shares to generate MPC VSS Exponent
+	// var allExponents []*polynomial.Exponent
+	vssOptsList := make([]comm_keyopts.Options, 0)
+	for _, partyID := range r.PartyIDs() {
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+		vssOptsList = append(vssOptsList, partyOpts)
+	}
+	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
+	if err != nil {
+		return nil, err
+	}
+	_, err = r.vss_mgr.ImportSecrets(rootVss, rootOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	vssPoly, err := r.vss_mgr.GetSecrets(rootOpts)
 	if err != nil {
 		return nil, err
 	}
 	for _, j := range r.PartyIDs() {
+		vssPartyOpts := keyopts.Options{}
+
+		vssPartyOpts.Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+
 		vssPub, err := vssPoly.EvaluateByExponents(j.Scalar(r.Group()))
 		if err != nil {
 			return nil, err
 		}
 		vssKeyShare := sw_ecdsa.NewECDSAKey(nil, vssPub, r.Group())
-		if err := r.vss_mgr.ImportShare(r.ID, "ROOT", j, vssKeyShare); err != nil {
+		if _, err := r.ec_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
 			return nil, err
 		}
 	}
@@ -199,45 +264,66 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Sum all VSS shares to generate MPC VSS Share
 	var vss_shares []comm_ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
-		vss_share, err := r.vss_mgr.GetShare(r.ID, j, r.SelfID())
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(j))
+
+		vss, err := r.vss_mgr.GetSecrets(partyOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		vssOpts := keyopts.Options{}
+		vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+		vss_share, err := r.ec_vss_km.GetKey(vssOpts)
 		if err != nil {
 			return nil, err
 		}
 		vss_shares = append(vss_shares, vss_share)
 	}
-	selfVSSShare, err := r.vss_mgr.GetShare(r.ID, r.SelfID(), r.SelfID())
+	vss, err := r.vss_mgr.GetSecrets(opts)
+	if err != nil {
+		return nil, err
+	}
+	vssOpts := keyopts.Options{}
+	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+	selfVSSShare, err := r.ec_vss_km.GetKey(vssOpts)
 	if err != nil {
 		return nil, err
 	}
 	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
 	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
 	vssShareKey := sw_ecdsa.NewECDSAKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
-	if err := r.vss_mgr.ImportShare(r.ID, "ROOT", r.SelfID(), vssShareKey); err != nil {
+	rootVssOpts := keyopts.Options{}
+	rootVssOpts.Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", "ROOT")
+	if _, err := r.ec_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
 		return nil, err
 	}
 
 	// compute the new public key share Xⱼ = F(j) (+X'ⱼ if doing a refresh)
-	mpcKey, err := r.ecdsa_km.GetKey(r.ID, "ROOT")
+	mpcKey, err := r.ecdsa_km.GetKey(rootOpts)
 	if err != nil {
 		return nil, err
 	}
-	mpcVSSKey, err := mpcKey.VSS()
+	mpcVSSKey, err := mpcKey.VSS(rootOpts)
 	if err != nil {
 		return nil, err
 	}
 	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		elgamalj, err := r.elgamal_km.GetKey(r.ID, string(j))
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(j))
+
+		elgamalj, err := r.elgamal_km.GetKey(partyOpts)
 		if err != nil {
 			return r, err
 		}
 
-		paillierj, err := r.paillier_km.GetKey(r.ID, string(j))
+		paillierj, err := r.paillier_km.GetKey(partyOpts)
 		if err != nil {
 			return r, err
 		}
 
-		pedersenj, err := r.pedersen_km.GetKey(r.ID, string(j))
+		pedersenj, err := r.pedersen_km.GetKey(partyOpts)
 		if err != nil {
 			return r, err
 		}
@@ -283,7 +369,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
 	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
-	ecKey, err := r.ecdsa_km.GetKey(r.ID, string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(opts)
 	if err != nil {
 		return nil, err
 	}
