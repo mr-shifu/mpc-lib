@@ -6,7 +6,6 @@ import (
 )
 
 type KeyConfig struct {
-	id        string
 	keyID     string
 	group     curve.Curve
 	threshold int
@@ -15,7 +14,6 @@ type KeyConfig struct {
 }
 
 func NewKeyConfig(
-	id string,
 	keyID string,
 	group curve.Curve,
 	threshold int,
@@ -23,7 +21,6 @@ func NewKeyConfig(
 	partyIDs party.IDSlice,
 ) *KeyConfig {
 	return &KeyConfig{
-		id:        id,
 		keyID:     keyID,
 		group:     group,
 		threshold: threshold,
@@ -33,10 +30,6 @@ func NewKeyConfig(
 }
 
 func (c *KeyConfig) ID() string {
-	return c.id
-}
-
-func (c *KeyConfig) KeyID() string {
 	return c.keyID
 }
 

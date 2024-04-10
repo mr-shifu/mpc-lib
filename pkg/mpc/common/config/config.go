@@ -12,7 +12,6 @@ type ConfigStore interface {
 
 type KeyConfig interface {
 	ID() string
-	KeyID() string
 	Group() curve.Curve
 	Threshold() int
 	SelfID() party.ID
