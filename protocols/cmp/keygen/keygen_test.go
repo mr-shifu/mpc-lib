@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"fmt"
-	mrand "math/rand"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -159,7 +158,7 @@ func TestKeygen(t *testing.T) {
 	for _, partyID := range partyIDs {
 		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(cfg, pl, nil)(nil)
+		r, err := mpckg.Start(cfg, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -173,33 +172,4 @@ func TestKeygen(t *testing.T) {
 		}
 	}
 	// checkOutput(t, rounds)
-}
-
-func TestRefresh(t *testing.T) {
-	keyID := uuid.NewString()
-
-	pl := pool.NewPool(0)
-	defer pl.TearDown()
-
-	N := 4
-	T := N - 1
-	configs, _ := test.GenerateConfig(group, N, T, mrand.New(mrand.NewSource(1)), pl)
-
-	rounds := make([]round.Session, 0, N)
-	for _, c := range configs {
-		mpckg := newMPCKeygen()
-		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, c.ID, c.PartyIDs())
-		r, err := mpckg.Start(cfg, pl, c)(nil)
-		require.NoError(t, err, "round creation should not result in an error")
-		rounds = append(rounds, r)
-	}
-
-	for {
-		err, done := test.Rounds(rounds, nil)
-		require.NoError(t, err, "failed to process round")
-		if done {
-			break
-		}
-	}
-	checkOutput(t, rounds)
 }

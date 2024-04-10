@@ -291,7 +291,7 @@ func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartF
 		mpc.commit_mgr,
 		pl,
 	)
-	return mpckg.Start(cfg, pl, nil)
+	return mpckg.Start(cfg, pl)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
