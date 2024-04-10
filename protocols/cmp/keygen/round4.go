@@ -389,6 +389,12 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	r.UpdateHashState(UpdatedConfig)
+
+	// update last round processed in StateManager
+	if err := r.statemanger.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round5{
 		round4:             r,
 		UpdatedConfig:      UpdatedConfig,

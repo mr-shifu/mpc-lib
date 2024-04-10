@@ -107,6 +107,7 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.Star
 
 		return &round1{
 			Helper:      helper,
+			statemanger: m.statemgr,
 			elgamal_km:  m.elgamal_km,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
