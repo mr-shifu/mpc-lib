@@ -182,6 +182,7 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool
 		return &round1{
 			Helper:      helper,
 			cfg:         cfg,
+			statemgr:    m.statmgr,
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
