@@ -17,6 +17,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -24,6 +25,7 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
+	statemanger state.MPCStateManager
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
@@ -159,6 +161,11 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	msg := &broadcast2{Commitment: SelfCommitment}
 	err = r.BroadcastMessage(out, msg)
 	if err != nil {
+		return r, err
+	}
+
+	// update last round processed in StateManager
+	if err := r.statemanger.SetLastRound(r.ID, int(r.Number())); err != nil {
 		return r, err
 	}
 

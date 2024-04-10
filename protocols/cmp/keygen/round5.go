@@ -67,6 +67,15 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// Mark the message as received
 	r.MessageBroadcasted[from] = true
 
+	// update last round processed in StateManager
+	if err := r.statemanger.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return err
+	}
+	// update state to Completed in StateManager
+	if err := r.statemanger.SetCompleted(r.ID); err != nil {
+		return err
+	}
+
 	return nil
 }
 

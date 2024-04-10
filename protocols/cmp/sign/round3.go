@@ -344,6 +344,11 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round4{
 		round3:             r,
 		MessageBroadcasted: make(map[party.ID]bool),
