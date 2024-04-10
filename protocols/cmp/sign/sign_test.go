@@ -28,7 +28,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 )
 
@@ -43,8 +42,6 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 
 	keycfgmgr := config.NewKeyConfigManager(keycfgstore)
 	signcfgmgr := config.NewSignConfigManager(signcfgstore)
-
-	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
 	elgamal_keyopts := krf.NewKeyOpts(nil)
 	elgamal_vault := vf.NewVault(nil)
@@ -109,7 +106,6 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		rid_km,
 		chainKey_km,
 		hash_mgr,
-		mpc_ks,
 		commit_mgr,
 		pl,
 	)

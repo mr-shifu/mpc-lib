@@ -16,7 +16,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 )
 
 const Rounds round.Number = 5
@@ -46,7 +45,6 @@ func NewMPCKeygen(
 	rid rid.RIDManager,
 	chainKey rid.RIDManager,
 	hash_mgr hash.HashManager,
-	mpc_ks mpckey.MPCKeystore,
 	commit_mgr commitment.CommitmentManager,
 	pl *pool.Pool,
 ) *MPCKeygen {

@@ -21,7 +21,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/stretchr/testify/assert"
@@ -73,8 +72,6 @@ func newMPCKeygen() *MPCKeygen {
 
 	keycfgstore := mpc_config.NewInMemoryConfigStore()
 	keycfgmr := mpc_config.NewKeyConfigManager(keycfgstore)
-
-	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
 	elgamal_keyopts := keyopts.NewInMemoryKeyOpts()
 	elgamal_vault := vault.NewInMemoryVault()
@@ -139,7 +136,6 @@ func newMPCKeygen() *MPCKeygen {
 		rid_km,
 		chainKey_km,
 		hash_mgr,
-		mpc_ks,
 		commit_mgr,
 		pl,
 	)
