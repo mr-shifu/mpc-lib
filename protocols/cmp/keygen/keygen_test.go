@@ -11,21 +11,22 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
-	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
 var group = curve.Secp256k1{}
@@ -70,6 +71,9 @@ func checkOutput(t *testing.T, rounds []round.Session) {
 
 func newMPCKeygen() *MPCKeygen {
 	pl := pool.NewPool(0)
+
+	keycfgstore := mpc_config.NewInMemoryConfigStore()
+	keycfgmr := mpc_config.NewKeyConfigManager(keycfgstore)
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
@@ -126,6 +130,7 @@ func newMPCKeygen() *MPCKeygen {
 	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	return NewMPCKeygen(
+		keycfgmr,
 		elgamal_km,
 		paillier_km,
 		pedersen_km,
@@ -152,16 +157,9 @@ func TestKeygen(t *testing.T) {
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/keygen-test",
-			FinalRoundNumber: Rounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(keyID, info, pl, nil)(nil)
+		r, err := mpckg.Start(cfg, pl, nil)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -189,16 +187,9 @@ func TestRefresh(t *testing.T) {
 
 	rounds := make([]round.Session, 0, N)
 	for _, c := range configs {
-		info := round.Info{
-			ProtocolID:       "cmp/refresh-test",
-			FinalRoundNumber: Rounds,
-			SelfID:           c.ID,
-			PartyIDs:         c.PartyIDs(),
-			Threshold:        N - 1,
-			Group:            group,
-		}
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(keyID, info, pl, c)(nil)
+		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, c.ID, c.PartyIDs())
+		r, err := mpckg.Start(cfg, pl, c)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

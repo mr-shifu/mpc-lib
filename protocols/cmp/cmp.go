@@ -2,10 +2,8 @@ package cmp
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
-	"github.com/mr-shifu/mpc-lib/lib/round"
 
 	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
@@ -42,7 +40,8 @@ import (
 )
 
 type MPC struct {
-	signcfg comm_config.SignConfigManager
+	keycfgmgr  comm_config.KeyConfigManager
+	signcfgmgr comm_config.SignConfigManager
 
 	elgamal    comm_elgamal.ElgamalKeyManager
 	paillier   comm_paillier.PaillierKeyManager
@@ -79,6 +78,8 @@ func NewMPC(
 	ksf keystore.KeystoreFactory,
 	krf keyopts.KeyOptsFactory,
 	vf vault.VaultFactory,
+	keycfgstore comm_config.ConfigStore,
+	signcfgstore comm_config.ConfigStore,
 	pl *pool.Pool,
 ) *MPC {
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
@@ -140,7 +141,8 @@ func NewMPC(
 	sigma_ks := ksf.NewKeystore(sigma_vault, sigma_kr, nil)
 	sigma := mpc_result.NewSigmaStore(sigma_ks)
 
-	sign_cfg := mpc_config.NewSignConfigManager()
+	keycfgmgr := mpc_config.NewKeyConfigManager(keycfgstore)
+	signcfgmgr := mpc_config.NewSignConfigManager(signcfgstore)
 
 	signature := mpc_result.NewSignStore()
 
@@ -185,7 +187,8 @@ func NewMPC(
 	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
 
 	return &MPC{
-		signcfg:    sign_cfg,
+		keycfgmgr:  keycfgmgr,
+		signcfgmgr: signcfgmgr,
 		mpc_ks:     mpc_ks,
 		elgamal:    elgamal_km,
 		paillier:   paillier_km,
@@ -214,6 +217,7 @@ func NewMPC(
 
 func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 	return keygen.NewMPCKeygen(
+		mpc.keycfgmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -231,7 +235,7 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 
 func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 	return sign.NewMPCSign(
-		mpc.signcfg,
+		mpc.signcfgmgr,
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,
@@ -271,16 +275,9 @@ func EmptyConfig(group curve.Curve) *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, participants []party.ID, threshold int, pl *pool.Pool) protocol.StartFunc {
-	info := round.Info{
-		ProtocolID:       "cmp/keygen-threshold",
-		FinalRoundNumber: keygen.Rounds,
-		SelfID:           selfID,
-		PartyIDs:         participants,
-		Threshold:        threshold,
-		Group:            group,
-	}
+func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	mpckg := keygen.NewMPCKeygen(
+		mpc.keycfgmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -294,14 +291,14 @@ func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, partici
 		mpc.commit_mgr,
 		pl,
 	)
-	return mpckg.Start(keyID, info, pl, nil)
+	return mpckg.Start(cfg, pl, nil)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (mpc *MPC) Sign(signID string, keyID string, info round.Info, signers []party.ID, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
+func (mpc *MPC) Sign(cfg comm_config.SignConfig, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
 	mpcsign := sign.NewMPCSign(
-		mpc.signcfg,
+		mpc.signcfgmgr,
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,
@@ -321,5 +318,5 @@ func (mpc *MPC) Sign(signID string, keyID string, info round.Info, signers []par
 		mpc.signature,
 	)
 
-	return mpcsign.StartSign(signID, keyID, info, signers, messageHash, pl)
+	return mpcsign.StartSign(cfg, messageHash, pl)
 }
