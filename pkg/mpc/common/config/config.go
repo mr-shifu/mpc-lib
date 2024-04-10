@@ -10,6 +10,20 @@ type ConfigStore interface {
 	Get(ID string) (interface{}, error)
 }
 
+type KeyConfig interface {
+	ID() string
+	KeyID() string
+	Group() curve.Curve
+	Threshold() int
+	SelfID() party.ID
+	PartyIDs() party.IDSlice
+}
+
+type KeyConfigManager interface {
+	ImportConfig(config KeyConfig) error
+	GetConfig(id string) (KeyConfig, error)
+}
+
 type SignConfig interface {
 	ID() string
 	KeyID() string
