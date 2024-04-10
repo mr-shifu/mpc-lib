@@ -3,11 +3,10 @@ package keygen
 import (
 	"fmt"
 
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
@@ -16,7 +15,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
+	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
@@ -24,6 +23,7 @@ import (
 const Rounds round.Number = 5
 
 type MPCKeygen struct {
+	configmgr   mpc_config.KeyConfigManager
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
@@ -40,6 +40,7 @@ type MPCKeygen struct {
 }
 
 func NewMPCKeygen(
+	keyconfigmgr mpc_config.KeyConfigManager,
 	elgamal elgamal.ElgamalKeyManager,
 	paillier paillier.PaillierKeyManager,
 	pedersen pedersen.PedersenKeyManager,
@@ -54,6 +55,7 @@ func NewMPCKeygen(
 	pl *pool.Pool,
 ) *MPCKeygen {
 	return &MPCKeygen{
+		configmgr:   keyconfigmgr,
 		mpc_ks:      mpc_ks,
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
@@ -68,43 +70,30 @@ func NewMPCKeygen(
 	}
 }
 
-func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *config.Config) protocol.StartFunc {
+func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool, c *config.Config) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
+		info := round.Info{
+			ProtocolID:       "cmp/keygen",
+			SelfID:           cfg.SelfID(),
+			PartyIDs:         cfg.PartyIDs(),
+			Threshold:        cfg.Threshold(),
+			Group:            cfg.Group(),
+			FinalRoundNumber: Rounds,
+		}
+
 		// m.keys[keyID] = info
 		opts := keyopts.Options{}
-		opts.Set("id", keyID, "partyid", string(info.SelfID))
-		h := m.hash_mgr.NewHasher(keyID, opts)
+		opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		var helper *round.Helper
 		if c == nil {
-			helper, err = round.NewSession(keyID, info, sessionID, pl, h)
+			helper, err = round.NewSession(cfg.ID(), info, sessionID, pl, h)
 		} else {
-			helper, err = round.NewSession(keyID, info, sessionID, pl, h, c)
+			helper, err = round.NewSession(cfg.ID(), info, sessionID, pl, h, c)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
-		}
-
-		group := helper.Group()
-
-		if c != nil {
-			PublicSharesECDSA := make(map[party.ID]curve.Point, len(c.Public))
-			for id, public := range c.Public {
-				PublicSharesECDSA[id] = public.ECDSA
-			}
-			return &round1{
-				Helper:                    helper,
-				elgamal_km:                m.elgamal_km,
-				paillier_km:               m.paillier_km,
-				pedersen_km:               m.pedersen_km,
-				ecdsa_km:                  m.ecdsa_km,
-				vss_mgr:                   m.vss_mgr,
-				rid_km:                    m.rid_km,
-				chainKey_km:               m.chainKey_km,
-				PreviousSecretECDSA:       c.ECDSA,
-				PreviousPublicSharesECDSA: PublicSharesECDSA,
-				PreviousChainKey:          c.ChainKey,
-			}, nil
 		}
 
 		// sample fᵢ(X) deg(fᵢ) = t, fᵢ(0) = secretᵢ
@@ -116,9 +105,13 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
+		if err := m.configmgr.ImportConfig(cfg); err != nil {
+			return nil, err
+		}
+
 		mpckey := mpckey.MPCKey{
-			ID:        keyID,
-			Group:     group,
+			ID:        cfg.ID(),
+			Group:     helper.Group(),
 			Threshold: helper.Threshold(),
 			SelfID:    helper.SelfID(),
 			PartyIDs:  helper.PartyIDs(),
@@ -128,9 +121,6 @@ func (m *MPCKeygen) Start(keyID string, info round.Info, pl *pool.Pool, c *confi
 		if err := m.mpc_ks.Import(mpckey); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
-
-		// set key round number
-		// m.roundStates[keyID] = 1
 
 		return &round1{
 			Helper:      helper,

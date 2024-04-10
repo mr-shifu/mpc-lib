@@ -38,9 +38,10 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	ksf := keystore.InmemoryKeystoreFactory{}
 	krf := keyopts.InMemoryKeyOptsFactory{}
 	vf := vault.InmemoryVaultFactory{}
-	// keycfgstore := config.NewInMemoryConfigStore()
+	keycfgstore := config.NewInMemoryConfigStore()
 	signcfgstore := config.NewInMemoryConfigStore()
 
+	keycfgmgr := config.NewKeyConfigManager(keycfgstore)
 	signcfgmgr := config.NewSignConfigManager(signcfgstore)
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
@@ -98,6 +99,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	mpc_keygen := keygen.NewMPCKeygen(
+		keycfgmgr,
 		elgamal_km,
 		paillier_km,
 		pedersen_km,
@@ -112,7 +114,6 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		pl,
 	)
 
-	
 	signature := mpc_result.NewSignStore()
 
 	sigma_kr := krf.NewKeyOpts(nil)
@@ -189,7 +190,7 @@ func TestSign(t *testing.T) {
 
 	group := curve.Secp256k1{}
 
-	KeygenRounds := round.Number(5)
+	// KeygenRounds := round.Number(5)
 	SignRounds := round.Number(5)
 
 	pl := pool.NewPool(0)
@@ -209,18 +210,11 @@ func TestSign(t *testing.T) {
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/keygen-test",
-			FinalRoundNumber: KeygenRounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		keycfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 
 		mpckg := mpckeygens[partyID]
 
-		r, err := mpckg.Start(keyID, info, pl, nil)(nil)
+		r, err := mpckg.Start(keycfg, pl, nil)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)

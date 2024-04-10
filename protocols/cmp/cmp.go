@@ -219,6 +219,7 @@ func NewMPC(
 
 func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 	return keygen.NewMPCKeygen(
+		mpc.keycfgmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -276,16 +277,9 @@ func EmptyConfig(group curve.Curve) *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, participants []party.ID, threshold int, pl *pool.Pool) protocol.StartFunc {
-	info := round.Info{
-		ProtocolID:       "cmp/keygen-threshold",
-		FinalRoundNumber: keygen.Rounds,
-		SelfID:           selfID,
-		PartyIDs:         participants,
-		Threshold:        threshold,
-		Group:            group,
-	}
+func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	mpckg := keygen.NewMPCKeygen(
+		mpc.keycfgmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -299,7 +293,7 @@ func (mpc *MPC) Keygen(keyID string, group curve.Curve, selfID party.ID, partici
 		mpc.commit_mgr,
 		pl,
 	)
-	return mpckg.Start(keyID, info, pl, nil)
+	return mpckg.Start(cfg, pl, nil)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

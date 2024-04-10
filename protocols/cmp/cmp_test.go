@@ -16,8 +16,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
-	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,9 +34,9 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, pl)
 
+	keycfg := config.NewKeyConfig(keyID, curve.Secp256k1{}, threshold, id, ids)
 	h, err := protocol.NewMultiHandler(
-		mpc.Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl),
-		// Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl), 
+		mpc.Keygen(keycfg, pl),
 		nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
@@ -47,7 +47,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	signID := uuid.New().String()
 	info := round.Info{
-		ProtocolID: 	 "cmp/sign",
+		ProtocolID:       "cmp/sign",
 		FinalRoundNumber: 5,
 		SelfID:           id,
 		PartyIDs:         ids,
@@ -163,8 +163,9 @@ func TestStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			keyID := uuid.New().String()
 			c.Threshold = tt.threshold
+			keycfg := config.NewKeyConfig(keyID, group, tt.threshold, selfID, tt.partyIDs)
 			var err error
-			_, err = mpc.Keygen(keyID, group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
+			_, err = mpc.Keygen(keycfg, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 
