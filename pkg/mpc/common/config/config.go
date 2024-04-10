@@ -35,5 +35,5 @@ type SignConfig interface {
 
 type SignConfigManager interface {
 	ImportConfig(config SignConfig) error
-	GetConfig(id string) SignConfig
+	GetConfig(id string) (SignConfig, error)
 }

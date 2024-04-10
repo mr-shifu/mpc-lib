@@ -2,38 +2,39 @@ package config
 
 import (
 	"errors"
-	"sync"
 
 	comm_cfg "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 )
 
 type SignConfigManager struct {
-	lock    sync.RWMutex
-	configs map[string]*SignConfig
+	store comm_cfg.ConfigStore
 }
 
-func NewSignConfigManager() comm_cfg.SignConfigManager {
+func NewSignConfigManager(store comm_cfg.ConfigStore) comm_cfg.SignConfigManager {
 	return &SignConfigManager{
-		configs: make(map[string]*SignConfig),
+		store: store,
 	}
 }
 
-func (scm *SignConfigManager) ImportConfig(config comm_cfg.SignConfig) error {
-	scm.lock.Lock()
-	defer scm.lock.Unlock()
-
+func (mgr *SignConfigManager) ImportConfig(config comm_cfg.SignConfig) error {
 	cfg, ok := config.(*SignConfig)
 	if !ok {
 		return errors.New("invalid config type")
 	}
 
-	scm.configs[config.ID()] = cfg
-	return nil
+	return mgr.store.Import(config.ID(), cfg)
 }
 
-func (scm *SignConfigManager) GetConfig(id string) comm_cfg.SignConfig {
-	scm.lock.RLock()
-	defer scm.lock.RUnlock()
+func (mgr *SignConfigManager) GetConfig(ID string) (comm_cfg.SignConfig, error) {
+	cfg, err := mgr.store.Get(ID)
+	if err != nil {
+		return nil, err
+	}
 
-	return scm.configs[id]
+	kcfg, ok := cfg.(*SignConfig)
+	if !ok {
+		return nil, errors.New("invalid config type")
+	}
+
+	return kcfg, nil
 }
