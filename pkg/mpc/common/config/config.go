@@ -5,6 +5,11 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 )
 
+type ConfigStore interface {
+	Import(ID string, config interface{}) error
+	Get(ID string) (interface{}, error)
+}
+
 type SignConfig interface {
 	ID() string
 	KeyID() string
