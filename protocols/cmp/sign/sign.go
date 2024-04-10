@@ -33,7 +33,7 @@ const (
 )
 
 type MPCSign struct {
-	cfgmgr config.SignConfigManager
+	signcfgmgr config.SignConfigManager
 
 	hash_mgr hash.HashManager
 
@@ -62,7 +62,7 @@ type MPCSign struct {
 }
 
 func NewMPCSign(
-	cfgmgr config.SignConfigManager,
+	signcfgmgr config.SignConfigManager,
 	hash_mgr hash.HashManager,
 	paillier_km paillier.PaillierKeyManager,
 	pedersen_km pedersen.PedersenKeyManager,
@@ -82,7 +82,7 @@ func NewMPCSign(
 	signature result.Signature,
 ) *MPCSign {
 	return &MPCSign{
-		cfgmgr:      cfgmgr,
+		signcfgmgr:  signcfgmgr,
 		hash_mgr:    hash_mgr,
 		paillier_km: paillier_km,
 		pedersen_km: pedersen_km,
@@ -169,13 +169,13 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			helper.SelfID(),
 			helper.PartyIDs(),
 		)
-		if err := m.cfgmgr.ImportConfig(cfg); err != nil {
+		if err := m.signcfgmgr.ImportConfig(cfg); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
 		return &round1{
 			Helper:      helper,
-			cfg:         m.cfgmgr.GetConfig(signID),
+			cfg:         cfg,
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,

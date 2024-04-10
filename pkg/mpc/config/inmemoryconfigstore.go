@@ -10,6 +10,12 @@ type InMemoryConfigStore struct {
 	configs map[string]interface{}
 }
 
+func NewInMemoryConfigStore() *InMemoryConfigStore {
+	return &InMemoryConfigStore{
+		configs: make(map[string]interface{}),
+	}
+}
+
 func (s *InMemoryConfigStore) Import(ID string, config interface{}) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()

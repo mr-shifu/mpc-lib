@@ -17,6 +17,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,8 +29,10 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	ksf := &keystore.InmemoryKeystoreFactory{}
 	krf := &keyopts.InMemoryKeyOptsFactory{}
 	vf := &vault.InmemoryVaultFactory{}
+	keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
 
-	mpc := NewMPC(ksf, krf, vf, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, pl)
 
 	h, err := protocol.NewMultiHandler(
 		mpc.Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl),
@@ -102,8 +105,10 @@ func TestStart(t *testing.T) {
 	ksf := &keystore.InmemoryKeystoreFactory{}
 	krf := &keyopts.InMemoryKeyOptsFactory{}
 	vf := &vault.InmemoryVaultFactory{}
+	keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
 
-	mpc := NewMPC(ksf, krf, vf, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, pl)
 
 	m := []byte("HELLO")
 	selfID := partyIDs[0]

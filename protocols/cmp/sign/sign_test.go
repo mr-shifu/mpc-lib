@@ -27,7 +27,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 )
@@ -38,6 +38,10 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	ksf := keystore.InmemoryKeystoreFactory{}
 	krf := keyopts.InMemoryKeyOptsFactory{}
 	vf := vault.InmemoryVaultFactory{}
+	// keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
+
+	signcfgmgr := config.NewSignConfigManager(signcfgstore)
 
 	mpc_ks := mpckey.NewInMemoryMPCKeystore()
 
@@ -108,7 +112,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		pl,
 	)
 
-	sign_cfg := mpc_config.NewSignConfigManager()
+	
 	signature := mpc_result.NewSignStore()
 
 	sigma_kr := krf.NewKeyOpts(nil)
@@ -157,7 +161,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
 
 	mpc_sign := NewMPCSign(
-		sign_cfg,
+		signcfgmgr,
 		hash_mgr,
 		paillier_km,
 		pedersen_km,
