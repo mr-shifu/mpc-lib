@@ -127,7 +127,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if _, err := r.vss_mgr.ImportSecrets(vssKey, fromOpts); err != nil {
 		return err
 	}
-	
+
 	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
 		return err
 	}
@@ -203,10 +203,8 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	opts := keyopts.Options{}
 	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
 
-	mpckey, err := r.mpc_ks.Get(r.ID)
-	if err != nil {
-		return nil, err
-	}
+	rootOpts := keyopts.Options{}
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
 
 	// c = ⊕ⱼ cⱼ
 	chainKey := r.PreviousChainKey
@@ -221,6 +219,9 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 			}
 			chainKey.XOR(ck.Raw())
 		}
+		if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+			return nil, err
+		}
 	}
 
 	// RID = ⊕ⱼ RIDⱼ
@@ -234,10 +235,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 		rid.XOR(rj.Raw())
 	}
-
-	mpckey.ChainKey = chainKey
-	mpckey.RID = rid
-	if err := r.mpc_ks.Update(mpckey); err != nil {
+	if _, err := r.rid_km.ImportKey(rid, rootOpts); err != nil {
 		return nil, err
 	}
 

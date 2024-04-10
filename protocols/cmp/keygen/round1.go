@@ -9,6 +9,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
@@ -16,8 +17,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -25,7 +24,6 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
-	mpc_ks      mpckey.MPCKeystore
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager

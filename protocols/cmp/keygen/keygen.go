@@ -33,10 +33,7 @@ type MPCKeygen struct {
 	rid_km      rid.RIDManager
 	chainKey_km rid.RIDManager
 	hash_mgr    hash.HashManager
-	mpc_ks      mpckey.MPCKeystore
 	commit_mgr  commitment.CommitmentManager
-	// keys              map[string]round.Info
-	// roundStates       map[string]int
 }
 
 func NewMPCKeygen(
@@ -56,7 +53,6 @@ func NewMPCKeygen(
 ) *MPCKeygen {
 	return &MPCKeygen{
 		configmgr:   keyconfigmgr,
-		mpc_ks:      mpc_ks,
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
 		pedersen_km: pedersen,
@@ -109,22 +105,8 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool, c *config.Con
 			return nil, err
 		}
 
-		mpckey := mpckey.MPCKey{
-			ID:        cfg.ID(),
-			Group:     helper.Group(),
-			Threshold: helper.Threshold(),
-			SelfID:    helper.SelfID(),
-			PartyIDs:  helper.PartyIDs(),
-			RID:       nil,
-			ChainKey:  nil,
-		}
-		if err := m.mpc_ks.Import(mpckey); err != nil {
-			return nil, fmt.Errorf("keygen: %w", err)
-		}
-
 		return &round1{
 			Helper:      helper,
-			mpc_ks:      m.mpc_ks,
 			elgamal_km:  m.elgamal_km,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,

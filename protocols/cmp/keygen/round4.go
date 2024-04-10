@@ -340,15 +340,19 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
-	mpckey, err := r.mpc_ks.Get(r.ID)
-	if err != nil {
-		return r, err
-	}
-
 	// mpcVSSShare, err := mpcVSSKey.GetShare(r.SelfID().Scalar(r.Group()))
 	// if err != nil {
 	// 	return r, err
 	// }
+
+	rid, err := r.rid_km.GetKey(rootOpts)
+	if err != nil {
+		return nil, err
+	}
+	chainKey, err := r.chainKey_km.GetKey(rootOpts)
+	if err != nil {
+		return nil, err
+	}
 
 	// TODO elgamal and paillier secret key is missed here
 	UpdatedConfig := &config.Config{
@@ -358,8 +362,8 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ECDSA:     vssSharePrivateKey,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
-		RID:      mpckey.RID,
-		ChainKey: mpckey.ChainKey,
+		RID:      rid.Raw(),
+		ChainKey: chainKey.Raw(),
 		Public:   PublicData,
 	}
 
