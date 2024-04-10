@@ -22,6 +22,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
 // protocolSignID for the "3 round" variant using echo broadcast.
@@ -32,6 +33,7 @@ const (
 
 type MPCSign struct {
 	signcfgmgr config.SignConfigManager
+	statmgr    state.MPCStateManager
 
 	hash_mgr hash.HashManager
 
@@ -61,6 +63,7 @@ type MPCSign struct {
 
 func NewMPCSign(
 	signcfgmgr config.SignConfigManager,
+	statmanager state.MPCStateManager,
 	hash_mgr hash.HashManager,
 	paillier_km paillier.PaillierKeyManager,
 	pedersen_km pedersen.PedersenKeyManager,
@@ -81,6 +84,7 @@ func NewMPCSign(
 ) *MPCSign {
 	return &MPCSign{
 		signcfgmgr:  signcfgmgr,
+		statmgr:     statmanager,
 		hash_mgr:    hash_mgr,
 		paillier_km: paillier_km,
 		pedersen_km: pedersen_km,
@@ -169,6 +173,10 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool
 
 		if err := m.signcfgmgr.ImportConfig(cfg); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
+		}
+
+		if err := m.statmgr.NewState(cfg.ID()); err != nil {
+			return nil, err
 		}
 
 		return &round1{

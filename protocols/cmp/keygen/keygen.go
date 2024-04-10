@@ -16,12 +16,14 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
 const Rounds round.Number = 5
 
 type MPCKeygen struct {
 	configmgr   mpc_config.KeyConfigManager
+	statemgr    mpc_state.MPCStateManager
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
@@ -36,6 +38,7 @@ type MPCKeygen struct {
 
 func NewMPCKeygen(
 	keyconfigmgr mpc_config.KeyConfigManager,
+	keystatmgr mpc_state.MPCStateManager,
 	elgamal elgamal.ElgamalKeyManager,
 	paillier paillier.PaillierKeyManager,
 	pedersen pedersen.PedersenKeyManager,
@@ -50,6 +53,7 @@ func NewMPCKeygen(
 ) *MPCKeygen {
 	return &MPCKeygen{
 		configmgr:   keyconfigmgr,
+		statemgr:    keystatmgr,
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
 		pedersen_km: pedersen,
@@ -94,6 +98,10 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.Star
 		}
 
 		if err := m.configmgr.ImportConfig(cfg); err != nil {
+			return nil, err
+		}
+
+		if err := m.statemgr.NewState(cfg.ID()); err != nil {
 			return nil, err
 		}
 

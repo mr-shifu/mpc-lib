@@ -30,8 +30,10 @@ import (
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	comm_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
+	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/keygen"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/sign"
@@ -40,6 +42,9 @@ import (
 type MPC struct {
 	keycfgmgr  comm_config.KeyConfigManager
 	signcfgmgr comm_config.SignConfigManager
+
+	keystatmgr  comm_state.MPCStateManager
+	signstatmgr comm_state.MPCStateManager
 
 	elgamal    comm_elgamal.ElgamalKeyManager
 	paillier   comm_paillier.PaillierKeyManager
@@ -77,6 +82,8 @@ func NewMPC(
 	vf vault.VaultFactory,
 	keycfgstore comm_config.ConfigStore,
 	signcfgstore comm_config.ConfigStore,
+	keystatstore comm_state.MPCStateStore,
+	signstatstore comm_state.MPCStateStore,
 	pl *pool.Pool,
 ) *MPC {
 	elgamal_kr := krf.NewKeyOpts(nil)
@@ -139,6 +146,9 @@ func NewMPC(
 	keycfgmgr := mpc_config.NewKeyConfigManager(keycfgstore)
 	signcfgmgr := mpc_config.NewSignConfigManager(signcfgstore)
 
+	keystatmgr := mpc_state.NewMPCStateManager(keystatstore)
+	signstatmgr := mpc_state.NewMPCStateManager(signstatstore)
+
 	signature := mpc_result.NewSignStore()
 
 	gamma_kr := krf.NewKeyOpts(nil)
@@ -182,36 +192,39 @@ func NewMPC(
 	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
 
 	return &MPC{
-		keycfgmgr:  keycfgmgr,
-		signcfgmgr: signcfgmgr,
-		elgamal:    elgamal_km,
-		paillier:   paillier_km,
-		pedersen:   pedersen_km,
-		ec:         ecdsa_km,
-		ec_vss:     ec_vss_km,
-		vss_mgr:    vss_km,
-		rid:        rid_km,
-		chainKey:   chainKey_km,
-		hash_mgr:   hash_mgr,
-		commit_mgr: commit_mgr,
-		gamma:      gamma_km,
-		signK:      signK_km,
-		delta:      delta_km,
-		chi:        chi_km,
-		bigDelta:   bigDelta_km,
-		gamma_pek:  gamma_pek_mgr,
-		signK_pek:  signK_pek_mgr,
-		delta_mta:  delta_mta_km,
-		chi_mta:    chi_mta_km,
-		sigma:      sigma,
-		signature:  signature,
-		pl:         pl,
+		keycfgmgr:   keycfgmgr,
+		signcfgmgr:  signcfgmgr,
+		keystatmgr:  keystatmgr,
+		signstatmgr: signstatmgr,
+		elgamal:     elgamal_km,
+		paillier:    paillier_km,
+		pedersen:    pedersen_km,
+		ec:          ecdsa_km,
+		ec_vss:      ec_vss_km,
+		vss_mgr:     vss_km,
+		rid:         rid_km,
+		chainKey:    chainKey_km,
+		hash_mgr:    hash_mgr,
+		commit_mgr:  commit_mgr,
+		gamma:       gamma_km,
+		signK:       signK_km,
+		delta:       delta_km,
+		chi:         chi_km,
+		bigDelta:    bigDelta_km,
+		gamma_pek:   gamma_pek_mgr,
+		signK_pek:   signK_pek_mgr,
+		delta_mta:   delta_mta_km,
+		chi_mta:     chi_mta_km,
+		sigma:       sigma,
+		signature:   signature,
+		pl:          pl,
 	}
 }
 
 func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 	return keygen.NewMPCKeygen(
 		mpc.keycfgmgr,
+		mpc.keystatmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -229,6 +242,7 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 	return sign.NewMPCSign(
 		mpc.signcfgmgr,
+		mpc.signstatmgr,
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,
@@ -269,46 +283,13 @@ func EmptyConfig(group curve.Curve) *Config {
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
 func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
-	mpckg := keygen.NewMPCKeygen(
-		mpc.keycfgmgr,
-		mpc.elgamal,
-		mpc.paillier,
-		mpc.pedersen,
-		mpc.ec,
-		mpc.ec_vss,
-		mpc.vss_mgr,
-		mpc.rid,
-		mpc.chainKey,
-		mpc.hash_mgr,
-		mpc.commit_mgr,
-		pl,
-	)
+	mpckg := mpc.NewMPCKeygenManager()
 	return mpckg.Start(cfg, pl)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
 func (mpc *MPC) Sign(cfg comm_config.SignConfig, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
-	mpcsign := sign.NewMPCSign(
-		mpc.signcfgmgr,
-		mpc.hash_mgr,
-		mpc.paillier,
-		mpc.pedersen,
-		mpc.ec,
-		mpc.ec_vss,
-		mpc.vss_mgr,
-		mpc.gamma,
-		mpc.signK,
-		mpc.delta,
-		mpc.chi,
-		mpc.bigDelta,
-		mpc.gamma_pek,
-		mpc.signK_pek,
-		mpc.delta_mta,
-		mpc.chi_mta,
-		mpc.sigma,
-		mpc.signature,
-	)
-
+	mpcsign := mpc.NewMPCSignManager()
 	return mpcsign.StartSign(cfg, messageHash, pl)
 }
