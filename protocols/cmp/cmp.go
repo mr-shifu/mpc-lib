@@ -29,10 +29,8 @@ import (
 	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
-	comm_mpckey "github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/keygen"
@@ -51,7 +49,6 @@ type MPC struct {
 	rid        comm_rid.RIDManager
 	chainKey   comm_rid.RIDManager
 	hash_mgr   comm_hash.HashManager
-	mpc_ks     comm_mpckey.MPCKeystore
 	commit_mgr comm_commitment.CommitmentManager
 
 	vss_mgr comm_vss.VssKeyManager
@@ -82,8 +79,6 @@ func NewMPC(
 	signcfgstore comm_config.ConfigStore,
 	pl *pool.Pool,
 ) *MPC {
-	mpc_ks := mpckey.NewInMemoryMPCKeystore()
-
 	elgamal_kr := krf.NewKeyOpts(nil)
 	elgamal_vault := vf.NewVault(nil)
 	elgamal_ks := ksf.NewKeystore(elgamal_vault, elgamal_kr, nil)
@@ -189,7 +184,6 @@ func NewMPC(
 	return &MPC{
 		keycfgmgr:  keycfgmgr,
 		signcfgmgr: signcfgmgr,
-		mpc_ks:     mpc_ks,
 		elgamal:    elgamal_km,
 		paillier:   paillier_km,
 		pedersen:   pedersen_km,
@@ -227,7 +221,6 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,
-		mpc.mpc_ks,
 		mpc.commit_mgr,
 		mpc.pl,
 	)
@@ -287,11 +280,10 @@ func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartF
 		mpc.rid,
 		mpc.chainKey,
 		mpc.hash_mgr,
-		mpc.mpc_ks,
 		mpc.commit_mgr,
 		pl,
 	)
-	return mpckg.Start(cfg, pl, nil)
+	return mpckg.Start(cfg, pl)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

@@ -16,8 +16,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/mpckey"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 )
 
 const Rounds round.Number = 5
@@ -47,7 +45,6 @@ func NewMPCKeygen(
 	rid rid.RIDManager,
 	chainKey rid.RIDManager,
 	hash_mgr hash.HashManager,
-	mpc_ks mpckey.MPCKeystore,
 	commit_mgr commitment.CommitmentManager,
 	pl *pool.Pool,
 ) *MPCKeygen {
@@ -66,7 +63,7 @@ func NewMPCKeygen(
 	}
 }
 
-func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool, c *config.Config) protocol.StartFunc {
+func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
 		info := round.Info{
 			ProtocolID:       "cmp/keygen",
@@ -82,12 +79,7 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool, c *config.Con
 		opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
-		var helper *round.Helper
-		if c == nil {
-			helper, err = round.NewSession(cfg.ID(), info, sessionID, pl, h)
-		} else {
-			helper, err = round.NewSession(cfg.ID(), info, sessionID, pl, h, c)
-		}
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
