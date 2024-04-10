@@ -190,9 +190,6 @@ func TestSign(t *testing.T) {
 
 	group := curve.Secp256k1{}
 
-	// KeygenRounds := round.Number(5)
-	SignRounds := round.Number(5)
-
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
@@ -236,18 +233,11 @@ func TestSign(t *testing.T) {
 
 	signRounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/sign-test",
-			FinalRoundNumber: SignRounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs)
 
 		mpcsign := mpcsigns[partyID]
 
-		r, err := mpcsign.StartSign(signID, keyID, info, partyIDs, messageHash, pl)(nil)
+		r, err := mpcsign.StartSign(cfg, messageHash, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		signRounds = append(signRounds, r)

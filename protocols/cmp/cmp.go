@@ -2,10 +2,8 @@ package cmp
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
-	"github.com/mr-shifu/mpc-lib/lib/round"
 
 	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
@@ -298,7 +296,7 @@ func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartF
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (mpc *MPC) Sign(signID string, keyID string, info round.Info, signers []party.ID, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
+func (mpc *MPC) Sign(cfg comm_config.SignConfig, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
 	mpcsign := sign.NewMPCSign(
 		mpc.signcfgmgr,
 		mpc.hash_mgr,
@@ -320,5 +318,5 @@ func (mpc *MPC) Sign(signID string, keyID string, info round.Info, signers []par
 		mpc.signature,
 	)
 
-	return mpcsign.StartSign(signID, keyID, info, signers, messageHash, pl)
+	return mpcsign.StartSign(cfg, messageHash, pl)
 }

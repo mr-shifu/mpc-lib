@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -23,7 +22,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 )
 
 // protocolSignID for the "3 round" variant using echo broadcast.
@@ -103,21 +101,29 @@ func NewMPCSign(
 	}
 }
 
-func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signers []party.ID, message []byte, pl *pool.Pool) protocol.StartFunc {
+func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
+		info := round.Info{
+			ProtocolID:       "cmp/sign",
+			FinalRoundNumber: 5,
+			SelfID:           cfg.SelfID(),
+			PartyIDs:         cfg.PartyIDs(),
+			Threshold:        cfg.Threshold(),
+			Group:            cfg.Group(),
+		}
 		group := info.Group
 
 		opts := keyopts.Options{}
-		opts.Set("id", signID, "partyid", info.SelfID)
+		opts.Set("id", cfg.ID(), "partyid", info.SelfID)
 
-		h := m.hash_mgr.NewHasher(signID, opts)
+		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// this could be used to indicate a pre-signature later on
 		if len(message) == 0 {
 			return nil, errors.New("sign.Create: message is nil")
 		}
 
-		helper, err := round.NewSession(signID, info, sessionID, pl, h, types.SigningMessage(message))
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(message))
 		if err != nil {
 			return nil, fmt.Errorf("sign.Create: %w", err)
 		}
@@ -128,11 +134,11 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 
 		// Scale public data
 
-		lagrange := polynomial.Lagrange(group, signers)
+		lagrange := polynomial.Lagrange(group, cfg.PartyIDs())
 		clonedPubKey := info.Group.NewPoint()
 		for _, j := range helper.PartyIDs() {
 			vssOpts := keyopts.Options{}
-			vssOpts.Set("id", keyID, "partyid", "ROOT")
+			vssOpts.Set("id", cfg.KeyID(), "partyid", "ROOT")
 			vss, err := m.vss_mgr.GetSecrets(vssOpts)
 			if err != nil {
 				return nil, err
@@ -147,7 +153,7 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			}
 
 			partyOpts := keyopts.Options{}
-			partyOpts.Set("id", signID, "partyid", string(j))
+			partyOpts.Set("id", cfg.ID(), "partyid", string(j))
 			clonedj := vssShareKey.CloneByMultiplier(lagrange[j])
 			if _, err := m.ec.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
@@ -155,20 +161,12 @@ func (m *MPCSign) StartSign(signID string, keyID string, info round.Info, signer
 			clonedPubKey = clonedPubKey.Add(clonedj.PublicKeyRaw())
 		}
 		rootECOpts := keyopts.Options{}
-		rootECOpts.Set("id", signID, "partyid", "ROOT")
+		rootECOpts.Set("id", cfg.ID(), "partyid", "ROOT")
 		cloned := sw_ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
 		if _, err := m.ec.ImportKey(cloned, rootECOpts); err != nil {
 			return nil, err
 		}
 
-		cfg := mpc_config.NewSignConfig(
-			signID,
-			keyID,
-			group,
-			helper.Threshold(),
-			helper.SelfID(),
-			helper.PartyIDs(),
-		)
 		if err := m.signcfgmgr.ImportConfig(cfg); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}

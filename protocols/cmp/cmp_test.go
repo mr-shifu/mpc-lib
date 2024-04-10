@@ -12,7 +12,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
-	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
@@ -46,16 +45,9 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	c := r.(*Config)
 
 	signID := uuid.New().String()
-	info := round.Info{
-		ProtocolID:       "cmp/sign",
-		FinalRoundNumber: 5,
-		SelfID:           id,
-		PartyIDs:         ids,
-		Threshold:        threshold,
-		Group:            curve.Secp256k1{},
-	}
-	mpc.Sign(signID, keyID, info, ids, message, pl)
-	h, err = protocol.NewMultiHandler(mpc.Sign(signID, keyID, info, ids, message, pl), nil)
+	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids)
+	mpc.Sign(signcfg, message, pl)
+	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, message, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -92,15 +84,6 @@ func TestStart(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 	configs, partyIDs := test.GenerateConfig(group, N, T, rand.Reader, pl)
-
-	info := round.Info{
-		ProtocolID:       "cmp/keygen-threshold",
-		FinalRoundNumber: 5,
-		SelfID:           partyIDs[0],
-		PartyIDs:         partyIDs,
-		Threshold:        T,
-		Group:            group,
-	}
 
 	ksf := &keystore.InmemoryKeystoreFactory{}
 	krf := &keyopts.InMemoryKeyOptsFactory{}
@@ -170,7 +153,8 @@ func TestStart(t *testing.T) {
 			assert.Error(t, err)
 
 			signID := uuid.New().String()
-			_, err = mpc.Sign(signID, keyID, info, tt.partyIDs, m, pl)(nil)
+			signcfg := config.NewSignConfig(signID, keyID, group, tt.threshold, selfID, tt.partyIDs)
+			_, err = mpc.Sign(signcfg, m, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 		})
