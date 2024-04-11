@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
@@ -16,9 +15,6 @@ var _ round.Round = (*round4)(nil)
 
 type round4 struct {
 	*round3
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type message4 struct {
@@ -61,7 +57,11 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[msg.From] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.cfg.ID(), int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -139,7 +139,7 @@ func (round4) StoreMessage(round.Message) error {
 // - compute σᵢ = rχᵢ + kᵢm.
 func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -223,16 +223,23 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
 		return r, err
 	}
-	
+
 	return &round5{
-		round4:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round4: r,
 	}, nil
 }
 
 func (r *round4) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.cfg.ID(), int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // RoundNumber implements round.Content.

@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
@@ -12,9 +11,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -153,8 +152,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round2{
-		round1:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round1: r,
 	}, nil
 }
 
