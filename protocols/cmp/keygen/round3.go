@@ -196,7 +196,7 @@ func (round3) StoreMessage(round.Message) error { return nil }
 // - send proofs and encryption of share for Pⱼ.
 func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties messages are received
-	if r.CanFinalize() == false {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 

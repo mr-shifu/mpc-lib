@@ -87,7 +87,7 @@ func (r *round5) StoreMessage(round.Message) error { return nil }
 // Finalize implements round.Round.
 func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if r.CanFinalize() == false {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 	return r.ResultRound(r.UpdatedConfig), nil
