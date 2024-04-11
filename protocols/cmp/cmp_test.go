@@ -16,13 +16,14 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
+func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	keyID := uuid.New().String()
@@ -33,8 +34,10 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	signcfgstore := config.NewInMemoryConfigStore()
 	keystatestore := state.NewInMemoryStateStore()
 	signstatestore := state.NewInMemoryStateStore()
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
 
-	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, msgstore, bcststore, pl)
 
 	keycfg := config.NewKeyConfig(keyID, curve.Secp256k1{}, threshold, id, ids)
 	h, err := protocol.NewMultiHandler(
@@ -49,8 +52,8 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	signID := uuid.New().String()
 	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids)
-	mpc.Sign(signcfg, message, pl)
-	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, message, pl), nil)
+	mpc.Sign(signcfg, msg, pl)
+	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, msg, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -58,7 +61,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.NoError(t, err)
 	require.IsType(t, &ecdsa.Signature{}, signResult)
 	signature := signResult.(*ecdsa.Signature)
-	assert.True(t, signature.Verify(c.PublicPoint(), message))
+	assert.True(t, signature.Verify(c.PublicPoint(), msg))
 }
 
 func TestCMP(t *testing.T) {
@@ -95,8 +98,10 @@ func TestStart(t *testing.T) {
 	signcfgstore := config.NewInMemoryConfigStore()
 	keystatestore := state.NewInMemoryStateStore()
 	signstatestore := state.NewInMemoryStateStore()
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
 
-	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, msgstore, bcststore, pl)
 
 	m := []byte("HELLO")
 	selfID := partyIDs[0]

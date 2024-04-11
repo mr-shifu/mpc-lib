@@ -16,6 +16,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
@@ -24,6 +25,8 @@ const Rounds round.Number = 5
 type MPCKeygen struct {
 	configmgr   mpc_config.KeyConfigManager
 	statemgr    mpc_state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
@@ -39,6 +42,8 @@ type MPCKeygen struct {
 func NewMPCKeygen(
 	keyconfigmgr mpc_config.KeyConfigManager,
 	keystatmgr mpc_state.MPCStateManager,
+	msgmgr message.MessageManager,
+	bcstmgr message.MessageManager,
 	elgamal elgamal.ElgamalKeyManager,
 	paillier paillier.PaillierKeyManager,
 	pedersen pedersen.PedersenKeyManager,
@@ -54,6 +59,8 @@ func NewMPCKeygen(
 	return &MPCKeygen{
 		configmgr:   keyconfigmgr,
 		statemgr:    keystatmgr,
+		msgmgr:      msgmgr,
+		bcstmgr:     bcstmgr,
 		elgamal_km:  elgamal,
 		paillier_km: paillier,
 		pedersen_km: pedersen,
