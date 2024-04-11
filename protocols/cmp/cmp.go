@@ -256,6 +256,8 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 	return sign.NewMPCSign(
 		mpc.signcfgmgr,
 		mpc.signstatmgr,
+		mpc.msgmgr,
+		mpc.bcstmgr,
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,

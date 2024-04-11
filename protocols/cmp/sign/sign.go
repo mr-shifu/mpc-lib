@@ -23,6 +23,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 )
 
 // protocolSignID for the "3 round" variant using echo broadcast.
@@ -34,6 +35,8 @@ const (
 type MPCSign struct {
 	signcfgmgr config.SignConfigManager
 	statmgr    state.MPCStateManager
+	msgmgr     message.MessageManager
+	bcstmgr    message.MessageManager
 
 	hash_mgr hash.HashManager
 
@@ -64,6 +67,8 @@ type MPCSign struct {
 func NewMPCSign(
 	signcfgmgr config.SignConfigManager,
 	statmanager state.MPCStateManager,
+	msgmgr message.MessageManager,
+	bcstmgr message.MessageManager,
 	hash_mgr hash.HashManager,
 	paillier_km paillier.PaillierKeyManager,
 	pedersen_km pedersen.PedersenKeyManager,
@@ -85,6 +90,8 @@ func NewMPCSign(
 	return &MPCSign{
 		signcfgmgr:  signcfgmgr,
 		statmgr:     statmanager,
+		msgmgr:      msgmgr,
+		bcstmgr:     bcstmgr,
 		hash_mgr:    hash_mgr,
 		paillier_km: paillier_km,
 		pedersen_km: pedersen_km,
@@ -183,6 +190,8 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool
 			Helper:      helper,
 			cfg:         cfg,
 			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,

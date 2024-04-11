@@ -14,6 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -24,6 +25,8 @@ type round1 struct {
 	cfg       config.SignConfig
 	statemgr  state.MPCStateManager
 	signature result.Signature
+	msgmgr    message.MessageManager
+	bcstmgr   message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
