@@ -178,7 +178,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 
 	// Mark the message as received
 	if err := r.msgmgr.Import(
-		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+		r.msgmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
 	); err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 // - create proof of knowledge of secret.
 func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// check if we received all messages
-	if r.CanFinalize() == false {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -400,8 +400,8 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		round4:             r,
-		UpdatedConfig:      UpdatedConfig,
+		round4:        r,
+		UpdatedConfig: UpdatedConfig,
 	}, nil
 }
 
