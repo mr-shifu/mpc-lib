@@ -14,6 +14,7 @@ type MessageStore interface {
 }
 
 type MessageManager interface {
+	NewMessage(keyID string, round int, partyID string, verified bool) Message
 	Import(msg Message) error
 	Get(keyID string, round int, partyID string) (Message, error)
 	GetAll(keyID string, round int) (map[string]Message, error)

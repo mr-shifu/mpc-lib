@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
@@ -11,9 +10,6 @@ var _ round.Round = (*round2)(nil)
 
 type round2 struct {
 	*round1
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type broadcast2 struct {
@@ -42,7 +38,11 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[msg.From] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -58,7 +58,7 @@ func (round2) StoreMessage(round.Message) error { return nil }
 // - send all committed data.
 func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if r.CanFinalize() == false {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -157,14 +157,21 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round3{
-		round2:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round2: r,
 	}, nil
 }
 
 func (r *round2) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // PreviousRound implements round.Round.

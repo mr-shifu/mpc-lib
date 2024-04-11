@@ -17,6 +17,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
@@ -26,6 +27,8 @@ type round1 struct {
 	*round.Helper
 
 	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
 	elgamal_km  elgamal.ElgamalKeyManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
@@ -171,7 +174,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	nextRound := &round2{
 		round1:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
 	}
 	return nextRound, nil
 }

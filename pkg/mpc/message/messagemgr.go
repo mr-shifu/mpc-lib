@@ -12,6 +12,15 @@ func NewMessageManager(store com_msg.MessageStore) *MessageManager {
 	}
 }
 
+func (m *MessageManager) NewMessage(keyID string, round int, partyID string, verified bool) com_msg.Message {
+	return &Message{
+		keyID:    keyID,
+		round:    round,
+		partyID:  partyID,
+		verified: verified,
+	}
+}
+
 func (m *MessageManager) Import(msg com_msg.Message) error {
 	return m.store.Import(msg)
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
@@ -18,9 +17,6 @@ var _ round.Round = (*round3)(nil)
 
 type round3 struct {
 	*round2
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type broadcast3 struct {
@@ -174,7 +170,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[from] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -196,7 +196,7 @@ func (round3) StoreMessage(round.Message) error { return nil }
 // - send proofs and encryption of share for Pⱼ.
 func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties messages are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if r.CanFinalize() == false {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -313,15 +313,21 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Write rid to the hash state
 	r.UpdateHashState(rid)
 	return &round4{
-		round3:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
-		MessagesForwarded:  make(map[party.ID]bool),
+		round3: r,
 	}, nil
 }
 
 func (r *round3) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // MessageContent implements round.Round.

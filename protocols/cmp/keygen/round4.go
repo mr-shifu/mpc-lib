@@ -22,10 +22,6 @@ var _ round.Round = (*round4)(nil)
 
 type round4 struct {
 	*round3
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
-	MessagesForwarded  map[party.ID]bool
 }
 
 type message4 struct {
@@ -72,7 +68,11 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[from] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -177,7 +177,11 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessagesForwarded[from] = true
+	if err := r.msgmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -192,7 +196,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 // - create proof of knowledge of secret.
 func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// check if we received all messages
-	if len(r.MessageBroadcasted) != r.N()-1 || len(r.MessagesForwarded) != r.N()-1 {
+	if r.CanFinalize() == false {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -398,13 +402,24 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	return &round5{
 		round4:             r,
 		UpdatedConfig:      UpdatedConfig,
-		MessageBroadcasted: make(map[party.ID]bool),
 	}, nil
 }
 
 func (r *round4) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1 && len(r.MessagesForwarded) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	bcstsRcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	msgssRcvd, err := r.msgmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return bcstsRcvd && msgssRcvd
 }
 
 // RoundNumber implements round.Content.

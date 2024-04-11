@@ -160,7 +160,7 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 2
+	N := 3
 	partyIDs := test.PartyIDs(N)
 
 	rounds := make([]round.Session, 0, N)
