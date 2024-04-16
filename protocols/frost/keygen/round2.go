@@ -126,6 +126,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
+	// 3. Evaluate VSS Polynomia for all parties
+	for _, j := range r.OtherPartyIDs() {
+		share, err := r.vss_mgr.Evaluate(j.Scalar(r.Group()), opts)
+		if err != nil {
+			return r, err
+		}
+		if err := r.SendMessage(out, &message3{
+			VSSShare: share,
+		}, j); err != nil {
+			return r, err
+		}
+	}
 
 	return r, nil
 }
