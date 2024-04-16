@@ -21,6 +21,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -77,6 +78,11 @@ func newMPCKeygen() *MPCKeygen {
 	keystatestore := state.NewInMemoryStateStore()
 	keystatemgr := state.NewMPCStateManager(keystatestore)
 
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
+	msgmgr := message.NewMessageManager(msgstore)
+	bcstmgr := message.NewMessageManager(bcststore)
+
 	elgamal_keyopts := keyopts.NewInMemoryKeyOpts()
 	elgamal_vault := vault.NewInMemoryVault()
 	elgamal_ks := keystore.NewInMemoryKeystore(elgamal_vault, elgamal_keyopts)
@@ -132,6 +138,8 @@ func newMPCKeygen() *MPCKeygen {
 	return NewMPCKeygen(
 		keycfgmr,
 		keystatemgr,
+		msgmgr,
+		bcstmgr,
 		elgamal_km,
 		paillier_km,
 		pedersen_km,
@@ -152,7 +160,7 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 2
+	N := 3
 	partyIDs := test.PartyIDs(N)
 
 	rounds := make([]round.Session, 0, N)

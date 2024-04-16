@@ -29,9 +29,11 @@ import (
 	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	comm_message "github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	comm_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	mpc_message "github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -42,6 +44,8 @@ import (
 type MPC struct {
 	keycfgmgr  comm_config.KeyConfigManager
 	signcfgmgr comm_config.SignConfigManager
+	msgmgr     comm_message.MessageManager
+	bcstmgr    comm_message.MessageManager
 
 	keystatmgr  comm_state.MPCStateManager
 	signstatmgr comm_state.MPCStateManager
@@ -84,6 +88,8 @@ func NewMPC(
 	signcfgstore comm_config.ConfigStore,
 	keystatstore comm_state.MPCStateStore,
 	signstatstore comm_state.MPCStateStore,
+	msgstore comm_message.MessageStore,
+	bcststore comm_message.MessageStore,
 	pl *pool.Pool,
 ) *MPC {
 	elgamal_kr := krf.NewKeyOpts(nil)
@@ -149,6 +155,9 @@ func NewMPC(
 	keystatmgr := mpc_state.NewMPCStateManager(keystatstore)
 	signstatmgr := mpc_state.NewMPCStateManager(signstatstore)
 
+	msgmgr := mpc_message.NewMessageManager(msgstore)
+	bcstmgr := mpc_message.NewMessageManager(bcststore)
+
 	signature := mpc_result.NewSignStore()
 
 	gamma_kr := krf.NewKeyOpts(nil)
@@ -196,6 +205,8 @@ func NewMPC(
 		signcfgmgr:  signcfgmgr,
 		keystatmgr:  keystatmgr,
 		signstatmgr: signstatmgr,
+		msgmgr:      msgmgr,
+		bcstmgr:     bcstmgr,
 		elgamal:     elgamal_km,
 		paillier:    paillier_km,
 		pedersen:    pedersen_km,
@@ -225,6 +236,8 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 	return keygen.NewMPCKeygen(
 		mpc.keycfgmgr,
 		mpc.keystatmgr,
+		mpc.msgmgr,
+		mpc.bcstmgr,
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
@@ -243,6 +256,8 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 	return sign.NewMPCSign(
 		mpc.signcfgmgr,
 		mpc.signstatmgr,
+		mpc.msgmgr,
+		mpc.bcstmgr,
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,
