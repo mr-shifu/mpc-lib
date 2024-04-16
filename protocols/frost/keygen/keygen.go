@@ -80,11 +80,26 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// generate new helper for new keygen session
-		_, err = round.NewSession(cfg.ID(), info, sessionID, pl, h)
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
-		return nil, nil
+		if err := m.statemgr.NewState(cfg.ID()); err != nil {
+			return nil, err
+		}
+
+		return &round1{
+			Helper:      helper,
+			configmgr:   m.configmgr,
+			statemanger: m.statemgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			ec_km:       m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
+			vss_mgr:     m.vss_mgr,
+			chainKey_km: m.chainKey_km,
+			commit_mgr:  m.commit_mgr,
+		}, nil
 	}
 }
