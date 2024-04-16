@@ -103,5 +103,42 @@ func (round2) VerifyMessage(round.Message) error { return nil }
 // StoreMessage implements round.Round.
 func (round2) StoreMessage(round.Message) error { return nil }
 
+func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", r.SelfID())
+
+	// 1. Get ChainKey from commitment store
+	chainKey, err := r.chainKey_km.GetKey(opts)
+	if err != nil {
+		return r, err
+	}
+
+	// 2. Get Decommitment generated for chainKey by round1
+	cmt, err := r.commit_mgr.Get(opts)
+	if err != nil {
+		return r, err
+	}
+
+	if err := r.BroadcastMessage(out, &broadcast3{
+		ChainKey:     chainKey,
+		Decommitment: cmt.Decommitment(),
+	}); err != nil {
+		return r, err
+	}
+
+
+	return r, nil
+}
+
+func (r *round2) CanFinalize() bool {
+	return true
+}
+
+// MessageContent implements round.Round.
+func (round2) MessageContent() round.Content { return nil }
+
+// Number implements round.Round.
+func (round2) Number() round.Number { return 2 }
+
 // RoundNumber implements round.Content.
 func (broadcast2) RoundNumber() round.Number { return 2 }
