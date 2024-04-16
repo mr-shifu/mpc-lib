@@ -57,13 +57,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to get VSS")
 	}
-	exp, err := vss.Exponents()
+	exp, err := vss.ExponentsRaw()
 	if err != nil {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to get VSS exponents")
-	}
-	exp_bytes, err := exp.Bytes()
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to convert VSS exponents to bytes")
 	}
 
 	// ToDo maybe we can combine commit and proof generation into a single function
@@ -96,7 +92,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// 6. Broadcast public data
 	err = r.BroadcastMessage(out, &broadcast2{
-		VSSPolynomial:     exp_bytes,
+		VSSPolynomial:     exp,
 		SchnorrCommitment: sch_cmt,
 		SchnorrProof:      sch_proof,
 		Commitment:        cmt,
