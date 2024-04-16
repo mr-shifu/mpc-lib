@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/hash"
@@ -127,19 +128,35 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 3. Evaluate VSS Polynomia for all parties
-	for _, j := range r.OtherPartyIDs() {
-		share, err := r.vss_mgr.Evaluate(j.Scalar(r.Group()), opts)
+	vssKey, err := r.vss_mgr.GetSecrets(opts)
+	if err != nil {
+		return r, err
+	}
+	for _, j := range r.PartyIDs() {
+		share, err := vssKey.Evaluate(j.Scalar(r.Group()))
 		if err != nil {
 			return r, err
 		}
-		if err := r.SendMessage(out, &message3{
-			VSSShare: share,
-		}, j); err != nil {
-			return r, err
+		if j != r.SelfID() {
+			err := r.SendMessage(out, &message3{
+				VSSShare: share,
+			}, j)
+			if err != nil {
+				return r, err
+			}
+		} else {
+			// Import Self Share to the keystore
+			sharePublic := share.ActOnBase()
+			shareKey := r.ec_km.NewKey(share, sharePublic, r.Group())
+			vssOpts := keyopts.Options{}
+			vssOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+			if _, err := r.ec_vss_km.ImportKey(shareKey, vssOpts); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return r, nil
+	return nil, nil
 }
 
 func (r *round2) CanFinalize() bool {
