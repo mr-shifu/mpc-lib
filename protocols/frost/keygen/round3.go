@@ -7,6 +7,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
@@ -147,6 +148,29 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	}
 
 	return nil
+}
+
+// Finalize implements round.Round.
+func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
+	rootOpts := keyopts.Options{}
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+
+	// 1. XOR all chainKeys to get the group chainKey
+	chainKey := types.EmptyRID()
+	for _, j := range r.PartyIDs() {
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(j))
+		ck, err := r.chainKey_km.GetKey(partyOpts)
+		if err != nil {
+			return nil, err
+		}
+		chainKey.XOR(ck.Raw())
+	}
+	if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 // Number implements round.Round.
