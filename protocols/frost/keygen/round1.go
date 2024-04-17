@@ -106,7 +106,18 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	return nil, nil
+	return &round2{
+		Helper:      r.Helper,
+		configmgr:   r.configmgr,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		ec_km:       r.ec_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
+	}, nil
 }
 
 func (r *round1) CanFinalize() bool {
