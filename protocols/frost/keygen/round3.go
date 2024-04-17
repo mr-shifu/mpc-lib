@@ -148,11 +148,23 @@ func (r *round3) StoreMessage(msg round.Message) error {
 		return err
 	}
 
+	// Mark the message as received
+	if err := r.msgmgr.Import(
+		r.msgmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Finalize implements round.Round.
 func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
+	// Verify if all parties commitments are received
+	if !r.CanFinalize() {
+		return nil, round.ErrNotEnoughMessages
+	}
+
 	rootOpts := keyopts.Options{}
 	rootOpts.Set("id", r.ID, "partyid", "ROOT")
 
@@ -202,6 +214,23 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	return nil, nil
+}
+
+func (r *round3) CanFinalize() bool {
+	// Verify if all parties commitments are received
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	bcstsRcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	msgssRcvd, err := r.msgmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return bcstsRcvd && msgssRcvd
 }
 
 // Number implements round.Round.
