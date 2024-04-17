@@ -233,6 +233,13 @@ func (r *round3) CanFinalize() bool {
 	return bcstsRcvd && msgssRcvd
 }
 
+// MessageContent implements round.Round.
+func (r *round3) MessageContent() round.Content {
+	return &message3{
+		VSSShare: r.Group().NewScalar(),
+	}
+}
+
 // Number implements round.Round.
 func (round3) Number() round.Number { return 2 }
 
