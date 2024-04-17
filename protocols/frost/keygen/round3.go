@@ -213,7 +213,11 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	return nil, nil
+	return r.ResultRound(&Config{
+		ID:        r.SelfID(),
+		Threshold: r.Threshold(),
+		PublicKey: pubKey,
+	}), nil
 }
 
 func (r *round3) CanFinalize() bool {
