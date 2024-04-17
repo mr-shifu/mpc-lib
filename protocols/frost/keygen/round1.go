@@ -81,7 +81,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// ToDo maybe we can commbine Commit generation into commit manager
 	// 5. Generate commitment from chainKey and import them to the commitment store
-	cmt, dcmt, err := r.HashForID(r.SelfID()).Commit(chainKey)
+	cmt, dcmt, err := r.HashForID(r.SelfID()).Commit(chainKey.Raw())
 	if err != nil {
 		return r, fmt.Errorf("failed to commit to chain key")
 	}

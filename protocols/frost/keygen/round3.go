@@ -20,7 +20,9 @@ import (
 )
 
 type broadcast3 struct {
-	ChainKey     rid.RID
+	round.NormalBroadcastContent
+
+	ChainKey     types.RID
 	Decommitment hash.Decommitment
 }
 
@@ -67,10 +69,10 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if !r.Hash().Clone().Decommit(
+	if !r.HashForID(from).Decommit(
 		cmt.Commitment(),
 		body.Decommitment,
-		body.ChainKey,
+		[]byte(body.ChainKey),
 	) {
 		return errors.New("failed to decommit")
 	}
@@ -81,7 +83,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// 5. Import the chainKey
-	if _, err := r.chainKey_km.ImportKey(body.ChainKey.Raw(), fromOpts); err != nil {
+	if _, err := r.chainKey_km.ImportKey(body.ChainKey, fromOpts); err != nil {
 		return err
 	}
 
@@ -237,6 +239,11 @@ func (r *round3) CanFinalize() bool {
 	return bcstsRcvd && msgssRcvd
 }
 
+// BroadcastContent implements round.BroadcastRound.
+func (r *round3) BroadcastContent() round.BroadcastContent {
+	return &broadcast3{}
+}
+
 // MessageContent implements round.Round.
 func (r *round3) MessageContent() round.Content {
 	return &message3{
@@ -245,7 +252,7 @@ func (r *round3) MessageContent() round.Content {
 }
 
 // Number implements round.Round.
-func (round3) Number() round.Number { return 2 }
+func (round3) Number() round.Number { return 3 }
 
 // RoundNumber implements round.Content.
 func (broadcast3) RoundNumber() round.Number { return 3 }
