@@ -118,7 +118,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", r.SelfID())
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
 
 	// 1. Get ChainKey from commitment store
 	chainKey, err := r.chainKey_km.GetKey(opts)

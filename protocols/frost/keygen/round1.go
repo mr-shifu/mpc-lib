@@ -40,7 +40,7 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// ToDo maybe we can include create options into helper
 	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", r.SelfID())
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
 
 	// 1, Generate a new EC Key Pair
 	k, err := r.ec_km.GenerateKey(opts)

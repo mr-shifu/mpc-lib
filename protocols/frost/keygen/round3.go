@@ -51,7 +51,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", from)
+	fromOpts.Set("id", r.ID, "partyid", string(from))
 
 	// 1. Validate ChainKey and Decommitment
 	if err := body.ChainKey.Validate(); err != nil {
@@ -124,7 +124,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	//
 	// aborting if the check fails."
 	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", from)
+	fromOpts.Set("id", r.ID, "partyid", string(from))
 
 	// 1. Verify VSS share against exponents evaluation
 	expected := body.VSSShare.ActOnBase()
@@ -142,7 +142,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 		return err
 	}
 	vssOpts := keyopts.Options{}
-	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", from)
+	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(from))
 	ec_vss := r.ec_vss_km.NewKey(body.VSSShare, expected, r.Group())
 	if _, err := r.ec_vss_km.ImportKey(ec_vss, vssOpts); err != nil {
 		return err
