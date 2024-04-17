@@ -92,7 +92,7 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 		return &round1{
 			Helper:      helper,
 			configmgr:   m.configmgr,
-			statemanger: m.statemgr,
+			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
 			bcstmgr:     m.bcstmgr,
 			ec_km:       m.ecdsa_km,

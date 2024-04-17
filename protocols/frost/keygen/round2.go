@@ -32,7 +32,7 @@ type round2 struct {
 	*round.Helper
 
 	configmgr   config.KeyConfigManager
-	statemanger state.MPCStateManager
+	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
 	ec_km       ecdsa.ECDSAKeyManager
@@ -116,7 +116,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
-	
+
 	opts := keyopts.Options{}
 	opts.Set("id", r.ID, "partyid", r.SelfID())
 
@@ -166,6 +166,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 				return nil, err
 			}
 		}
+	}
+
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
 	}
 
 	return nil, nil

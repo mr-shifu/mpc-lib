@@ -20,7 +20,7 @@ type round1 struct {
 	*round.Helper
 
 	configmgr   config.KeyConfigManager
-	statemanger state.MPCStateManager
+	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
 	ec_km       ecdsa.ECDSAKeyManager
@@ -98,6 +98,11 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Commitment:        cmt,
 	})
 	if err != nil {
+		return r, err
+	}
+
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
 		return r, err
 	}
 
