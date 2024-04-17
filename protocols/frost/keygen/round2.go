@@ -12,6 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -93,6 +94,12 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 	if !verified {
 		return errors.New("frost.Keygen.Round2: schnorr proof verification failed")
+	}
+
+	// Import VSS Polynomial
+	vssKey := sw_vss.NewVssKey(nil, body.VSSPolynomial)
+	if _, err := r.vss_mgr.ImportSecrets(vssKey, fromOpts); err != nil {
+		return err
 	}
 
 	// Mark the message as received
