@@ -12,6 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -155,6 +156,9 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	rootOpts := keyopts.Options{}
 	rootOpts.Set("id", r.ID, "partyid", "ROOT")
 
+	opts := keyopts.Options{}
+	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+
 	// 1. XOR all chainKeys to get the group chainKey
 	chainKey := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
@@ -167,6 +171,22 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		chainKey.XOR(ck.Raw())
 	}
 	if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		return nil, err
+	}
+
+	// 2. Sum all VSS Exponents Shares to generate MPC VSS Exponent and Import it to VSS Keystore
+	vssOptsList := make([]com_keyopts.Options, 0)
+	for _, partyID := range r.PartyIDs() {
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+		vssOptsList = append(vssOptsList, partyOpts)
+	}
+	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
+	if err != nil {
+		return nil, err
+	}
+	_, err = r.vss_mgr.ImportSecrets(rootVss, rootOpts)
+	if err != nil {
 		return nil, err
 	}
 
