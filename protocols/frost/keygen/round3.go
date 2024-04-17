@@ -1,6 +1,7 @@
 package keygen
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/hash"
@@ -86,6 +87,62 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err := r.bcstmgr.Import(
 		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
 	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// VerifyMessage implements round.Round.
+func (r *round3) VerifyMessage(msg round.Message) error {
+	body, ok := msg.Content.(*message3)
+	if !ok || body == nil {
+		return round.ErrInvalidContent
+	}
+
+	// check nil
+	if body.VSSShare == nil {
+		return round.ErrNilFields
+	}
+
+	return nil
+}
+
+// StoreMessage implements round.Round.
+//
+// Verify the VSS condition here since we will not be sending this message to other parties for verification.
+func (r *round3) StoreMessage(msg round.Message) error {
+	from, body := msg.From, msg.Content.(*message3)
+
+	// These steps come from Figure 1, Round 2 of the Frost paper
+
+	// 2. "Each Pᵢ verifies their shares by calculating
+	//
+	//   fₗ(i) * G =? ∑ₖ₌₀ᵗ (iᵏ mod q) * ϕₗₖ
+	//
+	// aborting if the check fails."
+	fromOpts := keyopts.Options{}
+	fromOpts.Set("id", r.ID, "partyid", from)
+
+	// 1. Verify VSS share against exponents evaluation
+	expected := body.VSSShare.ActOnBase()
+	actual, err := r.vss_mgr.EvaluateByExponents(from.Scalar(r.Group()), fromOpts)
+	if err != nil {
+		return err
+	}
+	if !expected.Equal(actual) {
+		return errors.New("vss share verification failed")
+	}
+
+	// 2. Import the VSS share as an EC key
+	vss, err := r.vss_mgr.GetSecrets(fromOpts)
+	if err != nil {
+		return err
+	}
+	vssOpts := keyopts.Options{}
+	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", from)
+	ec_vss := r.ec_vss_km.NewKey(body.VSSShare, expected, r.Group())
+	if _, err := r.ec_vss_km.ImportKey(ec_vss, vssOpts); err != nil {
 		return err
 	}
 
