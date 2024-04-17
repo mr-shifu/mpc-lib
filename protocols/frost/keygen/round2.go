@@ -51,7 +51,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// validate broadcast params
-	if !body.SchnorrCommitment.IsIdentity() {
+	if body.SchnorrCommitment.IsIdentity() {
 		return errors.New("frost.Keygen.Round2: invalid schnorr commitment")
 	}
 	if body.SchnorrProof.IsZero() {
@@ -133,7 +133,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	if err := r.BroadcastMessage(out, &broadcast3{
-		ChainKey:     chainKey,
+		ChainKey:     chainKey.Raw(),
 		Decommitment: cmt.Decommitment(),
 	}); err != nil {
 		return r, err
@@ -198,6 +198,15 @@ func (r *round2) CanFinalize() bool {
 		return false
 	}
 	return rcvd
+}
+
+// BroadcastContent implements round.BroadcastRound.
+func (r *round2) BroadcastContent() round.BroadcastContent {
+	return &broadcast2{
+		VSSPolynomial:     polynomial.EmptyExponent(r.Group()),
+		SchnorrCommitment: r.Group().NewPoint(),
+		SchnorrProof:      r.Group().NewScalar(),
+	}
 }
 
 // MessageContent implements round.Round.
