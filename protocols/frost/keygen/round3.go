@@ -185,8 +185,19 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.vss_mgr.ImportSecrets(rootVss, rootOpts)
+	vssPoly, err := r.vss_mgr.ImportSecrets(rootVss, rootOpts)
 	if err != nil {
+		return nil, err
+	}
+
+	// 3. calculate the group public key from group VSS Exponents and import it to ECDSA Keystore
+	exponents, err := vssPoly.ExponentsRaw()
+	if err != nil {
+		return nil, err
+	}
+	pubKey := exponents.Constant()
+	key := r.ec_km.NewKey(nil, pubKey, r.Group())
+	if _, err := r.ec_km.ImportKey(key, rootOpts); err != nil {
 		return nil, err
 	}
 
