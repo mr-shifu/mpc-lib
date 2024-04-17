@@ -130,7 +130,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 
 	// 1. Verify VSS share against exponents evaluation
 	expected := body.VSSShare.ActOnBase()
-	actual, err := r.vss_mgr.EvaluateByExponents(from.Scalar(r.Group()), fromOpts)
+	actual, err := r.vss_mgr.EvaluateByExponents(r.SelfID().Scalar(r.Group()), fromOpts)
 	if err != nil {
 		return err
 	}
