@@ -95,6 +95,13 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("frost.Keygen.Round2: schnorr proof verification failed")
 	}
 
+	// Mark the message as received
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -105,6 +112,11 @@ func (round2) VerifyMessage(round.Message) error { return nil }
 func (round2) StoreMessage(round.Message) error { return nil }
 
 func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
+	// Verify if all parties commitments are received
+	if !r.CanFinalize() {
+		return nil, round.ErrNotEnoughMessages
+	}
+	
 	opts := keyopts.Options{}
 	opts.Set("id", r.ID, "partyid", r.SelfID())
 
@@ -160,7 +172,16 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 }
 
 func (r *round2) CanFinalize() bool {
-	return true
+	// Verify if all parties commitments are received
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // MessageContent implements round.Round.
