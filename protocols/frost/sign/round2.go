@@ -172,6 +172,9 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 	z := signKey.Commit(c, ed)
+	if err := r.sigmgr.SetZ(z, opts); err != nil {
+		return r, nil
+	}
 
 	// 5. Broadcast z
 	if err := r.BroadcastMessage(out, &broadcast3{Z: z}); err != nil {
