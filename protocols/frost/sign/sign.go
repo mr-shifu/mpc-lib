@@ -56,7 +56,7 @@ func NewFROSTSign(statemgr state.MPCStateManager,
 	}
 }
 
-func (f *FROSTSign) Start(cfg config.SignConfig, message []byte, pl *pool.Pool) protocol.StartFunc {
+func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			ProtocolID:       protocolID,
@@ -73,12 +73,12 @@ func (f *FROSTSign) Start(cfg config.SignConfig, message []byte, pl *pool.Pool) 
 		h := f.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// validate message is not empty
-		if len(message) == 0 {
+		if len(cfg.Message()) == 0 {
 			return nil, errors.New("sign.Create: message is nil")
 		}
 
 		// create a new helper
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(message))
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(cfg.Message()))
 		if err != nil {
 			return nil, fmt.Errorf("sign.StartSign: %w", err)
 		}

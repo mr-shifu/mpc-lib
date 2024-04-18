@@ -30,6 +30,7 @@ type SignConfig interface {
 	Threshold() int
 	SelfID() party.ID
 	PartyIDs() party.IDSlice
+	Message() []byte
 }
 
 type SignConfigManager interface {
