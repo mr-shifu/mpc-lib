@@ -17,6 +17,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
+	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 
 type FROSTSign struct {
 	signcfgmgr config.SignConfigManager
+	sigmgr     result.EddsaSignatureManager
 	statemgr   state.MPCStateManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
@@ -43,6 +45,7 @@ type FROSTSign struct {
 func NewFROSTSign(
 	signcfgmgr config.SignConfigManager,
 	statemgr state.MPCStateManager,
+	sigmgr result.EddsaSignatureManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
 	ecdsa_km ecdsa.ECDSAKeyManager,
@@ -54,6 +57,7 @@ func NewFROSTSign(
 	hash_mgr hash.HashManager) *FROSTSign {
 	return &FROSTSign{
 		signcfgmgr: signcfgmgr,
+		sigmgr:     sigmgr,
 		statemgr:   statemgr,
 		msgmgr:     msgmgr,
 		bcstmgr:    bcstmgr,
@@ -124,8 +128,10 @@ func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFu
 		}
 
 		return &round1{
+			Helper:     helper,
 			cfg:        cfg,
 			statemgr:   f.statemgr,
+			sigmgr:     f.sigmgr,
 			msgmgr:     f.msgmgr,
 			bcstmgr:    f.bcstmgr,
 			ecdsa_km:   f.ecdsa_km,

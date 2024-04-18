@@ -12,6 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
+	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 	"github.com/zeebo/blake3"
 )
 
@@ -29,6 +30,7 @@ type round1 struct {
 	*round.Helper
 	cfg        config.SignConfig
 	statemgr   state.MPCStateManager
+	sigmgr     result.EddsaSignatureManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
 	ecdsa_km   ecdsa.ECDSAKeyManager

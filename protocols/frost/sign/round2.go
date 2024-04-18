@@ -14,6 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
+	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 )
 
 // This round roughly corresponds with steps 3-6 of Figure 3 in the Frost paper:
@@ -31,6 +32,7 @@ type round2 struct {
 	*round.Helper
 	cfg        config.SignConfig
 	statemgr   state.MPCStateManager
+	sigmgr     result.EddsaSignatureManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
 	ecdsa_km   ecdsa.ECDSAKeyManager
@@ -127,7 +129,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	for _, l := range r.PartyIDs() {
 		RShares[l] = rho[l].Act(Es[l])
 		RShares[l] = RShares[l].Add(Ds[l])
+		opts_l := keyopts.Options{}
+		opts_l.Set("id", r.ID, "partyid", string(l))
+		if err := r.sigmgr.Import(r.sigmgr.NewEddsaSignature(RShares[l], nil), opts_l); err != nil {
+			return r, nil
+		}
+
 		R = R.Add(RShares[l])
+	}
+	rootOpts := keyopts.Options{}
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	if err := r.sigmgr.Import(r.sigmgr.NewEddsaSignature(R, nil), rootOpts); err != nil {
+		return r, nil
 	}
 
 	// 3. Generate a random number as commitment to the nonce
