@@ -1,11 +1,19 @@
 package sign
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 )
 
@@ -41,5 +49,36 @@ func NewFROSTSign(statemgr state.MPCStateManager,
 		ec_vss_km: ec_vss_km,
 		vss_mgr:   vss_mgr,
 		hash_mgr:  hash_mgr,
+	}
+}
+
+func (f *FROSTSign) Start(cfg config.SignConfig, message []byte, pl *pool.Pool) protocol.StartFunc {
+	return func(sessionID []byte) (round.Session, error) {
+		info := round.Info{
+			ProtocolID:       protocolID,
+			FinalRoundNumber: protocolRounds,
+			SelfID:           cfg.SelfID(),
+			PartyIDs:         cfg.PartyIDs(),
+			Threshold:        cfg.Threshold(),
+			Group:            cfg.Group(),
+		}
+
+		opts := keyopts.Options{}
+		opts.Set("id", cfg.ID(), "partyid", info.SelfID)
+
+		h := f.hash_mgr.NewHasher(cfg.ID(), opts)
+
+		// validate message is not empty
+		if len(message) == 0 {
+			return nil, errors.New("sign.Create: message is nil")
+		}
+
+		// create a new helper
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(message))
+		if err != nil {
+			return nil, fmt.Errorf("sign.StartSign: %w", err)
+		}
+
+		return nil, nil
 	}
 }
