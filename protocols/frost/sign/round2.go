@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
@@ -54,7 +56,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	if !ok || body == nil {
 		return round.ErrInvalidContent
 	}
-	
+
 	if body.D.IsIdentity() || body.E.IsIdentity() {
 		return fmt.Errorf("nonce commitment is the identity point")
 	}
@@ -82,6 +84,93 @@ func (round2) VerifyMessage(round.Message) error { return nil }
 
 // StoreMessage implements round.Round.
 func (round2) StoreMessage(round.Message) error { return nil }
+
+// Finalize implements round.Round.
+func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
+	rho := make(map[party.ID]curve.Scalar)
+
+	// 0. fetch Dᵢ and Eᵢ from the keystore
+	Ds := make(map[party.ID]curve.Point)
+	Es := make(map[party.ID]curve.Point)
+	for _, l := range r.PartyIDs() {
+		opts := keyopts.Options{}
+		opts.Set("id", r.ID, "partyid", string(l))
+		dk, err := r.sign_d.GetKey(opts)
+		if err != nil {
+			return r, err
+		}
+
+		ek, err := r.sign_e.GetKey(opts)
+		if err != nil {
+			return r, err
+		}
+
+		Ds[l] = dk.PublicKeyRaw()
+		Es[l] = ek.PublicKeyRaw()
+	}
+
+	// 1. generate random ρᵢ for each party i
+	rhoPreHash := hash.New(nil)
+	_ = rhoPreHash.WriteAny(r.cfg.Message())
+	for _, l := range r.PartyIDs() {
+		_ = rhoPreHash.WriteAny(Ds[l], Es[l])
+	}
+	for _, l := range r.PartyIDs() {
+		rhoHash := rhoPreHash.Clone()
+		_ = rhoHash.WriteAny(l)
+		rho[l] = sample.Scalar(rhoHash.Digest(), r.Group())
+	}
+
+	// 2. Compute Rᵢ = (ρᵢ Eᵢ + Dᵢ) && R = Σᵢ Rᵢ
+	R := r.Group().NewPoint()
+	RShares := make(map[party.ID]curve.Point)
+	for _, l := range r.PartyIDs() {
+		RShares[l] = rho[l].Act(Es[l])
+		RShares[l] = RShares[l].Add(Ds[l])
+		R = R.Add(RShares[l])
+	}
+
+	// 3. Generate a random number as commitment to the nonce
+	opts := keyopts.Options{}
+	opts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(opts)
+	if err != nil {
+		return r, err
+	}
+	cHash := hash.New(nil)
+	_ = cHash.WriteAny(R, ecKey.PublicKeyRaw(), r.cfg.Message())
+	c := sample.Scalar(cHash.Digest(), r.Group())
+
+	// 4. Compute zᵢ = dᵢ + (eᵢ ρᵢ) + λᵢ sᵢ c
+	ek, err := r.sign_e.GetKey(opts)
+	if err != nil {
+		return r, err
+	}
+	dk, err := r.sign_d.GetKey(opts)
+	if err != nil {
+		return r, err
+	}
+	ed := ek.Mul(rho[r.SelfID()])
+	edk := r.sign_e.NewKey(ed, ed.ActOnBase(), r.Group())
+	ed = dk.AddKeys(edk)
+
+	signKey, err := r.ec_sign_km.GetKey(opts)
+	if err != nil {
+		return r, err
+	}
+	z := signKey.Commit(c, ed)
+
+	// 5. Broadcast z
+	if err := r.BroadcastMessage(out, &broadcast3{Z: z}); err != nil {
+		return r, err
+	}
+
+	return nil, nil
+}
+
+func (r *round2) CanFinalize() bool {
+	return true
+}
 
 // MessageContent implements round.Round.
 func (round2) MessageContent() round.Content { return nil }
