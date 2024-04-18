@@ -14,8 +14,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 )
 
@@ -27,6 +27,7 @@ const (
 )
 
 type FROSTSign struct {
+	signcfgmgr config.SignConfigManager
 	statemgr   state.MPCStateManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
@@ -37,7 +38,9 @@ type FROSTSign struct {
 	hash_mgr   hash.HashManager
 }
 
-func NewFROSTSign(statemgr state.MPCStateManager,
+func NewFROSTSign(
+	signcfgmgr config.SignConfigManager,
+	statemgr state.MPCStateManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
 	ecdsa_km ecdsa.ECDSAKeyManager,
@@ -46,13 +49,14 @@ func NewFROSTSign(statemgr state.MPCStateManager,
 	vss_mgr vss.VssKeyManager,
 	hash_mgr hash.HashManager) *FROSTSign {
 	return &FROSTSign{
-		statemgr:  statemgr,
-		msgmgr:    msgmgr,
-		bcstmgr:   bcstmgr,
-		ecdsa_km:  ecdsa_km,
-		ec_vss_km: ec_vss_km,
-		vss_mgr:   vss_mgr,
-		hash_mgr:  hash_mgr,
+		signcfgmgr: signcfgmgr,
+		statemgr:   statemgr,
+		msgmgr:     msgmgr,
+		bcstmgr:    bcstmgr,
+		ecdsa_km:   ecdsa_km,
+		ec_vss_km:  ec_vss_km,
+		vss_mgr:    vss_mgr,
+		hash_mgr:   hash_mgr,
 	}
 }
 
@@ -107,6 +111,10 @@ func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFu
 			if _, err := f.ec_sign_km.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
 			}
+		}
+
+		if err := f.signcfgmgr.ImportConfig(cfg); err != nil {
+			return nil, err
 		}
 
 		return nil, nil
