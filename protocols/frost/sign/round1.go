@@ -63,6 +63,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
+	// ToDo we may move this to utils package
 	hashKey := make([]byte, 32)
 	blake3.DeriveKey(deriveHashKeyContext, kb, hashKey)
 	nonceHasher, _ := blake3.NewKeyed(hashKey)
