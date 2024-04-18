@@ -35,6 +35,8 @@ type FROSTSign struct {
 	ec_vss_km  ecdsa.ECDSAKeyManager
 	ec_sign_km ecdsa.ECDSAKeyManager
 	vss_mgr    vss.VssKeyManager
+	sign_d     ecdsa.ECDSAKeyManager
+	sign_e     ecdsa.ECDSAKeyManager
 	hash_mgr   hash.HashManager
 }
 
@@ -47,6 +49,8 @@ func NewFROSTSign(
 	ec_vss_km ecdsa.ECDSAKeyManager,
 	ec_sign_km ecdsa.ECDSAKeyManager,
 	vss_mgr vss.VssKeyManager,
+	sign_d ecdsa.ECDSAKeyManager,
+	sign_e ecdsa.ECDSAKeyManager,
 	hash_mgr hash.HashManager) *FROSTSign {
 	return &FROSTSign{
 		signcfgmgr: signcfgmgr,
@@ -56,6 +60,8 @@ func NewFROSTSign(
 		ecdsa_km:   ecdsa_km,
 		ec_vss_km:  ec_vss_km,
 		vss_mgr:    vss_mgr,
+		sign_d:     sign_d,
+		sign_e:     sign_e,
 		hash_mgr:   hash_mgr,
 	}
 }
@@ -117,6 +123,18 @@ func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFu
 			return nil, err
 		}
 
-		return nil, nil
+		return &round1{
+			cfg:        cfg,
+			statemgr:   f.statemgr,
+			msgmgr:     f.msgmgr,
+			bcstmgr:    f.bcstmgr,
+			ecdsa_km:   f.ecdsa_km,
+			ec_vss_km:  f.ec_vss_km,
+			ec_sign_km: f.ec_sign_km,
+			vss_mgr:    f.vss_mgr,
+			sign_d:     f.sign_d,
+			sign_e:     f.sign_e,
+			hash_mgr:   f.hash_mgr,
+		}, nil
 	}
 }
