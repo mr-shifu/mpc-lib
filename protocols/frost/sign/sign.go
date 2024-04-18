@@ -1,9 +1,11 @@
 package sign
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -25,13 +27,14 @@ const (
 )
 
 type FROSTSign struct {
-	statemgr  state.MPCStateManager
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
-	ecdsa_km  ecdsa.ECDSAKeyManager
-	ec_vss_km ecdsa.ECDSAKeyManager
-	vss_mgr   vss.VssKeyManager
-	hash_mgr  hash.HashManager
+	statemgr   state.MPCStateManager
+	msgmgr     message.MessageManager
+	bcstmgr    message.MessageManager
+	ecdsa_km   ecdsa.ECDSAKeyManager
+	ec_vss_km  ecdsa.ECDSAKeyManager
+	ec_sign_km ecdsa.ECDSAKeyManager
+	vss_mgr    vss.VssKeyManager
+	hash_mgr   hash.HashManager
 }
 
 func NewFROSTSign(statemgr state.MPCStateManager,
@@ -39,6 +42,7 @@ func NewFROSTSign(statemgr state.MPCStateManager,
 	bcstmgr message.MessageManager,
 	ecdsa_km ecdsa.ECDSAKeyManager,
 	ec_vss_km ecdsa.ECDSAKeyManager,
+	ec_sign_km ecdsa.ECDSAKeyManager,
 	vss_mgr vss.VssKeyManager,
 	hash_mgr hash.HashManager) *FROSTSign {
 	return &FROSTSign{
@@ -77,6 +81,32 @@ func (f *FROSTSign) Start(cfg config.SignConfig, message []byte, pl *pool.Pool) 
 		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(message))
 		if err != nil {
 			return nil, fmt.Errorf("sign.StartSign: %w", err)
+		}
+
+		// clone the vss share multiplied by the lagrange coefficient
+		lagrange := polynomial.Lagrange(cfg.Group(), cfg.PartyIDs())
+		for _, j := range helper.PartyIDs() {
+			vssOpts := keyopts.Options{}
+			vssOpts.Set("id", cfg.KeyID(), "partyid", "ROOT")
+			vss, err := f.vss_mgr.GetSecrets(vssOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			partyVSSOpts := keyopts.Options{}
+			partyVSSOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+
+			vssShareKey, err := f.ec_vss_km.GetKey(partyVSSOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			partyOpts := keyopts.Options{}
+			partyOpts.Set("id", cfg.ID(), "partyid", string(j))
+			clonedj := vssShareKey.CloneByMultiplier(lagrange[j])
+			if _, err := f.ec_sign_km.ImportKey(clonedj, partyOpts); err != nil {
+				return nil, err
+			}
 		}
 
 		return nil, nil
