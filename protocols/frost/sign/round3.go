@@ -3,6 +3,7 @@ package sign
 import (
 	"fmt"
 
+	"github.com/mr-shifu/mpc-lib/core/eddsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -92,5 +93,67 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	return nil
 }
 
+// VerifyMessage implements round.Round.
+func (round3) VerifyMessage(round.Message) error { return nil }
+
+// StoreMessage implements round.Round.
+func (round3) StoreMessage(round.Message) error { return nil }
+
+// Finalize implements round.Round.
+func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
+	// 1. Compute the group's response z = ∑ᵢ zᵢ
+	z := r.Group().NewScalar()
+	for _, l := range r.PartyIDs() {
+		opts := keyopts.Options{}
+		opts.Set("id", r.ID, "partyid", string(l))
+		sig, err := r.sigmgr.Get(opts)
+		if err != nil {
+			return r.AbortRound(err), nil
+		}
+		z.Add(sig.Z())
+	}
+	rootOpts := keyopts.Options{}
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	if err := r.sigmgr.SetZ(z, rootOpts); err != nil {
+		return r, nil
+	}
+
+	// 2. Verify the signature
+	ecKey, err := r.ecdsa_km.GetKey(keyopts.Options{"id": r.cfg.KeyID(), "partyid": string(r.SelfID())})
+	if err != nil {
+		return r.AbortRound(err), nil
+	}
+	s, err := r.sigmgr.Get(rootOpts)
+	if err != nil {
+		return r.AbortRound(err), nil
+	}
+	sig := eddsa.Signature{
+		R: s.R(),
+		Z: z,
+	}
+	if eddsa.Verify(ecKey.PublicKeyRaw(), sig, r.cfg.Message()); err != nil {
+		return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
+	}
+
+	return r.ResultRound(s), nil
+}
+
+func (r *round3) CanFinalize() bool {
+	return true
+}
+
+// MessageContent implements round.Round.
+func (round3) MessageContent() round.Content { return nil }
+
 // RoundNumber implements round.Content.
 func (broadcast3) RoundNumber() round.Number { return 3 }
+
+// BroadcastContent implements round.BroadcastRound.
+func (r *round3) BroadcastContent() round.BroadcastContent {
+	return &broadcast3{
+		Z: r.Group().NewScalar(),
+	}
+}
+
+// Number implements round.Round.
+func (round3) Number() round.Number { return 3 }
