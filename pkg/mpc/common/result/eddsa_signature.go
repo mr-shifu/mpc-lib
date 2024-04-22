@@ -6,8 +6,8 @@ import (
 )
 
 type EddsaSignature interface {
-	SetR(r curve.Point) error
-	SetZ(z curve.Scalar) error
+	SetR(r curve.Point) 
+	SetZ(z curve.Scalar)
 	R() curve.Point
 	Z() curve.Scalar
 }
