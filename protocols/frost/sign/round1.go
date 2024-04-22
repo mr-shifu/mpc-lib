@@ -88,7 +88,30 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	sign_e := r.sign_e.NewKey(e, E, r.Group())
 	r.sign_e.ImportKey(sign_e, opts)
 
-	return nil, nil
+	// Broadcast the commitments
+	err = r.BroadcastMessage(out, &broadcast2{
+		D: D,
+		E: E,
+	})
+	if err != nil {
+		return r, err
+	}
+
+	return &round2{
+		cfg:        r.cfg,
+		statemgr:   r.statemgr,
+		sigmgr:     r.sigmgr,
+		msgmgr:     r.msgmgr,
+		bcstmgr:    r.bcstmgr,
+		ecdsa_km:   r.ecdsa_km,
+		ec_vss_km:  r.ec_vss_km,
+		ec_sign_km: r.ec_sign_km,
+		vss_mgr:    r.vss_mgr,
+		sign_d:     r.sign_d,
+		sign_e:     r.sign_e,
+		hash_mgr:   r.hash_mgr,
+		Helper:     r.Helper,
+	}, nil
 }
 
 func (round1) CanFinalize() bool { return true }
