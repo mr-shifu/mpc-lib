@@ -22,6 +22,7 @@ func NewSignConfig(
 	threshold int,
 	selfID party.ID,
 	partyIDs party.IDSlice,
+	msg []byte,
 ) *SignConfig {
 	return &SignConfig{
 		id:        id,
@@ -30,6 +31,7 @@ func NewSignConfig(
 		threshold: threshold,
 		selfID:    selfID,
 		partyIDs:  partyIDs,
+		message:   msg,
 	}
 }
 
