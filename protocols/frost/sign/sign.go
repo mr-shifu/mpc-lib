@@ -10,14 +10,14 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 )
 
 const (
@@ -63,6 +63,7 @@ func NewFROSTSign(
 		bcstmgr:    bcstmgr,
 		ecdsa_km:   ecdsa_km,
 		ec_vss_km:  ec_vss_km,
+		ec_sign_km: ec_sign_km,
 		vss_mgr:    vss_mgr,
 		sign_d:     sign_d,
 		sign_e:     sign_e,
