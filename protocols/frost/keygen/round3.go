@@ -144,7 +144,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 		return err
 	}
 	vssOpts := keyopts.Options{}
-	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(from))
+	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
 	ec_vss := r.ec_vss_km.NewKey(body.VSSShare, expected, r.Group())
 	if _, err := r.ec_vss_km.ImportKey(ec_vss, vssOpts); err != nil {
 		return err
@@ -213,6 +213,51 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	key := r.ec_km.NewKey(nil, pubKey, r.Group())
 	if _, err := r.ec_km.ImportKey(key, rootOpts); err != nil {
 		return nil, err
+	}
+
+	// 4. Sum all VSS self shares to generate MPC VSS Share
+	var vss_shares []ecdsa.ECDSAKey
+	for _, j := range r.PartyIDs() {
+		partyOpts := keyopts.Options{}
+		partyOpts.Set("id", r.ID, "partyid", string(j))
+
+		vss, err := r.vss_mgr.GetSecrets(partyOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		vssOpts := keyopts.Options{}
+		vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+		vss_share, err := r.ec_vss_km.GetKey(vssOpts)
+		if err != nil {
+			return nil, err
+		}
+		vss_shares = append(vss_shares, vss_share)
+	}
+	// ToDo Verify
+	vssShare := r.ec_vss_km.NewKey(r.Group().NewScalar(), r.Group().NewPoint(), r.Group())
+	vssSharePrivateKey := vssShare.AddKeys(vss_shares...)
+	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
+	vssShareKey := r.ec_vss_km.NewKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
+	rootVssOpts := keyopts.Options{}
+	rootVssOpts.Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", string(r.SelfID()))
+	if _, err := r.ec_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
+		return nil, err
+	}
+
+	for _, j := range r.OtherPartyIDs() {
+		vssPartyOpts := keyopts.Options{}
+
+		vssPartyOpts.Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+
+		vssPub, err := vssPoly.EvaluateByExponents(j.Scalar(r.Group()))
+		if err != nil {
+			return nil, err
+		}
+		vssKeyShare := r.ec_vss_km.NewKey(nil, vssPub, r.Group())
+		if _, err := r.ec_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
+			return nil, err
+		}
 	}
 
 	return r.ResultRound(&Config{
