@@ -7,14 +7,15 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 )
 
 // This round roughly corresponds with steps 3-6 of Figure 3 in the Frost paper:
@@ -111,8 +112,9 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Es[l] = ek.PublicKeyRaw()
 	}
 
+	// ToDo replace with hash manager
 	// 1. generate random ρᵢ for each party i
-	rhoPreHash := hash.New(nil)
+	rhoPreHash := sw_hash.New(nil)
 	_ = rhoPreHash.WriteAny(r.cfg.Message())
 	for _, l := range r.PartyIDs() {
 		_ = rhoPreHash.WriteAny(Ds[l], Es[l])
@@ -144,22 +146,24 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 3. Generate a random number as commitment to the nonce
-	opts := keyopts.Options{}
-	opts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
-	ecKey, err := r.ecdsa_km.GetKey(opts)
+	kopts := keyopts.Options{}
+	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	ecKey, err := r.ecdsa_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
-	cHash := hash.New(nil)
+	cHash := sw_hash.New(nil)
 	_ = cHash.WriteAny(R, ecKey.PublicKeyRaw(), r.cfg.Message())
 	c := sample.Scalar(cHash.Digest(), r.Group())
 
 	// 4. Compute zᵢ = dᵢ + (eᵢ ρᵢ) + λᵢ sᵢ c
-	ek, err := r.sign_e.GetKey(opts)
+	sopts := keyopts.Options{}
+	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	ek, err := r.sign_e.GetKey(sopts)
 	if err != nil {
 		return r, err
 	}
-	dk, err := r.sign_d.GetKey(opts)
+	dk, err := r.sign_d.GetKey(sopts)
 	if err != nil {
 		return r, err
 	}
@@ -167,12 +171,12 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	edk := r.sign_e.NewKey(ed, ed.ActOnBase(), r.Group())
 	ed = dk.AddKeys(edk)
 
-	signKey, err := r.ec_sign_km.GetKey(opts)
+	signKey, err := r.ec_sign_km.GetKey(sopts)
 	if err != nil {
 		return r, err
 	}
 	z := signKey.Commit(c, ed)
-	if err := r.sigmgr.SetZ(z, opts); err != nil {
+	if err := r.sigmgr.SetZ(z, sopts); err != nil {
 		return r, nil
 	}
 
@@ -181,7 +185,21 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	return nil, nil
+	return &round3{
+		cfg:        r.cfg,
+		statemgr:   r.statemgr,
+		sigmgr:     r.sigmgr,
+		msgmgr:     r.msgmgr,
+		bcstmgr:    r.bcstmgr,
+		ecdsa_km:   r.ecdsa_km,
+		ec_vss_km:  r.ec_vss_km,
+		ec_sign_km: r.ec_sign_km,
+		vss_mgr:    r.vss_mgr,
+		sign_d:     r.sign_d,
+		sign_e:     r.sign_e,
+		hash_mgr:   r.hash_mgr,
+		Helper:     r.Helper,
+	}, nil
 }
 
 func (r *round2) CanFinalize() bool {
