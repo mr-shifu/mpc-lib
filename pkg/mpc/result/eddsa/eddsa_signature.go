@@ -1,13 +1,16 @@
 package result
 
-import "github.com/mr-shifu/mpc-lib/core/math/curve"
+import (
+	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+)
 
 type EddsaSignature struct {
 	r curve.Point
 	z curve.Scalar
 }
 
-func NewEddsaSignature(r curve.Point, z curve.Scalar) *EddsaSignature {
+func NewEddsaSignature(r curve.Point, z curve.Scalar) result.EddsaSignature {
 	return &EddsaSignature{r: r, z: z}
 }
 

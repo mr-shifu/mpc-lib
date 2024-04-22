@@ -5,7 +5,8 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 )
 
 type InMemoryEddsaSignature struct {
@@ -14,24 +15,29 @@ type InMemoryEddsaSignature struct {
 	kr         keyopts.KeyOpts
 }
 
-func NewInMemoryEddsaSignature() *InMemoryEddsaSignature {
+func NewInMemoryEddsaSignature(kr keyopts.KeyOpts) *InMemoryEddsaSignature {
 	return &InMemoryEddsaSignature{
 		signatures: make(map[string]*EddsaSignature),
+		kr:         kr,
 	}
 }
 
-func (s *InMemoryEddsaSignature) Import(sig *EddsaSignature, opts keyopts.Options) error {
+func (s *InMemoryEddsaSignature) Import(sig result.EddsaSignature, opts keyopts.Options) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	id := uuid.New().String()
 
-	s.signatures[id] = sig
+	signature, ok := sig.(*EddsaSignature)
+	if !ok {
+		return errors.New("invalid signature type")
+	}
+	s.signatures[id] = signature
 
 	return s.kr.Import(id, opts)
 }
 
-func (s *InMemoryEddsaSignature) Get(opts keyopts.Options) (*EddsaSignature, error) {
+func (s *InMemoryEddsaSignature) Get(opts keyopts.Options) (result.EddsaSignature, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
