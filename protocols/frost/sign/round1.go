@@ -5,14 +5,14 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 	"github.com/zeebo/blake3"
 )
 
@@ -56,7 +56,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	kopts := keyopts.Options{}
 	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
 
-	k, err := r.ecdsa_km.GetKey(opts)
+	k, err := r.ecdsa_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
