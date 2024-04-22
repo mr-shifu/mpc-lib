@@ -4,17 +4,19 @@ import (
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/eddsa"
+
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 )
 
 type broadcast3 struct {
@@ -59,7 +61,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	sopts.Set("id", r.ID, "partyid", string(msg.From))
 
 	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID)
+	rootOpts.Set("id", r.ID, "partyid", "ROOT")
 
 	// 1. Reproduce c random number as commitment to the nonce
 	rootSig, err := r.sigmgr.Get(rootOpts)
@@ -70,16 +72,20 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	cHash := hash.New(nil)
+	cHash := sw_hash.New(nil)
 	_ = cHash.WriteAny(rootSig.R(), ecKey.PublicKeyRaw(), r.cfg.Message())
 	c := sample.Scalar(cHash.Digest(), r.Group())
 
 	// 2. Verify the z_i response
+	signKey, err := r.ec_sign_km.GetKey(sopts)
+	if err != nil {
+		return err
+	}
 	fromSig, err := r.sigmgr.Get(sopts)
 	if err != nil {
 		return err
 	}
-	expected := c.Act(ecKey.PublicKeyRaw()).Add(fromSig.R())
+	expected := c.Act(signKey.PublicKeyRaw()).Add(fromSig.R())
 	actual := body.Z.ActOnBase()
 	if !actual.Equal(expected) {
 		return fmt.Errorf("failed to verify response from %v", from)
