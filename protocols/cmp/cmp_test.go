@@ -51,9 +51,9 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl
 	c := r.(*Config)
 
 	signID := uuid.New().String()
-	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids)
-	mpc.Sign(signcfg, msg, pl)
-	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, msg, pl), nil)
+	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids, msg)
+	mpc.Sign(signcfg, pl)
+	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -163,8 +163,8 @@ func TestStart(t *testing.T) {
 			assert.Error(t, err)
 
 			signID := uuid.New().String()
-			signcfg := config.NewSignConfig(signID, keyID, group, tt.threshold, selfID, tt.partyIDs)
-			_, err = mpc.Sign(signcfg, m, pl)(nil)
+			signcfg := config.NewSignConfig(signID, keyID, group, tt.threshold, selfID, tt.partyIDs, m)
+			_, err = mpc.Sign(signcfg, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 		})

@@ -202,7 +202,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// km = Hash(m)⋅kᵢ
 	// σᵢ = rχᵢ + kᵢm
-	m := curve.FromHash(r.Group(), r.Message)
+	m := curve.FromHash(r.Group(), r.cfg.Message())
 	selfKShare, err := r.signK.GetKey(sopts)
 	if err != nil {
 		return nil, err
