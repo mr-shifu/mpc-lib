@@ -55,7 +55,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(msg.From))
+	kopts.Set("id", r.cfg.KeyID(), "partyid", "ROOT")
 
 	sopts := keyopts.Options{}
 	sopts.Set("id", r.ID, "partyid", string(msg.From))
@@ -125,7 +125,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 2. Verify the signature
-	ecKey, err := r.ecdsa_km.GetKey(keyopts.Options{"id": r.cfg.KeyID(), "partyid": string(r.SelfID())})
+	ecKey, err := r.ecdsa_km.GetKey(keyopts.Options{"id": r.cfg.KeyID(), "partyid": "ROOT"})
 	if err != nil {
 		return r.AbortRound(err), nil
 	}
@@ -135,9 +135,10 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	sig := eddsa.Signature{
 		R: s.R(),
-		Z: z,
+		Z: s.Z(),
 	}
-	if eddsa.Verify(ecKey.PublicKeyRaw(), sig, r.cfg.Message()); err != nil {
+	verified := eddsa.Verify(ecKey.PublicKeyRaw(), sig, r.cfg.Message()) 
+	if !verified {
 		return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
 	}
 

@@ -147,7 +147,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// 3. Generate a random number as commitment to the nonce
 	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts.Set("id", r.cfg.KeyID(), "partyid", "ROOT")
 	ecKey, err := r.ecdsa_km.GetKey(kopts)
 	if err != nil {
 		return r, err
