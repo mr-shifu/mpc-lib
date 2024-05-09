@@ -5,7 +5,6 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
@@ -17,9 +16,6 @@ var _ round.Round = (*round2)(nil)
 
 type round2 struct {
 	*round1
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type broadcast2 struct {
@@ -70,7 +66,11 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[from] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.cfg.ID(), int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -131,7 +131,7 @@ func (round2) StoreMessage(round.Message) error { return nil }
 // - compute Hash(ssid, K₁, G₁, …, Kₙ, Gₙ).
 func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -254,7 +254,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if m.err != nil {
 			return r, m.err
 		}
-		
+
 		soptsj := keyopts.Options{}
 		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
 
@@ -268,16 +268,27 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round3{
-		round2:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
-		MessageForwarded:   make(map[party.ID]bool),
+		round2: r,
 	}, nil
 }
 
 func (r *round2) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.cfg.ID(), int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // RoundNumber implements round.Content.

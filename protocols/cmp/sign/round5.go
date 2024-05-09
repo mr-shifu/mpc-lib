@@ -5,7 +5,6 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/ecdsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
@@ -14,9 +13,6 @@ var _ round.Round = (*round5)(nil)
 
 type round5 struct {
 	*round4
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type broadcast5 struct {
@@ -46,7 +42,11 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[msg.From] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.cfg.ID(), int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -63,7 +63,7 @@ func (round5) StoreMessage(round.Message) error { return nil }
 // - verify signature.
 func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -97,7 +97,11 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
+		// update state to Aborted in StateManager
+		if err := r.statemgr.SetAborted(r.ID); err != nil {
+			return r, err
+		}
 		return r.AbortRound(errors.New("failed to validate signature")), nil
 	}
 
@@ -105,8 +109,21 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
+		// update state to Aborted in StateManager
+		if err := r.statemgr.SetAborted(r.ID); err != nil {
+			return r, err
+		}
 		return r.AbortRound(errors.New("failed to validate signature")), nil
+	}
+
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+	// update state to Completed in StateManager
+	if err := r.statemgr.SetCompleted(r.ID); err != nil {
+		return r, err
 	}
 
 	return r.ResultRound(signature), nil
@@ -114,7 +131,15 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 
 func (r *round5) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.cfg.ID(), int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // MessageContent implements round.Round.

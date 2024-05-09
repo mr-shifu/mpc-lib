@@ -12,28 +12,36 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
-	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
+func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	keyID := uuid.New().String()
 	ksf := &keystore.InmemoryKeystoreFactory{}
 	krf := &keyopts.InMemoryKeyOptsFactory{}
 	vf := &vault.InmemoryVaultFactory{}
+	keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
+	keystatestore := state.NewInMemoryStateStore()
+	signstatestore := state.NewInMemoryStateStore()
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
 
-	mpc := NewMPC(ksf, krf, vf, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, msgstore, bcststore, pl)
 
+	keycfg := config.NewKeyConfig(keyID, curve.Secp256k1{}, threshold, id, ids)
 	h, err := protocol.NewMultiHandler(
-		mpc.Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl),
-		// Keygen(keyID, curve.Secp256k1{}, id, ids, threshold, pl), 
+		mpc.Keygen(keycfg, pl),
 		nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
@@ -43,16 +51,9 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	c := r.(*Config)
 
 	signID := uuid.New().String()
-	info := round.Info{
-		ProtocolID: 	 "cmp/sign",
-		FinalRoundNumber: 5,
-		SelfID:           id,
-		PartyIDs:         ids,
-		Threshold:        threshold,
-		Group:            curve.Secp256k1{},
-	}
-	mpc.Sign(signID, keyID, info, ids, message, pl)
-	h, err = protocol.NewMultiHandler(mpc.Sign(signID, keyID, info, ids, message, pl), nil)
+	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids, msg)
+	mpc.Sign(signcfg, pl)
+	h, err = protocol.NewMultiHandler(mpc.Sign(signcfg, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -60,7 +61,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.NoError(t, err)
 	require.IsType(t, &ecdsa.Signature{}, signResult)
 	signature := signResult.(*ecdsa.Signature)
-	assert.True(t, signature.Verify(c.PublicPoint(), message))
+	assert.True(t, signature.Verify(c.PublicPoint(), msg))
 }
 
 func TestCMP(t *testing.T) {
@@ -90,20 +91,17 @@ func TestStart(t *testing.T) {
 	defer pl.TearDown()
 	configs, partyIDs := test.GenerateConfig(group, N, T, rand.Reader, pl)
 
-	info := round.Info{
-		ProtocolID:       "cmp/keygen-threshold",
-		FinalRoundNumber: 5,
-		SelfID:           partyIDs[0],
-		PartyIDs:         partyIDs,
-		Threshold:        T,
-		Group:            group,
-	}
-
 	ksf := &keystore.InmemoryKeystoreFactory{}
 	krf := &keyopts.InMemoryKeyOptsFactory{}
 	vf := &vault.InmemoryVaultFactory{}
+	keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
+	keystatestore := state.NewInMemoryStateStore()
+	signstatestore := state.NewInMemoryStateStore()
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
 
-	mpc := NewMPC(ksf, krf, vf, pl)
+	mpc := NewMPC(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, msgstore, bcststore, pl)
 
 	m := []byte("HELLO")
 	selfID := partyIDs[0]
@@ -158,13 +156,15 @@ func TestStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			keyID := uuid.New().String()
 			c.Threshold = tt.threshold
+			keycfg := config.NewKeyConfig(keyID, group, tt.threshold, selfID, tt.partyIDs)
 			var err error
-			_, err = mpc.Keygen(keyID, group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
+			_, err = mpc.Keygen(keycfg, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 
 			signID := uuid.New().String()
-			_, err = mpc.Sign(signID, keyID, info, tt.partyIDs, m, pl)(nil)
+			signcfg := config.NewSignConfig(signID, keyID, group, tt.threshold, selfID, tt.partyIDs, m)
+			_, err = mpc.Sign(signcfg, pl)(nil)
 			t.Log(err)
 			assert.Error(t, err)
 		})

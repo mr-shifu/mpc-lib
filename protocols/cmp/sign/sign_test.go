@@ -27,9 +27,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 )
 
 func newMPC() (*keygen.MPCKeygen, *MPCSign) {
@@ -38,8 +39,21 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	ksf := keystore.InmemoryKeystoreFactory{}
 	krf := keyopts.InMemoryKeyOptsFactory{}
 	vf := vault.InmemoryVaultFactory{}
+	keycfgstore := config.NewInMemoryConfigStore()
+	signcfgstore := config.NewInMemoryConfigStore()
 
-	mpc_ks := mpckey.NewInMemoryMPCKeystore()
+	keycfgmgr := config.NewKeyConfigManager(keycfgstore)
+	signcfgmgr := config.NewSignConfigManager(signcfgstore)
+
+	keystatestore := state.NewInMemoryStateStore()
+	signstatestore := state.NewInMemoryStateStore()
+	keystatemgr := state.NewMPCStateManager(keystatestore)
+	signstatemgr := state.NewMPCStateManager(signstatestore)
+
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
+	msgmgr := message.NewMessageManager(msgstore)
+	bcstmgr := message.NewMessageManager(bcststore)
 
 	elgamal_keyopts := krf.NewKeyOpts(nil)
 	elgamal_vault := vf.NewVault(nil)
@@ -94,6 +108,10 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	mpc_keygen := keygen.NewMPCKeygen(
+		keycfgmgr,
+		keystatemgr,
+		msgmgr,
+		bcstmgr,
 		elgamal_km,
 		paillier_km,
 		pedersen_km,
@@ -103,12 +121,10 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		rid_km,
 		chainKey_km,
 		hash_mgr,
-		mpc_ks,
 		commit_mgr,
 		pl,
 	)
 
-	sign_cfg := mpc_config.NewSignConfigManager()
 	signature := mpc_result.NewSignStore()
 
 	sigma_kr := krf.NewKeyOpts(nil)
@@ -157,7 +173,10 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
 
 	mpc_sign := NewMPCSign(
-		sign_cfg,
+		signcfgmgr,
+		signstatemgr,
+		msgmgr,
+		bcstmgr,
 		hash_mgr,
 		paillier_km,
 		pedersen_km,
@@ -185,9 +204,6 @@ func TestSign(t *testing.T) {
 
 	group := curve.Secp256k1{}
 
-	KeygenRounds := round.Number(5)
-	SignRounds := round.Number(5)
-
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
@@ -205,18 +221,11 @@ func TestSign(t *testing.T) {
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/keygen-test",
-			FinalRoundNumber: KeygenRounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		keycfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 
 		mpckg := mpckeygens[partyID]
 
-		r, err := mpckg.Start(keyID, info, pl, nil)(nil)
+		r, err := mpckg.Start(keycfg, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -238,18 +247,11 @@ func TestSign(t *testing.T) {
 
 	signRounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/sign-test",
-			FinalRoundNumber: SignRounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
 
 		mpcsign := mpcsigns[partyID]
 
-		r, err := mpcsign.StartSign(signID, keyID, info, partyIDs, messageHash, pl)(nil)
+		r, err := mpcsign.StartSign(cfg, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		signRounds = append(signRounds, r)

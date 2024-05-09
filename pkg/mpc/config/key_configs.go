@@ -5,60 +5,46 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 )
 
-type SignConfig struct {
-	id        string
+type KeyConfig struct {
 	keyID     string
 	group     curve.Curve
 	threshold int
 	selfID    party.ID
 	partyIDs  party.IDSlice
-	message   []byte
 }
 
-func NewSignConfig(
-	id string,
+func NewKeyConfig(
 	keyID string,
 	group curve.Curve,
 	threshold int,
 	selfID party.ID,
 	partyIDs party.IDSlice,
-	msg []byte,
-) *SignConfig {
-	return &SignConfig{
-		id:        id,
+) *KeyConfig {
+	return &KeyConfig{
 		keyID:     keyID,
 		group:     group,
 		threshold: threshold,
 		selfID:    selfID,
 		partyIDs:  partyIDs,
-		message:   msg,
 	}
 }
 
-func (c *SignConfig) ID() string {
-	return c.id
-}
-
-func (c *SignConfig) KeyID() string {
+func (c *KeyConfig) ID() string {
 	return c.keyID
 }
 
-func (c *SignConfig) Group() curve.Curve {
+func (c *KeyConfig) Group() curve.Curve {
 	return c.group
 }
 
-func (c *SignConfig) Threshold() int {
+func (c *KeyConfig) Threshold() int {
 	return c.threshold
 }
 
-func (c *SignConfig) SelfID() party.ID {
+func (c *KeyConfig) SelfID() party.ID {
 	return c.selfID
 }
 
-func (c *SignConfig) PartyIDs() party.IDSlice {
+func (c *KeyConfig) PartyIDs() party.IDSlice {
 	return c.partyIDs
-}
-
-func (c *SignConfig) Message() []byte {
-	return c.message
 }

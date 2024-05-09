@@ -15,6 +15,7 @@ import (
 	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/params"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	cs_encoding "github.com/mr-shifu/mpc-lib/pkg/common/encoding"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/zeebo/blake3"
 )
@@ -97,7 +98,7 @@ func (hash *Hash) WriteAny(data ...interface{}) error {
 				TheDomain: name.String(),
 				Bytes:     bytes,
 			}
-		case encoding.KeyMarshaler:
+		case cs_encoding.KeyMarshaler:
 			name := reflect.TypeOf(t)
 			bytes, err := t.Bytes()
 			if err != nil {

@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
@@ -12,7 +11,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -21,13 +22,16 @@ type round1 struct {
 	*round.Helper
 
 	cfg       config.SignConfig
+	statemgr  state.MPCStateManager
 	signature result.Signature
+	msgmgr    message.MessageManager
+	bcstmgr   message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec ecdsa.ECDSAKeyManager
+	ec       ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -44,8 +48,6 @@ type round1 struct {
 	chi_mta   mta.MtAManager
 
 	sigma result.SigmaStore
-
-	Message []byte
 }
 
 // VerifyMessage implements round.Round.
@@ -142,9 +144,13 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round2{
-		round1:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round1: r,
 	}, nil
 }
 

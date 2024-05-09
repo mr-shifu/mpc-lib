@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
@@ -16,9 +15,6 @@ type round5 struct {
 	*round4
 
 	UpdatedConfig *config.Config
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
 }
 
 type broadcast5 struct {
@@ -39,7 +35,6 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 
 	fromOpts := keyopts.Options{}
 	fromOpts.Set("id", r.ID, "partyid", string(from))
-
 
 	// TODO implement SchnorrResponse validation
 	// if !body.SchnorrResponse.IsValid() {
@@ -64,8 +59,21 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("failed to validate schnorr proof for received share")
 	}
 
+	// update last round processed in StateManager
+	if err := r.statemanger.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return err
+	}
+	// update state to Completed in StateManager
+	if err := r.statemanger.SetCompleted(r.ID); err != nil {
+		return err
+	}
+
 	// Mark the message as received
-	r.MessageBroadcasted[from] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -79,7 +87,7 @@ func (r *round5) StoreMessage(round.Message) error { return nil }
 // Finalize implements round.Round.
 func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 	return r.ResultRound(r.UpdatedConfig), nil
@@ -87,7 +95,15 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 
 func (r *round5) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // MessageContent implements round.Round.

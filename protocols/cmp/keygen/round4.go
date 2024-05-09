@@ -22,10 +22,6 @@ var _ round.Round = (*round4)(nil)
 
 type round4 struct {
 	*round3
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
-	MessagesForwarded  map[party.ID]bool
 }
 
 type message4 struct {
@@ -72,7 +68,11 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[from] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -177,7 +177,11 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessagesForwarded[from] = true
+	if err := r.msgmgr.Import(
+		r.msgmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -192,7 +196,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 // - create proof of knowledge of secret.
 func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// check if we received all messages
-	if len(r.MessageBroadcasted) != r.N()-1 || len(r.MessagesForwarded) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -340,15 +344,19 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
-	mpckey, err := r.mpc_ks.Get(r.ID)
-	if err != nil {
-		return r, err
-	}
-
 	// mpcVSSShare, err := mpcVSSKey.GetShare(r.SelfID().Scalar(r.Group()))
 	// if err != nil {
 	// 	return r, err
 	// }
+
+	rid, err := r.rid_km.GetKey(rootOpts)
+	if err != nil {
+		return nil, err
+	}
+	chainKey, err := r.chainKey_km.GetKey(rootOpts)
+	if err != nil {
+		return nil, err
+	}
 
 	// TODO elgamal and paillier secret key is missed here
 	UpdatedConfig := &config.Config{
@@ -358,8 +366,8 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		ECDSA:     vssSharePrivateKey,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
-		RID:      mpckey.RID,
-		ChainKey: mpckey.ChainKey,
+		RID:      rid.Raw(),
+		ChainKey: chainKey.Raw(),
 		Public:   PublicData,
 	}
 
@@ -385,16 +393,33 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	r.UpdateHashState(UpdatedConfig)
+
+	// update last round processed in StateManager
+	if err := r.statemanger.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round5{
-		round4:             r,
-		UpdatedConfig:      UpdatedConfig,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round4:        r,
+		UpdatedConfig: UpdatedConfig,
 	}, nil
 }
 
 func (r *round4) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1 && len(r.MessagesForwarded) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	bcstsRcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	msgssRcvd, err := r.msgmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return bcstsRcvd && msgssRcvd
 }
 
 // RoundNumber implements round.Content.

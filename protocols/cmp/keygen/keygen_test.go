@@ -2,7 +2,6 @@ package keygen
 
 import (
 	"fmt"
-	mrand "math/rand"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -11,21 +10,23 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
-	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/mpckey"
-	"github.com/mr-shifu/mpc-lib/pkg/vault"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
+	"github.com/mr-shifu/mpc-lib/pkg/vault"
+	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var group = curve.Secp256k1{}
@@ -71,7 +72,16 @@ func checkOutput(t *testing.T, rounds []round.Session) {
 func newMPCKeygen() *MPCKeygen {
 	pl := pool.NewPool(0)
 
-	mpc_ks := mpckey.NewInMemoryMPCKeystore()
+	keycfgstore := mpc_config.NewInMemoryConfigStore()
+	keycfgmr := mpc_config.NewKeyConfigManager(keycfgstore)
+
+	keystatestore := state.NewInMemoryStateStore()
+	keystatemgr := state.NewMPCStateManager(keystatestore)
+
+	msgstore := message.NewInMemoryMessageStore()
+	bcststore := message.NewInMemoryMessageStore()
+	msgmgr := message.NewMessageManager(msgstore)
+	bcstmgr := message.NewMessageManager(bcststore)
 
 	elgamal_keyopts := keyopts.NewInMemoryKeyOpts()
 	elgamal_vault := vault.NewInMemoryVault()
@@ -126,6 +136,10 @@ func newMPCKeygen() *MPCKeygen {
 	commit_mgr := commitment.NewCommitmentManager(commit_ks)
 
 	return NewMPCKeygen(
+		keycfgmr,
+		keystatemgr,
+		msgmgr,
+		bcstmgr,
 		elgamal_km,
 		paillier_km,
 		pedersen_km,
@@ -135,7 +149,6 @@ func newMPCKeygen() *MPCKeygen {
 		rid_km,
 		chainKey_km,
 		hash_mgr,
-		mpc_ks,
 		commit_mgr,
 		pl,
 	)
@@ -147,21 +160,14 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 2
+	N := 3
 	partyIDs := test.PartyIDs(N)
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		info := round.Info{
-			ProtocolID:       "cmp/keygen-test",
-			FinalRoundNumber: Rounds,
-			SelfID:           partyID,
-			PartyIDs:         partyIDs,
-			Threshold:        N - 1,
-			Group:            group,
-		}
+		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(keyID, info, pl, nil)(nil)
+		r, err := mpckg.Start(cfg, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -175,40 +181,4 @@ func TestKeygen(t *testing.T) {
 		}
 	}
 	// checkOutput(t, rounds)
-}
-
-func TestRefresh(t *testing.T) {
-	keyID := uuid.NewString()
-
-	pl := pool.NewPool(0)
-	defer pl.TearDown()
-
-	N := 4
-	T := N - 1
-	configs, _ := test.GenerateConfig(group, N, T, mrand.New(mrand.NewSource(1)), pl)
-
-	rounds := make([]round.Session, 0, N)
-	for _, c := range configs {
-		info := round.Info{
-			ProtocolID:       "cmp/refresh-test",
-			FinalRoundNumber: Rounds,
-			SelfID:           c.ID,
-			PartyIDs:         c.PartyIDs(),
-			Threshold:        N - 1,
-			Group:            group,
-		}
-		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(keyID, info, pl, c)(nil)
-		require.NoError(t, err, "round creation should not result in an error")
-		rounds = append(rounds, r)
-	}
-
-	for {
-		err, done := test.Rounds(rounds, nil)
-		require.NoError(t, err, "failed to process round")
-		if done {
-			break
-		}
-	}
-	checkOutput(t, rounds)
 }

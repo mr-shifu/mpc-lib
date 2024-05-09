@@ -6,7 +6,6 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -18,10 +17,6 @@ var _ round.Round = (*round3)(nil)
 
 type round3 struct {
 	*round2
-
-	// Number of Broacasted Messages received
-	MessageBroadcasted map[party.ID]bool
-	MessageForwarded   map[party.ID]bool
 }
 
 type message3 struct {
@@ -60,7 +55,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Mark the message as received
-	r.MessageBroadcasted[msg.From] = true
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.cfg.ID(), int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -190,8 +189,11 @@ func (r *round3) StoreMessage(msg round.Message) error {
 		return nil
 	}
 
-	// Mark the message as received
-	r.MessageForwarded[from] = true
+	if err := r.msgmgr.Import(
+		r.msgmgr.NewMessage(r.cfg.ID(), int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -204,7 +206,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 // - χᵢ = xᵢ kᵢ + ∑ⱼ χᵢⱼ.
 func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Verify if all parties commitments are received
-	if len(r.MessageBroadcasted) != r.N()-1 || len(r.MessageForwarded) != r.N()-1 {
+	if !r.CanFinalize() {
 		return nil, round.ErrNotEnoughMessages
 	}
 
@@ -344,15 +346,31 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
+	// update last round processed in StateManager
+	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+		return r, err
+	}
+
 	return &round4{
-		round3:             r,
-		MessageBroadcasted: make(map[party.ID]bool),
+		round3: r,
 	}, nil
 }
 
 func (r *round3) CanFinalize() bool {
 	// Verify if all parties commitments are received
-	return len(r.MessageBroadcasted) == r.N()-1 && len(r.MessageForwarded) == r.N()-1
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	bcstsRcvd, err := r.bcstmgr.HasAll(r.cfg.ID(), int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	msgssRcvd, err := r.msgmgr.HasAll(r.cfg.ID(), int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return bcstsRcvd && msgssRcvd
 }
 
 // RoundNumber implements round.Content.
