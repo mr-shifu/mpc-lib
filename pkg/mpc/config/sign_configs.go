@@ -12,6 +12,7 @@ type SignConfig struct {
 	threshold int
 	selfID    party.ID
 	partyIDs  party.IDSlice
+	message   []byte
 }
 
 func NewSignConfig(
@@ -21,6 +22,7 @@ func NewSignConfig(
 	threshold int,
 	selfID party.ID,
 	partyIDs party.IDSlice,
+	msg []byte,
 ) *SignConfig {
 	return &SignConfig{
 		id:        id,
@@ -29,6 +31,7 @@ func NewSignConfig(
 		threshold: threshold,
 		selfID:    selfID,
 		partyIDs:  partyIDs,
+		message:   msg,
 	}
 }
 
@@ -54,4 +57,8 @@ func (c *SignConfig) SelfID() party.ID {
 
 func (c *SignConfig) PartyIDs() party.IDSlice {
 	return c.partyIDs
+}
+
+func (c *SignConfig) Message() []byte {
+	return c.message
 }

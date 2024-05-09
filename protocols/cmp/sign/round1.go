@@ -48,8 +48,6 @@ type round1 struct {
 	chi_mta   mta.MtAManager
 
 	sigma result.SigmaStore
-
-	Message []byte
 }
 
 // VerifyMessage implements round.Round.

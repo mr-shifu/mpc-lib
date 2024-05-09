@@ -304,7 +304,7 @@ func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartF
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (mpc *MPC) Sign(cfg comm_config.SignConfig, messageHash []byte, pl *pool.Pool) protocol.StartFunc {
+func (mpc *MPC) Sign(cfg comm_config.SignConfig, pl *pool.Pool) protocol.StartFunc {
 	mpcsign := mpc.NewMPCSignManager()
-	return mpcsign.StartSign(cfg, messageHash, pl)
+	return mpcsign.StartSign(cfg, pl)
 }

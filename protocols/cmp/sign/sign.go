@@ -112,7 +112,7 @@ func NewMPCSign(
 	}
 }
 
-func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool) protocol.StartFunc {
+func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			ProtocolID:       "cmp/sign",
@@ -130,11 +130,11 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// this could be used to indicate a pre-signature later on
-		if len(message) == 0 {
+		if len(cfg.Message()) == 0 {
 			return nil, errors.New("sign.Create: message is nil")
 		}
 
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(message))
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(cfg.Message()))
 		if err != nil {
 			return nil, fmt.Errorf("sign.Create: %w", err)
 		}
@@ -208,7 +208,6 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, message []byte, pl *pool.Pool
 			chi_mta:     m.chi_mta,
 			sigma:       m.sigma,
 			signature:   m.signature,
-			Message:     message,
 		}, nil
 	}
 }

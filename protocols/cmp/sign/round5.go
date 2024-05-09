@@ -97,7 +97,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
 		// update state to Aborted in StateManager
 		if err := r.statemgr.SetAborted(r.ID); err != nil {
 			return r, err
@@ -109,7 +109,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !signature.Verify(ecKey.PublicKeyRaw(), r.Message) {
+	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
 		// update state to Aborted in StateManager
 		if err := r.statemgr.SetAborted(r.ID); err != nil {
 			return r, err

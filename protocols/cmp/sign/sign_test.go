@@ -247,11 +247,11 @@ func TestSign(t *testing.T) {
 
 	signRounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs)
+		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
 
 		mpcsign := mpcsigns[partyID]
 
-		r, err := mpcsign.StartSign(cfg, messageHash, pl)(nil)
+		r, err := mpcsign.StartSign(cfg, pl)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		signRounds = append(signRounds, r)
