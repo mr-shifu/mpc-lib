@@ -2,7 +2,6 @@ package sign
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
@@ -18,11 +17,12 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 const (
 	// Frost Sign with Threshold.
-	protocolID = "frost/sign-threshold"
+	SIGN_CONFIG_PROTOCOL_ID = "frost/sign-threshold"
 	// This protocol has 3 concrete rounds.
 	protocolRounds round.Number = 3
 )
@@ -40,6 +40,7 @@ type FROSTSign struct {
 	sign_d     ecdsa.ECDSAKeyManager
 	sign_e     ecdsa.ECDSAKeyManager
 	hash_mgr   hash.HashManager
+	pl         *pool.Pool
 }
 
 func NewFROSTSign(
@@ -54,7 +55,8 @@ func NewFROSTSign(
 	vss_mgr vss.VssKeyManager,
 	sign_d ecdsa.ECDSAKeyManager,
 	sign_e ecdsa.ECDSAKeyManager,
-	hash_mgr hash.HashManager) *FROSTSign {
+	hash_mgr hash.HashManager,
+	pl *pool.Pool) *FROSTSign {
 	return &FROSTSign{
 		signcfgmgr: signcfgmgr,
 		sigmgr:     sigmgr,
@@ -68,13 +70,14 @@ func NewFROSTSign(
 		sign_d:     sign_d,
 		sign_e:     sign_e,
 		hash_mgr:   hash_mgr,
+		pl:         pl,
 	}
 }
 
-func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFunc {
+func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
-			ProtocolID:       protocolID,
+			ProtocolID:       SIGN_CONFIG_PROTOCOL_ID,
 			FinalRoundNumber: protocolRounds,
 			SelfID:           cfg.SelfID(),
 			PartyIDs:         cfg.PartyIDs(),
@@ -93,7 +96,7 @@ func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFu
 		}
 
 		// create a new helper
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(cfg.Message()))
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, f.pl, h, types.SigningMessage(cfg.Message()))
 		if err != nil {
 			return nil, fmt.Errorf("sign.StartSign: %w", err)
 		}
@@ -144,4 +147,114 @@ func (f *FROSTSign) Start(cfg config.SignConfig, pl *pool.Pool) protocol.StartFu
 			hash_mgr:   f.hash_mgr,
 		}, nil
 	}
+}
+
+func (f *FROSTSign) GetRound(keyID string) (round.Session, error) {
+	cfg, err := f.signcfgmgr.GetConfig(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get config")
+	}
+
+	info := round.Info{
+		ProtocolID:       SIGN_CONFIG_PROTOCOL_ID,
+		SelfID:           cfg.SelfID(),
+		PartyIDs:         cfg.PartyIDs(),
+		Threshold:        cfg.Threshold(),
+		Group:            cfg.Group(),
+		FinalRoundNumber: protocolRounds,
+	}
+	// instantiate a new hasher for new sign session
+	opts := keyopts.Options{}
+	opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	h := f.hash_mgr.NewHasher(cfg.ID(), opts)
+
+	// generate new helper for new sign session
+	helper, err := round.NewSession(cfg.ID(), info, nil, f.pl, h)
+	if err != nil {
+		return nil, fmt.Errorf("frost_sign: %w", err)
+	}
+
+	state, err := f.statemgr.Get(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get state")
+	}
+	rn := state.LastRound()
+	switch rn {
+	case 0:
+		return &round1{
+			Helper:     helper,
+			cfg:        cfg,
+			statemgr:   f.statemgr,
+			sigmgr:     f.sigmgr,
+			msgmgr:     f.msgmgr,
+			bcstmgr:    f.bcstmgr,
+			ecdsa_km:   f.ecdsa_km,
+			ec_vss_km:  f.ec_vss_km,
+			ec_sign_km: f.ec_sign_km,
+			vss_mgr:    f.vss_mgr,
+			sign_d:     f.sign_d,
+			sign_e:     f.sign_e,
+			hash_mgr:   f.hash_mgr,
+		}, nil
+	case 1:
+		return &round2{
+			Helper:     helper,
+			cfg:        cfg,
+			statemgr:   f.statemgr,
+			sigmgr:     f.sigmgr,
+			msgmgr:     f.msgmgr,
+			bcstmgr:    f.bcstmgr,
+			ecdsa_km:   f.ecdsa_km,
+			ec_vss_km:  f.ec_vss_km,
+			ec_sign_km: f.ec_sign_km,
+			vss_mgr:    f.vss_mgr,
+			sign_d:     f.sign_d,
+			sign_e:     f.sign_e,
+			hash_mgr:   f.hash_mgr,
+		}, nil
+	case 2:
+		return &round3{
+			Helper:     helper,
+			cfg:        cfg,
+			statemgr:   f.statemgr,
+			sigmgr:     f.sigmgr,
+			msgmgr:     f.msgmgr,
+			bcstmgr:    f.bcstmgr,
+			ecdsa_km:   f.ecdsa_km,
+			ec_vss_km:  f.ec_vss_km,
+			ec_sign_km: f.ec_sign_km,
+			vss_mgr:    f.vss_mgr,
+			sign_d:     f.sign_d,
+			sign_e:     f.sign_e,
+			hash_mgr:   f.hash_mgr,
+		}, nil
+	default:
+		return nil, errors.New("frost_sign: invalid round number")
+	}
+}
+
+func (f *FROSTSign) StoreMessage(keyID string, msg round.Message) error {
+	r, err := f.GetRound(keyID)
+	if err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+
+	if err := r.VerifyMessage(msg); err != nil {
+		return errors.WithMessage(err, "frost_sign: invalid message")
+	}
+
+	if err := r.StoreMessage(msg); err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to store message")
+	}
+
+	return nil
+}
+
+func (f *FROSTSign) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
+	r, err := f.GetRound(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+
+	return r.Finalize(out)
 }

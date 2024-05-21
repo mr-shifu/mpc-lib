@@ -2,8 +2,10 @@ package sign
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
@@ -23,8 +25,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/frost/keygen"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
+	"golang.org/x/sync/errgroup"
 )
 
 func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
@@ -121,6 +125,7 @@ func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
 		sign_d_km,
 		sign_e_km,
 		hash_mgr,
+		pl,
 	)
 
 	return keygenmgr, signmanager
@@ -152,7 +157,7 @@ func TestSign(t *testing.T) {
 
 		mpckg := mpckeygens[partyID]
 
-		r, err := mpckg.Start(keycfg, pl)(nil)
+		r, err := mpckg.Start(keycfg)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -178,7 +183,7 @@ func TestSign(t *testing.T) {
 
 		mpcsign := mpcsigns[partyID]
 
-		r, err := mpcsign.Start(cfg, pl)(nil)
+		r, err := mpcsign.Start(cfg)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		signRounds = append(signRounds, r)
@@ -226,4 +231,136 @@ func TestSign(t *testing.T) {
 	// 		break
 	// 	}
 	// }
+}
+
+func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
+	var (
+		err       error
+		roundType reflect.Type
+		errGroup  errgroup.Group
+		N         = len(kgs)
+		out       = make(chan *round.Message, N*(N+1))
+	)
+
+	rounds := make([]round.Session, N)
+	for id := range kgs {
+		idx := id
+		kg := kgs[idx]
+		r, err := kg.GetRound(keyID)
+		if err != nil {
+			return err, false
+		}
+		rounds[idx] = r
+	}
+	if _, err = checkAllRoundsSame(rounds); err != nil {
+		return err, false
+	}
+
+	// get the second set of messages
+	for id := range kgs {
+		idx := id
+		kg := kgs[idx]
+		errGroup.Go(func() error {
+			// var rNew round.Session
+			rNew, err := kg.Finalize(out, keyID)
+
+			if err != nil {
+				return err
+			}
+
+			if rNew != nil {
+				rounds[idx] = rNew
+			}
+			return nil
+		})
+	}
+	if err = errGroup.Wait(); err != nil {
+		return err, false
+	}
+	close(out)
+
+	// Check that all rounds are the same type
+	if roundType, err = checkAllRoundsSame(rounds); err != nil {
+		return err, false
+	}
+	if roundType.String() == reflect.TypeOf(&round.Output{}).String() {
+		return nil, true
+	}
+	if roundType.String() == reflect.TypeOf(&round.Abort{}).String() {
+		return nil, true
+	}
+
+	for msg := range out {
+		fmt.Printf("Party msg: %v\n", msg)
+		msgBytes, err := cbor.Marshal(msg.Content)
+		if err != nil {
+			return err, false
+		}
+		for _, kg := range kgs {
+			kg := kg
+			r, err := kg.GetRound(keyID)
+			if err != nil {
+				return err, false
+			}
+			m := *msg
+			if msg.From == r.SelfID() || msg.Content.RoundNumber() != r.Number() {
+				continue
+			}
+			errGroup.Go(func() error {
+				if m.Broadcast {
+					b, ok := r.(round.BroadcastRound)
+					if !ok {
+						return errors.New("broadcast message but not broadcast round")
+					}
+					m.Content = b.BroadcastContent()
+					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
+						return err
+					}
+
+					if err = b.StoreBroadcastMessage(m); err != nil {
+						return err
+					}
+				} else {
+					m.Content = r.MessageContent()
+					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
+						return err
+					}
+
+					if m.To == "" || m.To == r.SelfID() {
+						if err = r.VerifyMessage(m); err != nil {
+							return err
+						}
+						if err = r.StoreMessage(m); err != nil {
+							return err
+						}
+					}
+				}
+
+				return nil
+			})
+		}
+		if err = errGroup.Wait(); err != nil {
+			return err, false
+		}
+	}
+
+	return nil, false
+}
+
+func checkAllRoundsSame(rounds []round.Session) (reflect.Type, error) {
+	var t reflect.Type
+	for _, r := range rounds {
+		rReal := getRound(r)
+		t2 := reflect.TypeOf(rReal)
+		if t == nil {
+			t = t2
+		} else if t != t2 {
+			return t, fmt.Errorf("two different rounds: %s %s", t, t2)
+		}
+	}
+	return t, nil
+}
+
+func getRound(outerRound round.Session) round.Session {
+	return outerRound
 }

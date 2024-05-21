@@ -177,6 +177,7 @@ func (frost *FROST) NewMPCSignManager() *sign.FROSTSign {
 		frost.sign_d,
 		frost.sign_e,
 		frost.hash_mgr,
+		frost.pl,
 	)
 }
 
@@ -201,12 +202,12 @@ func EmptyConfig(group curve.Curve) *Config {
 // Returns *cmp.Config if successful.
 func (frost *FROST) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	kg := frost.NewMPCKeygenManager()
-	return kg.Start(cfg, pl)
+	return kg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
 func (frost *FROST) Sign(cfg comm_config.SignConfig, pl *pool.Pool) protocol.StartFunc {
 	sign := frost.NewMPCSignManager()
-	return sign.Start(cfg, pl)
+	return sign.Start(cfg)
 }
