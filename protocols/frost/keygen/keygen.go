@@ -2,8 +2,8 @@ package keygen
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 
+	"github.com/pkg/errors"
 
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
@@ -35,6 +35,7 @@ type FROSTKeygen struct {
 	chainKey_km rid.RIDManager
 	hash_mgr    hash.HashManager
 	commit_mgr  commitment.CommitmentManager
+	pl          *pool.Pool
 }
 
 func NewFROSTKeygen(
@@ -61,10 +62,11 @@ func NewFROSTKeygen(
 		chainKey_km: chainKey,
 		hash_mgr:    hash_mgr,
 		commit_mgr:  commit_mgr,
+		pl:          pl,
 	}
 }
 
-func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
+func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
 		// TODO we should supprt taproot for next version
 		info := round.Info{
@@ -86,7 +88,7 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// generate new helper for new keygen session
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h)
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, m.pl, h)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
@@ -110,7 +112,31 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 	}
 }
 
-func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
+func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
+	cfg, err := m.configmgr.GetConfig(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen: failed to get config")
+	}
+
+	info := round.Info{
+		ProtocolID:       KEYGEN_THRESHOLD_PROTOCOL,
+		SelfID:           cfg.SelfID(),
+		PartyIDs:         cfg.PartyIDs(),
+		Threshold:        cfg.Threshold(),
+		Group:            cfg.Group(),
+		FinalRoundNumber: Rounds,
+	}
+	// instantiate a new hasher for new keygen session
+	opts := keyopts.Options{}
+	opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	h := m.hash_mgr.NewHasher(cfg.ID(), opts)
+
+	// generate new helper for new keygen session
+	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
+	if err != nil {
+		return nil, fmt.Errorf("keygen: %w", err)
+	}
+
 	state, err := m.statemgr.Get(keyID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen: failed to get state")
@@ -119,6 +145,7 @@ func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
 	switch rn {
 	case 0:
 		return &round1{
+			Helper:      helper,
 			configmgr:   m.configmgr,
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
@@ -131,6 +158,7 @@ func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
 		}, nil
 	case 1:
 		return &round2{
+			Helper:      helper,
 			configmgr:   m.configmgr,
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
@@ -143,6 +171,7 @@ func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
 		}, nil
 	case 2:
 		return &round3{
+			Helper:      helper,
 			configmgr:   m.configmgr,
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
@@ -159,7 +188,7 @@ func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
 }
 
 func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
-	r, err := m.getRound(keyID)
+	r, err := m.GetRound(keyID)
 	if err != nil {
 		return errors.WithMessage(err, "keygen: failed to get round")
 	}
@@ -176,7 +205,7 @@ func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 }
 
 func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
-	r, err := m.getRound(keyID)
+	r, err := m.GetRound(keyID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen: failed to get round")
 	}
