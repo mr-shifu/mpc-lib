@@ -76,6 +76,10 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 			FinalRoundNumber: Rounds,
 		}
 
+		if err := m.configmgr.ImportConfig(cfg); err != nil {
+			return nil, errors.WithMessage(err, "keygen: failed to import config")
+		}
+
 		// instantiate a new hasher for new keygen session
 		opts := keyopts.Options{}
 		opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
