@@ -2,6 +2,8 @@ package keygen
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+
 
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
@@ -102,4 +104,78 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.St
 			commit_mgr:  m.commit_mgr,
 		}, nil
 	}
+}
+
+func (m *FROSTKeygen) getRound(keyID string) (round.Round, error) {
+	state, err := m.statemgr.Get(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen: failed to get state")
+	}
+	rn := state.LastRound()
+	switch rn {
+	case 0:
+		return &round1{
+			configmgr:   m.configmgr,
+			statemgr:    m.statemgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			ec_km:       m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
+			vss_mgr:     m.vss_mgr,
+			chainKey_km: m.chainKey_km,
+			commit_mgr:  m.commit_mgr,
+		}, nil
+	case 1:
+		return &round2{
+			configmgr:   m.configmgr,
+			statemgr:    m.statemgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			ec_km:       m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
+			vss_mgr:     m.vss_mgr,
+			chainKey_km: m.chainKey_km,
+			commit_mgr:  m.commit_mgr,
+		}, nil
+	case 2:
+		return &round3{
+			configmgr:   m.configmgr,
+			statemgr:    m.statemgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			ec_km:       m.ecdsa_km,
+			ec_vss_km:   m.ec_vss_km,
+			vss_mgr:     m.vss_mgr,
+			chainKey_km: m.chainKey_km,
+			commit_mgr:  m.commit_mgr,
+		}, nil
+	default:
+		return nil, errors.New("keygen: invalid round number")
+	}
+}
+
+func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
+	r, err := m.getRound(keyID)
+	if err != nil {
+		return errors.WithMessage(err, "keygen: failed to get round")
+	}
+
+	if err := r.VerifyMessage(msg); err != nil {
+		return errors.WithMessage(err, "keygen: invalid message")
+	}
+
+	if err := r.StoreMessage(msg); err != nil {
+		return errors.WithMessage(err, "keygen: failed to store message")
+	}
+
+	return nil
+}
+
+func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
+	r, err := m.getRound(keyID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen: failed to get round")
+	}
+
+	return r.Finalize(out)
 }
