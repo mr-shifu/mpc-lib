@@ -50,6 +50,9 @@ type round1 struct {
 	sigma result.SigmaStore
 }
 
+// StoreBroadcastMessage implements round.Round.
+func (r *round1) StoreBroadcastMessage(round.Message) error { return nil }
+
 // VerifyMessage implements round.Round.
 func (round1) VerifyMessage(round.Message) error { return nil }
 
