@@ -233,14 +233,23 @@ func (f *FROSTSign) GetRound(keyID string) (round.Session, error) {
 	}
 }
 
-func (f *FROSTSign) StoreMessage(keyID string, msg round.Message) error {
+func (f *FROSTSign) StoreBroadcastMessage(keyID string, msg round.Message) error {
 	r, err := f.GetRound(keyID)
 	if err != nil {
 		return errors.WithMessage(err, "frost_sign: failed to get round")
 	}
 
-	if err := r.VerifyMessage(msg); err != nil {
-		return errors.WithMessage(err, "frost_sign: invalid message")
+	if err := r.StoreBroadcastMessage(msg); err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to store message")
+	}
+
+	return nil
+}
+
+func (f *FROSTSign) StoreMessage(keyID string, msg round.Message) error {
+	r, err := f.GetRound(keyID)
+	if err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to get round")
 	}
 
 	if err := r.StoreMessage(msg); err != nil {
