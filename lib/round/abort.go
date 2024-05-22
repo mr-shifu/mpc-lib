@@ -11,6 +11,7 @@ type Abort struct {
 
 func (Abort) VerifyMessage(Message) error                  { return nil }
 func (Abort) StoreMessage(Message) error                   { return nil }
+func (Abort) StoreBroadcastMessage(Message) error          { return nil }
 func (r *Abort) Finalize(chan<- *Message) (Session, error) { return r, nil }
 func (r *Abort) CanFinalize() bool                         { return false }
 func (Abort) MessageContent() Content                      { return nil }

@@ -43,8 +43,9 @@ type round1 struct {
 }
 
 // VerifyMessage implements round.Round.
-func (r *round1) VerifyMessage(round.Message) error { return nil }
-func (r *round1) StoreMessage(round.Message) error  { return nil }
+func (r *round1) VerifyMessage(round.Message) error         { return nil }
+func (r *round1) StoreBroadcastMessage(round.Message) error { return nil }
+func (r *round1) StoreMessage(round.Message) error          { return nil }
 
 const deriveHashKeyContext = "Derive hash Key"
 

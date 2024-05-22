@@ -8,6 +8,7 @@ type Output struct {
 
 func (Output) VerifyMessage(Message) error                  { return nil }
 func (Output) StoreMessage(Message) error                   { return nil }
+func (Output) StoreBroadcastMessage(Message) error          { return nil }
 func (r *Output) Finalize(chan<- *Message) (Session, error) { return r, nil }
 func (r *Output) CanFinalize() bool                         { return false }
 func (Output) MessageContent() Content                      { return nil }
