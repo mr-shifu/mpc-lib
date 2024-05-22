@@ -11,6 +11,8 @@ type Round interface {
 	// content.
 	StoreMessage(msg Message) error
 
+	StoreBroadcastMessage(msg Message) error
+
 	// Finalize is called after all messages from the parties have been processed in the current round.
 	// Messages for the next round are sent out through the out channel.
 	// If a non-critical error occurs (like a failure to sample, hash, or send a message), the current round can be

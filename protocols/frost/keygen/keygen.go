@@ -187,6 +187,23 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 	}
 }
 
+func (m *FROSTKeygen) StoreBroadcastMessage(keyID string, msg round.Message) error {
+	r, err := m.GetRound(keyID)
+	if err != nil {
+		return errors.WithMessage(err, "keygen: failed to get round")
+	}
+
+	if err := r.VerifyMessage(msg); err != nil {
+		return errors.WithMessage(err, "keygen: invalid message")
+	}
+
+	if err := r.StoreBroadcastMessage(msg); err != nil {
+		return errors.WithMessage(err, "keygen: failed to store message")
+	}
+
+	return nil
+}
+
 func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
