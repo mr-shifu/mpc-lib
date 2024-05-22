@@ -149,8 +149,8 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 	}
 }
 
-func (f *FROSTSign) GetRound(keyID string) (round.Session, error) {
-	cfg, err := f.signcfgmgr.GetConfig(keyID)
+func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
+	cfg, err := f.signcfgmgr.GetConfig(signID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "frost_sign: failed to get config")
 	}
@@ -174,7 +174,7 @@ func (f *FROSTSign) GetRound(keyID string) (round.Session, error) {
 		return nil, fmt.Errorf("frost_sign: %w", err)
 	}
 
-	state, err := f.statemgr.Get(keyID)
+	state, err := f.statemgr.Get(signID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "frost_sign: failed to get state")
 	}
@@ -233,8 +233,8 @@ func (f *FROSTSign) GetRound(keyID string) (round.Session, error) {
 	}
 }
 
-func (f *FROSTSign) StoreBroadcastMessage(keyID string, msg round.Message) error {
-	r, err := f.GetRound(keyID)
+func (f *FROSTSign) StoreBroadcastMessage(signID string, msg round.Message) error {
+	r, err := f.GetRound(signID)
 	if err != nil {
 		return errors.WithMessage(err, "frost_sign: failed to get round")
 	}
@@ -246,8 +246,8 @@ func (f *FROSTSign) StoreBroadcastMessage(keyID string, msg round.Message) error
 	return nil
 }
 
-func (f *FROSTSign) StoreMessage(keyID string, msg round.Message) error {
-	r, err := f.GetRound(keyID)
+func (f *FROSTSign) StoreMessage(signID string, msg round.Message) error {
+	r, err := f.GetRound(signID)
 	if err != nil {
 		return errors.WithMessage(err, "frost_sign: failed to get round")
 	}
@@ -259,11 +259,19 @@ func (f *FROSTSign) StoreMessage(keyID string, msg round.Message) error {
 	return nil
 }
 
-func (f *FROSTSign) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
-	r, err := f.GetRound(keyID)
+func (f *FROSTSign) Finalize(out chan<- *round.Message, signID string) (round.Session, error) {
+	r, err := f.GetRound(signID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "frost_sign: failed to get round")
 	}
 
 	return r.Finalize(out)
+}
+
+func (m *FROSTSign) CanFinalize(signID string) (bool, error) {
+	r, err := m.GetRound(signID) 
+	if err != nil {
+		return false, errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+	return r.CanFinalize(), nil
 }
