@@ -229,3 +229,11 @@ func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.S
 
 	return r.Finalize(out)
 }
+
+func (m *FROSTKeygen) CanFinalize(keyID string) (bool, error) {
+	r, err := m.GetRound(keyID) 
+	if err != nil {
+		return false, errors.WithMessage(err, "keygen: failed to get round")
+	}
+	return r.CanFinalize(), nil
+}
