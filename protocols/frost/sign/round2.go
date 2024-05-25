@@ -79,6 +79,13 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
+	// Mark the message as received
+	if err := r.bcstmgr.Import(
+		r.bcstmgr.NewMessage(r.ID, int(r.Number()), string(msg.From), true),
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -208,7 +215,16 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 }
 
 func (r *round2) CanFinalize() bool {
-	return true
+	// Verify if all parties commitments are received
+	var parties []string
+	for _, p := range r.OtherPartyIDs() {
+		parties = append(parties, string(p))
+	}
+	rcvd, err := r.bcstmgr.HasAll(r.ID, int(r.Number()), parties)
+	if err != nil {
+		return false
+	}
+	return rcvd
 }
 
 // MessageContent implements round.Round.
