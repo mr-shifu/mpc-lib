@@ -131,6 +131,10 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 			return nil, err
 		}
 
+		if err := f.statemgr.NewState(cfg.ID()); err != nil {
+			return nil, err
+		}
+
 		return &round1{
 			Helper:     helper,
 			cfg:        cfg,
