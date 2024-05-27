@@ -18,6 +18,9 @@ type Ed25519 interface {
 	// PublicKey returns the corresponding public key part of ECDSA Key.
 	PublicKey() Ed25519
 
+	// MultiplyAdd returns the result of multiplying the key by m and adding c.
+	MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar
+
 	// FromBytes creates a new Ed25519 key from a byte representation.
 	FromBytes(data []byte) error
 }

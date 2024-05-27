@@ -145,6 +145,12 @@ func (k *Ed25519Impl) PublicKey() Ed25519 {
 	}
 }
 
+// MultiplyAdd returns the result of multiplying the key by m and adding c.
+func (k *Ed25519Impl) MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar {
+	ma := new(ed.Scalar)
+	return ma.MultiplyAdd(k.s, m, c)
+}
+
 // FromBytes creates a new Ed25519 key from a byte representation.
 func (k *Ed25519Impl) FromBytes(data []byte) error {
 	if len(data) != PrivateKeySize && len(data) != PublicKeySize {
