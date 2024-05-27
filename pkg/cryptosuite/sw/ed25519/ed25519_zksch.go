@@ -30,6 +30,76 @@ func (p *Proof) Response() *Response {
 	return &Response{p.rsp.Z}
 }
 
+func (p *Proof) Bytes() []byte {
+	pp := &Proof{
+		cmt: &Commitment{nil, p.cmt.C},
+		rsp: &Response{Z: p.rsp.Z},
+	}
+	return pp.bytes()
+}
+
+func (p *Proof) bytes() []byte {
+	if p.cmt.c != nil {
+		pb := make([]byte, 96)
+		copy(pb[:32], p.cmt.c.Bytes())
+		copy(pb[32:64], p.cmt.C.Bytes())
+		copy(pb[64:], p.rsp.Z.Bytes())
+		return pb
+	} else {
+		pb := make([]byte, 64)
+		copy(pb[:32], p.cmt.C.Bytes())
+		copy(pb[32:], p.rsp.Z.Bytes())
+		return pb
+	}
+}
+
+func (p *Proof) fromBytes(data []byte) error {
+	if len(data) != 96 && len(data) != 64 {
+		return errors.New("ed25519_zksch: bad proof length")
+	}
+
+	if len(data) == 96 {
+		c, err := ed.NewScalar().SetBytesWithClamping(data[:32])
+		if err != nil {
+			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
+		}
+
+		C, err := (&ed.Point{}).SetBytes(data[32:64])
+		if err != nil {
+			return errors.WithMessage(err, "ed25519_zksch: internal error: setting point failed")
+		}
+
+		if C.Equal((&ed.Point{}).ScalarBaseMult(c)) != 1 {
+			return errors.New("ed25519_zksch: commitment does not match")
+		}
+
+		Z, err := ed.NewScalar().SetBytesWithClamping(data[64:])
+		if err != nil {
+			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
+		}
+
+		p.cmt = &Commitment{c, C}
+		p.rsp = &Response{Z}
+
+		return nil
+	} else {
+		C, err := (&ed.Point{}).SetBytes(data[32:64])
+		if err != nil {
+			return errors.WithMessage(err, "ed25519_zksch: internal error: setting point failed")
+		}
+
+		Z, err := ed.NewScalar().SetBytesWithClamping(data[64:])
+		if err != nil {
+			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
+		}
+
+		p.cmt = &Commitment{nil, C}
+		p.rsp = &Response{Z}
+
+		return nil
+	}
+}
+
 func (k *Ed25519Impl) NewScnorrProof(h hash.Hash) (*Proof, error) {
 	return newSchnorrProof(h, k.s, k.a)
 }
