@@ -3,7 +3,6 @@ package ed25519
 import (
 	"encoding/hex"
 
-	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
@@ -20,16 +19,6 @@ func NewEd25519KeyManagerImpl(store, schstore keystore.Keystore) *Ed25519KeyMana
 		keystore: store,
 		schstore: schstore,
 	}
-}
-
-func (mgr *Ed25519KeyManagerImpl) NewKey(priv *ed.Scalar, pub *ed.Point) (Ed25519, error) {
-	if pub.Equal((&ed.Point{}).ScalarBaseMult(priv)) != 1 {
-		return nil, errors.New("ed25519: public key does not match private key")
-	}
-	return &Ed25519Impl{
-		s: priv,
-		a: pub,
-	}, nil
 }
 
 // GenerateKey generates a new Ed25519 key pair.

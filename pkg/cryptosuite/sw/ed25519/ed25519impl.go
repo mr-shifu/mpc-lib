@@ -25,6 +25,18 @@ type Ed25519Impl struct {
 	a *ed.Point
 }
 
+func NewKey(priv *ed.Scalar, pub *ed.Point) (Ed25519, error) {
+	if priv != nil {
+		if pub.Equal((&ed.Point{}).ScalarBaseMult(priv)) != 1 {
+			return nil, errors.New("ed25519: public key does not match private key")
+		}
+	}
+	return &Ed25519Impl{
+		s: priv,
+		a: pub,
+	}, nil
+}
+
 // GenerateKey creates a new Ed25519 key pair.
 func GenerateKey() (Ed25519, error) {
 	rand := cryptorand.Reader
@@ -188,8 +200,7 @@ func (k *Ed25519Impl) FromBytes(data []byte) error {
 		if _, err := A.SetBytes(data); err != nil {
 			return errors.WithMessage(err, "ed25519: internal error: setting point failed")
 		}
-
-		k = &Ed25519Impl{nil, A}
+		k.a = A
 
 		return nil
 	}
