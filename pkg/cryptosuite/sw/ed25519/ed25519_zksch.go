@@ -23,6 +23,11 @@ type Proof struct {
 	rsp *Response
 }
 
+const (
+	SchnorrProofSize = 96
+	SchnorrProofSizeNoC = 64
+)
+
 func (p *Proof) Commitment() *Commitment {
 	return &Commitment{nil, p.cmt.C}
 }
@@ -54,11 +59,11 @@ func (p *Proof) bytes() []byte {
 }
 
 func (p *Proof) fromBytes(data []byte) error {
-	if len(data) != 96 && len(data) != 64 {
+	if len(data) != SchnorrProofSize && len(data) != SchnorrProofSizeNoC {
 		return errors.New("ed25519_zksch: bad proof length")
 	}
 
-	if len(data) == 96 {
+	if len(data) == SchnorrProofSize {
 		c, err := ed.NewScalar().SetCanonicalBytes(data[:32])
 		if err != nil {
 			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")

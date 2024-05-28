@@ -3,6 +3,7 @@ package ed25519
 import (
 	"testing"
 
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
@@ -100,4 +101,39 @@ func TestEd25519KeyManagerImpl_ImportPublicKey(t *testing.T) {
 
 	assert.Equal(t, k.SKI(), kk.SKI())
 	assert.False(t, kk.Private())
+}
+
+func TestEd25519KeyManager_SchnorrProof(t *testing.T) {
+	opts1 := keyopts.Options{}
+	opts1.Set("id", "1", "partyid", "a")
+
+	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
+	hahs_vault := vault.NewInMemoryVault()
+	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
+	hash_mgr := hash.NewHashManager(hash_ks)
+	h := hash_mgr.NewHasher("test", opts1)
+
+	mgr1 := getKeyManager()
+	mgr2 := getKeyManager()
+
+	k1, err := mgr1.GenerateKey(opts1)
+	assert.NoError(t, err)
+
+	k2, err := NewKey(nil, k1.(*Ed25519Impl).a)
+	assert.NoError(t, err)
+	_, err = mgr2.ImportKey(k2, opts1)
+	assert.NoError(t, err)
+
+	proof, err := mgr1.NewSchnorrProof(h.Clone(), opts1)
+	assert.NoError(t, err)
+
+	proofBytes := proof.Bytes()
+	assert.Equal(t, SchnorrProofSizeNoC, len(proofBytes))
+
+	err = mgr2.ImportSchnorrProof(proofBytes, opts1)
+	assert.NoError(t, err)
+
+	v, err := mgr2.VerifySchnorrProof(h.Clone(), opts1)
+	assert.NoError(t, err)
+	assert.True(t, v)
 }
