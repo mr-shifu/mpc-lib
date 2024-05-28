@@ -59,7 +59,7 @@ func (p *Proof) fromBytes(data []byte) error {
 	}
 
 	if len(data) == 96 {
-		c, err := ed.NewScalar().SetBytesWithClamping(data[:32])
+		c, err := ed.NewScalar().SetCanonicalBytes(data[:32])
 		if err != nil {
 			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
 		}
@@ -73,7 +73,7 @@ func (p *Proof) fromBytes(data []byte) error {
 			return errors.New("ed25519_zksch: commitment does not match")
 		}
 
-		Z, err := ed.NewScalar().SetBytesWithClamping(data[64:])
+		Z, err := ed.NewScalar().SetCanonicalBytes(data[64:])
 		if err != nil {
 			return errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
 		}
@@ -130,11 +130,11 @@ func newSchnorrCommitment(h hash.Hash) (*Commitment, error) {
 }
 
 func newSchnorrChallenge(h hash.Hash, commitment *ed.Point, public *ed.Point) (*ed.Scalar, error) {
-	if err := h.WriteAny(commitment, public); err != nil {
+	if err := h.WriteAny(commitment.Bytes(), public.Bytes()); err != nil {
 		return nil, errors.WithMessage(err, "ed25519_zksch: failed to write commitment and public key to hash")
 	}
 	r := h.Sum()
-	c, err := ed.NewScalar().SetBytesWithClamping(r[:32])
+	c, err := ed.NewScalar().SetUniformBytes(r)
 	if err != nil {
 		return nil, errors.WithMessage(err, "ed25519_zksch: internal error: setting scalar failed")
 	}
@@ -142,12 +142,12 @@ func newSchnorrChallenge(h hash.Hash, commitment *ed.Point, public *ed.Point) (*
 }
 
 func newSchnorrProof(h hash.Hash, private *ed.Scalar, public *ed.Point) (*Proof, error) {
-	cmt, err := newSchnorrCommitment(h)
+	cmt, err := newSchnorrCommitment(h.Clone())
 	if err != nil {
 		return nil, errors.WithMessage(err, "ed25519_zksch: failed to create commitment")
 	}
 
-	challenge, err := newSchnorrChallenge(h, cmt.C, public)
+	challenge, err := newSchnorrChallenge(h.Clone(), cmt.C, public)
 	if err != nil {
 		return nil, errors.WithMessage(err, "ed25519_zksch: failed to create challenge")
 	}
@@ -162,7 +162,7 @@ func newSchnorrProof(h hash.Hash, private *ed.Scalar, public *ed.Point) (*Proof,
 }
 
 func verifySchnorrProof(h hash.Hash, proof *Proof, public *ed.Point) (bool, error) {
-	challenge, err := newSchnorrChallenge(h, proof.Commitment().C, public)
+	challenge, err := newSchnorrChallenge(h.Clone(), proof.Commitment().C, public)
 	if err != nil {
 		return false, errors.WithMessage(err, "ed25519_zksch: failed to create challenge")
 	}
