@@ -173,7 +173,8 @@ func (k *Ed25519Impl) FromBytes(data []byte) error {
 			return errors.New("ed25519: public key doesn't match private key")
 		}
 
-		k = &Ed25519Impl{s, A}
+		k.s = s
+		k.a = A
 
 		return nil
 	} else {

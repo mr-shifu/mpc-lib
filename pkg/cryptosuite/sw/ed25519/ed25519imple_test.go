@@ -23,6 +23,10 @@ func TestGenerateKey(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, prv.Private(), "Expected to be private key")
 
+	k := new(Ed25519Impl)
+	err = k.FromBytes(kb)
+	assert.NoError(t, err)
+
 	skiFromKey := key.SKI()
 	assert.NotNil(t, skiFromKey)
 
@@ -33,4 +37,8 @@ func TestGenerateKey(t *testing.T) {
 	skiFromPrv := prv.SKI()
 	assert.NotNil(t, skiFromPrv)
 	assert.Equal(t, skiFromKey, skiFromPrv)
+
+	skiFromK := k.SKI()
+	assert.NotNil(t, skiFromK)
+	assert.Equal(t, skiFromKey, skiFromK)
 }
