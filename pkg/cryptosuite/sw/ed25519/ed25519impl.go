@@ -15,8 +15,6 @@ const (
 	PublicKeySize = 32
 	// PrivateKeySize is the size, in bytes, of private keys as used in this package.
 	PrivateKeySize = 64
-	// SignatureSize is the size, in bytes, of signatures generated and verified by this package.
-	SignatureSize = 64
 	// SeedSize is the size, in bytes, of private key seeds. These are the private key representations used by RFC 8032.
 	SeedSize = 32
 )
@@ -59,7 +57,7 @@ func FromPrivateKey(prv any) (Ed25519, error) {
 			return nil, errors.New("ed25519: bad private key length")
 		}
 
-		s, err := ed.NewScalar().SetBytesWithClamping(st[:32])
+		s, err := ed.NewScalar().SetCanonicalBytes(st[:32])
 		if err != nil {
 			return nil, errors.WithMessage(err, "ed25519: internal error: setting scalar failed")
 		}
@@ -83,7 +81,7 @@ func FromPrivateKey(prv any) (Ed25519, error) {
 }
 
 // FromPublisKey creates a new Ed25519 key from a public key either in bytes or Ed25519 Point.
-func FromPublisKey(pub any) (Ed25519, error) {
+func FromPublicKey(pub any) (Ed25519, error) {
 	switch st := pub.(type) {
 	case []byte:
 		if len(st) != PublicKeySize {
@@ -161,7 +159,7 @@ func (k *Ed25519Impl) FromBytes(data []byte) error {
 		sb := data[:32]
 		pb := data[32:]
 
-		s, err := ed.NewScalar().SetBytesWithClamping(sb)
+		s, err := ed.NewScalar().SetCanonicalBytes(sb)
 		if err != nil {
 			return errors.WithMessage(err, "ed25519: internal error: setting scalar failed")
 		}
