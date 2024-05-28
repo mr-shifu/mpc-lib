@@ -19,6 +19,9 @@ type Ed25519 interface {
 	// PublicKey returns the corresponding public key part of ECDSA Key.
 	PublicKey() Ed25519
 
+	// Multiply returns the result of multiplying the key by m.
+	Multiply(m *ed.Scalar) *ed.Scalar
+
 	// MultiplyAdd returns the result of multiplying the key by m and adding c.
 	MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar
 

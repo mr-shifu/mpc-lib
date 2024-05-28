@@ -143,6 +143,12 @@ func (k *Ed25519Impl) PublicKey() Ed25519 {
 	}
 }
 
+// Multiply returns the result of multiplying the key by m.
+func (k *Ed25519Impl) Multiply(m *ed.Scalar) *ed.Scalar {
+	z := new(ed.Scalar)
+	return z.Multiply(k.s, m)
+}
+
 // MultiplyAdd returns the result of multiplying the key by m and adding c.
 func (k *Ed25519Impl) MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar {
 	ma := new(ed.Scalar)

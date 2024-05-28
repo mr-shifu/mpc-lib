@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	ed "filippo.io/edwards25519"
 )
 
 func TestGenerateKey(t *testing.T) {
@@ -41,4 +42,42 @@ func TestGenerateKey(t *testing.T) {
 	skiFromK := k.SKI()
 	assert.NotNil(t, skiFromK)
 	assert.Equal(t, skiFromKey, skiFromK)
+}
+
+func TestMultiply(t *testing.T) {
+	k, err := GenerateKey()
+	assert.NoError(t, err)
+
+	m, err := GenerateKey()
+	assert.NoError(t, err)
+
+	ks := k.(*Ed25519Impl).s
+	ms := m.(*Ed25519Impl).s
+
+	r := k.Multiply(ms)
+
+	z := ed.NewScalar().Multiply(ks, ms)
+
+	assert.Equal(t, r.Equal(z), 1)
+}
+
+func TestMultiplyAdd(t *testing.T) {
+	k, err := GenerateKey()
+	assert.NoError(t, err)
+
+	m, err := GenerateKey()
+	assert.NoError(t, err)
+
+	c, err := GenerateKey()
+	assert.NoError(t, err)
+
+	ks := k.(*Ed25519Impl).s
+	ms := m.(*Ed25519Impl).s
+	cs := c.(*Ed25519Impl).s
+
+	r := k.MultiplyAdd(ms, cs)
+
+	z := ed.NewScalar().MultiplyAdd(ks, ms, cs)
+
+	assert.Equal(t, r.Equal(z), 1)
 }
