@@ -26,15 +26,16 @@ func TestPolynomial_GeneratePolynomial(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test Case 2: Valid constant
-	degree := 2
-	poly, err := GeneratePolynomial(degree, constant)
-	assert.NotNil(t, poly)
-	assert.NoError(t, err)
-	assert.Equal(t, degree+1, len(poly.coefficients))
-	assert.Equal(t, degree+1, len(poly.exponents))
-	assert.Equal(t, constant, poly.coefficients[0])
-	assert.Equal(t, 1, constant_exp.Equal(poly.Constant()))
-	assert.True(t, poly.Private())
+	for degree := 0; degree < 10; degree++ {
+		poly, err := GeneratePolynomial(degree, constant)
+		assert.NotNil(t, poly)
+		assert.NoError(t, err)
+		assert.Equal(t, degree+1, len(poly.coefficients))
+		assert.Equal(t, degree+1, len(poly.exponents))
+		assert.Equal(t, constant, poly.coefficients[0])
+		assert.Equal(t, constant_exp, poly.exponents[0])
+		assert.Equal(t, constant_exp, poly.Constant())
+		assert.Equal(t, degree, poly.Degree())
+		assert.True(t, poly.Private())
+	}
 }
-
-
