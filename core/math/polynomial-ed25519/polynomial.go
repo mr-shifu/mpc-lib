@@ -136,14 +136,14 @@ func (poly *Polynomial) MarshalBinary() ([]byte, error) {
 
 	// 2. Coefficients
 	if poly.Private() {
-		for i := 1; i <= int(poly.Degree()); i++ {
+		for i := 0; i <= int(poly.Degree()); i++ {
 			cb := poly.coefficients[i].Bytes()
 			eb := poly.exponents[i].Bytes()
 			data = append(data, cb...)
 			data = append(data, eb...)
 		}
 	} else {
-		for i := 1; i <= int(poly.Degree()); i++ {
+		for i := 0; i <= int(poly.Degree()); i++ {
 			eb := poly.exponents[i].Bytes()
 			data = append(data, eb...)
 		}
@@ -164,6 +164,7 @@ func (p *Polynomial) UnmarshalBinary(data []byte) error {
 	offset := 1
 	if len(data) == 1+(degree+1)*(CoefficientSize+ExponentSize) {
 		p.coefficients = make([]*ed.Scalar, degree+1)
+		p.exponents = make([]*ed.Point, degree+1)
 		for i := 0; i <= degree; i++ {
 			cb := data[offset : offset+CoefficientSize]
 			eb := data[offset+CoefficientSize : offset+CoefficientSize+ExponentSize]
@@ -183,6 +184,7 @@ func (p *Polynomial) UnmarshalBinary(data []byte) error {
 			offset += CoefficientSize + ExponentSize
 		}
 	} else if len(data) == 1+(degree+1)*ExponentSize {
+		p.exponents = make([]*ed.Point, degree+1)
 		for i := 0; i <= degree; i++ {
 			eb := data[offset : offset+ExponentSize]
 			e, err := (&ed.Point{}).SetBytes(eb)

@@ -92,7 +92,7 @@ func TestPolynomial_Evaluate(t *testing.T) {
 	constant, err := sample.Ed25519Scalar()
 	assert.NoError(t, err)
 
-	degree := 1
+	degree := 5
 	poly1, err := GeneratePolynomial(degree, constant)
 	assert.NoError(t, err)
 
@@ -132,4 +132,50 @@ func TestPolynomial_Evaluate(t *testing.T) {
 	// Test Case 4: Evaluate polynomial with exponents only at random scalar
 	_, err = poly2.Evaluate(x)
 	assert.Error(t, err)
+}
+
+func TestPolynomial_SerDe(t *testing.T) {
+	constant, err := sample.Ed25519Scalar()
+	assert.NoError(t, err)
+
+	degree := 5
+	poly1, err := GeneratePolynomial(degree, constant)
+	assert.NoError(t, err)
+
+	// Test Case 1: Serialize
+	data, err := poly1.MarshalBinary()
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+
+	// Test Case 2: Deserialize
+	poly2 := new(Polynomial)
+	poly2.UnmarshalBinary(data)
+	assert.NoError(t, err)
+	assert.NotNil(t, poly2)
+	assert.Equal(t, poly1.Degree(), poly2.Degree())
+	assert.Equal(t, poly1.Private(), poly2.Private())
+	assert.Equal(t, 1, poly1.Constant().Equal(poly2.Constant()))
+	for i := 0; i <= degree; i++ {
+		assert.Equal(t, 1, poly1.coefficients[i].Equal(poly2.coefficients[i]))
+		assert.Equal(t, 1, poly1.exponents[i].Equal(poly2.exponents[i]))
+	}
+
+	// Test Case 3: Serialize with exponents only
+	exp1, err := NewPolynomial(poly1.Degree(), nil, poly1.Exponents())
+	assert.NoError(t, err)
+
+	data, err = exp1.MarshalBinary()
+	assert.NoError(t, err)
+
+	exp2 := new(Polynomial)
+	err = exp2.UnmarshalBinary(data)
+	assert.NoError(t, err)
+	
+	assert.NotNil(t, exp2)
+	assert.Equal(t, exp1.Degree(), exp2.Degree())
+	assert.Equal(t, exp1.Private(), exp2.Private())
+	assert.Equal(t, 1, exp1.Constant().Equal(exp2.Constant()))
+	for i := 0; i <= degree; i++ {
+		assert.Equal(t, 1, exp1.exponents[i].Equal(exp2.exponents[i]))
+	}
 }
