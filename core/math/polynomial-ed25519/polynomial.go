@@ -22,19 +22,16 @@ type Polynomial struct {
 // where Aᵢ = aᵢ•G, and G is the base point of the curve.
 // with coefficients in ℤₚ, and degree t.
 func NewPolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
+	// throw erro if the constant is nil or Zero.
+	if constant == nil || constant.Equal(ed.NewScalar()) == 1 {
+		return nil, errors.New("polynomial: invalid constant")
+	}
+
 	polynomial := &Polynomial{
 		coefficients: make([]*ed.Scalar, degree+1),
 		exponents:    make([]*ed.Point, degree+1),
 	}
 
-	// if the constant is nil, we interpret it as 0.
-	if constant == nil {
-		constant = ed.NewScalar()
-	}
-	if constant.Equal(ed.NewScalar()) == 1 {
-		return nil, errors.New("polynomial: invalid constant")
-	}
-	
 	polynomial.coefficients[0] = constant
 	polynomial.exponents[0] = (&ed.Point{}).ScalarBaseMult(constant)
 
