@@ -34,7 +34,9 @@ func NewPolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 	if constant.Equal(ed.NewScalar()) == 1 {
 		return nil, errors.New("polynomial: invalid constant")
 	}
+	
 	polynomial.coefficients[0] = constant
+	polynomial.exponents[0] = (&ed.Point{}).ScalarBaseMult(constant)
 
 	for i := 1; i <= degree; i++ {
 		c, err := sample.Ed25519Scalar()
@@ -49,7 +51,7 @@ func NewPolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 }
 
 func (poly *Polynomial) Private() bool {
-	return poly.coefficients == nil
+	return poly.coefficients != nil
 }
 
 func (poly *Polynomial) Exponents() []*ed.Point {
@@ -84,8 +86,8 @@ func (poly *Polynomial) EvaluateExponent(x *ed.Scalar) *ed.Point {
 	return result
 }
 
-func (poly *Polynomial) Constant() *ed.Scalar {
-	return poly.coefficients[0]
+func (poly *Polynomial) Constant() *ed.Point {
+	return poly.exponents[0]
 }
 
 func (poly *Polynomial) Degree() uint32 {
