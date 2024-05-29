@@ -28,8 +28,8 @@ func TestPolynomial_GeneratePolynomial(t *testing.T) {
 	// Test Case 2: Valid constant
 	for degree := 0; degree < 10; degree++ {
 		poly, err := GeneratePolynomial(degree, constant)
-		assert.NotNil(t, poly)
 		assert.NoError(t, err)
+		assert.NotNil(t, poly)
 		assert.Equal(t, degree+1, len(poly.coefficients))
 		assert.Equal(t, degree+1, len(poly.exponents))
 		assert.Equal(t, constant, poly.coefficients[0])
@@ -38,4 +38,52 @@ func TestPolynomial_GeneratePolynomial(t *testing.T) {
 		assert.Equal(t, degree, poly.Degree())
 		assert.True(t, poly.Private())
 	}
+}
+
+func TestPolynomial_NewPolynomial(t *testing.T) {
+	constant, err := sample.Ed25519Scalar()
+	constant_exp := (&ed.Point{}).ScalarBaseMult(constant)
+	assert.NoError(t, err)
+
+	degree := 5
+	poly1, err := GeneratePolynomial(degree, constant)
+	assert.NoError(t, err)
+
+	poly2, err := GeneratePolynomial(degree, constant)
+	assert.NoError(t, err)
+
+	// Test Case 1: Exponents nil should throw error
+	_, err = NewPolynomial(degree, poly1.coefficients, nil)
+	assert.Error(t, err)
+
+	// Test Case 2: Degree does not match with exponents
+	_, err = NewPolynomial(degree+1, nil, poly1.exponents)
+	assert.Error(t, err)
+
+	// Test Case 3: coeffiecients are not matcher with exponents
+	_, err = NewPolynomial(degree, poly1.coefficients, poly2.exponents)
+	assert.Error(t, err)
+
+	// Test Case 4: NewPolynomial with only exponents
+	poly, err := NewPolynomial(degree, nil, poly1.exponents)
+	assert.NoError(t, err)
+	assert.NotNil(t, poly)
+	assert.Nil(t, poly.coefficients)
+	assert.Equal(t, degree+1, len(poly.exponents))
+	assert.Equal(t, constant_exp, poly.exponents[0])
+	assert.Equal(t, constant_exp, poly.Constant())
+	assert.Equal(t, degree, poly.Degree())
+	assert.False(t, poly.Private())
+
+	// Test Case 5: NewPolynomial with coeffiecients and exponents
+	poly, err = NewPolynomial(degree, poly1.coefficients, poly1.exponents)
+	assert.NoError(t, err)
+	assert.NotNil(t, poly)
+	assert.Equal(t, degree+1, len(poly.coefficients))
+	assert.Equal(t, degree+1, len(poly.exponents))
+	assert.Equal(t, constant, poly.coefficients[0])
+	assert.Equal(t, constant_exp, poly.exponents[0])
+	assert.Equal(t, constant_exp, poly.Constant())
+	assert.Equal(t, degree, poly.Degree())
+	assert.True(t, poly.Private())
 }

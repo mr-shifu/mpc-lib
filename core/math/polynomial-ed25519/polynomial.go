@@ -47,6 +47,38 @@ func GeneratePolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 	return polynomial, nil
 }
 
+func NewPolynomial(degree int, coefficients []*ed.Scalar, exponents []*ed.Point) (*Polynomial, error) {
+	if exponents == nil {
+		return nil, errors.New("polynomial: exponents cannot be nil")
+	}
+	if coefficients == nil {
+		if len(exponents) != degree+1 {
+			return nil, errors.New("polynomial: degree does not match with exponents")
+		}
+		return &Polynomial{
+			coefficients: nil,
+			exponents:    exponents,
+		}, nil
+	} else {
+		if len(coefficients) != degree+1 {
+			return nil, errors.New("polynomial: degree does not match with coefficients")
+		}
+		if len(coefficients) != len(exponents) {
+			return nil, errors.New("polynomial: coefficients and exponents length mismatch")
+		}
+		for i := 0; i <= degree; i++ {
+			if exponents[i].Equal((&ed.Point{}).ScalarBaseMult(coefficients[i])) != 1 {
+				return nil, errors.New("polynomial: exponent doesn't match coefficient")
+			}
+		}
+		return &Polynomial{
+			coefficients: coefficients,
+			exponents:    exponents,
+		}, nil
+	}
+
+}
+
 func (poly *Polynomial) Private() bool {
 	return poly.coefficients != nil
 }
@@ -87,8 +119,8 @@ func (poly *Polynomial) Constant() *ed.Point {
 	return poly.exponents[0]
 }
 
-func (poly *Polynomial) Degree() uint32 {
-	return uint32(len(poly.exponents) - 1)
+func (poly *Polynomial) Degree() int {
+	return len(poly.exponents) - 1
 }
 
 func (poly *Polynomial) MarshalBinary() ([]byte, error) {
