@@ -76,7 +76,6 @@ func NewPolynomial(degree int, coefficients []*ed.Scalar, exponents []*ed.Point)
 			exponents:    exponents,
 		}, nil
 	}
-
 }
 
 func (poly *Polynomial) Private() bool {
@@ -91,28 +90,29 @@ func (poly *Polynomial) Exponents() []*ed.Point {
 // We use Horner's method: https://en.wikipedia.org/wiki/Horner%27s_method
 func (poly *Polynomial) Evaluate(x *ed.Scalar) (*ed.Scalar, error) {
 	// throw error if the x is Zero as it is considered as an attempt to leak secret
-	if x.Equal(ed.NewScalar()) == 1 {
+	if x == nil || x.Equal(ed.NewScalar()) == 1 {
 		return nil, errors.New("polynomial: attempt to leak secret")
 	}
 
 	result := ed.NewScalar()
-	// reverse order
 	for i := len(poly.coefficients) - 1; i >= 0; i-- {
-		// bₙ₋₁ = bₙ * x + aₙ₋₁
 		result.MultiplyAdd(result, x, poly.coefficients[i])
 	}
 	return result, nil
 }
 
-func (poly *Polynomial) EvaluateExponent(x *ed.Scalar) *ed.Point {
-	result := &ed.Point{}
-
-	for i := len(poly.exponents) - 1; i >= 0; i-- {
-		result = result.ScalarMult(x, result)
-		result = result.Add(result, poly.exponents[i])
+func (poly *Polynomial) EvaluateExponent(x *ed.Scalar) (*ed.Point, error) {
+	// throw error if the x is Zero as it is considered as an attempt to leak secret
+	if x == nil || x.Equal(ed.NewScalar()) == 1 {
+		return nil, errors.New("polynomial: attempt to leak secret")
 	}
 
-	return result
+	result := new(ed.Point).Set(poly.exponents[len(poly.exponents)-1])
+	for i := len(poly.exponents) - 2; i >= 0; i-- {
+		result = result.ScalarMult(x, result).Add(result, poly.exponents[i])
+	}
+
+	return result, nil
 }
 
 func (poly *Polynomial) Constant() *ed.Point {

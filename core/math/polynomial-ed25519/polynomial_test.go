@@ -87,3 +87,32 @@ func TestPolynomial_NewPolynomial(t *testing.T) {
 	assert.Equal(t, degree, poly.Degree())
 	assert.True(t, poly.Private())
 }
+
+func TestPolynomial_Evaluate(t *testing.T) {
+	constant, err := sample.Ed25519Scalar()
+	assert.NoError(t, err)
+
+	degree := 1
+	poly, err := GeneratePolynomial(degree, constant)
+	assert.NoError(t, err)
+
+	// Test Case 1: Evaluate polynomial at 0
+	_, err = poly.Evaluate(ScalarZero)
+	assert.Error(t, err)
+
+	_, err = poly.Evaluate(nil)
+	assert.Error(t, err)
+
+	// Test Case 2: Evaluate polynomial at random scalar
+	x, err := sample.Ed25519Scalar()
+	assert.NoError(t, err)
+
+	y, err := poly.Evaluate(x)
+	assert.NoError(t, err)
+
+	Y, err := poly.EvaluateExponent(x)
+	assert.NoError(t, err)
+
+	yG := new(ed.Point).ScalarBaseMult(y)
+	assert.Equal(t, 1, Y.Equal(yG))
+}
