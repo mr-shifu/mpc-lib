@@ -93,26 +93,43 @@ func TestPolynomial_Evaluate(t *testing.T) {
 	assert.NoError(t, err)
 
 	degree := 1
-	poly, err := GeneratePolynomial(degree, constant)
+	poly1, err := GeneratePolynomial(degree, constant)
+	assert.NoError(t, err)
+
+	poly2, err := NewPolynomial(degree, nil, poly1.exponents)
 	assert.NoError(t, err)
 
 	// Test Case 1: Evaluate polynomial at 0
-	_, err = poly.Evaluate(ScalarZero)
+	_, err = poly1.Evaluate(ScalarZero)
 	assert.Error(t, err)
 
-	_, err = poly.Evaluate(nil)
+	_, err = poly1.Evaluate(nil)
 	assert.Error(t, err)
 
 	// Test Case 2: Evaluate polynomial at random scalar
 	x, err := sample.Ed25519Scalar()
 	assert.NoError(t, err)
 
-	y, err := poly.Evaluate(x)
+	y, err := poly1.Evaluate(x)
 	assert.NoError(t, err)
 
-	Y, err := poly.EvaluateExponent(x)
+	Y, err := poly1.EvaluateExponent(x)
 	assert.NoError(t, err)
 
 	yG := new(ed.Point).ScalarBaseMult(y)
 	assert.Equal(t, 1, Y.Equal(yG))
+
+	// Test Case 3: Evaluate exponents with Exponents only at random scalar
+	Y, err = poly2.EvaluateExponent(x)
+	assert.NoError(t, err)
+
+	y, err = poly1.Evaluate(x)
+	assert.NoError(t, err)
+
+	yG = new(ed.Point).ScalarBaseMult(y)
+	assert.Equal(t, 1, Y.Equal(yG))
+
+	// Test Case 4: Evaluate polynomial with exponents only at random scalar
+	_, err = poly2.Evaluate(x)
+	assert.Error(t, err)
 }

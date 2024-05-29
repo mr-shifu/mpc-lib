@@ -94,6 +94,11 @@ func (poly *Polynomial) Evaluate(x *ed.Scalar) (*ed.Scalar, error) {
 		return nil, errors.New("polynomial: attempt to leak secret")
 	}
 
+	// throw error if the polynomial contains only exponents
+	if !poly.Private() {
+		return nil, errors.New("polynomial: contains only exponents, cannot evaluate coefficients")
+	}
+
 	result := ed.NewScalar()
 	for i := len(poly.coefficients) - 1; i >= 0; i-- {
 		result.MultiplyAdd(result, x, poly.coefficients[i])
