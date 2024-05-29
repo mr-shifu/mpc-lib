@@ -13,21 +13,21 @@ var (
 	PointZero  = (&ed.Point{}).ScalarBaseMult(ScalarZero)
 )
 
-func TestPolynomial_NewPolynomial(t *testing.T) {
+func TestPolynomial_GeneratePolynomial(t *testing.T) {
 	constant, err := sample.Ed25519Scalar()
 	constant_exp := (&ed.Point{}).ScalarBaseMult(constant)
 	assert.NoError(t, err)
 
 	// Test Case 1: Invalid constant
-	_, err = NewPolynomial(2, nil)
+	_, err = GeneratePolynomial(2, nil)
 	assert.Error(t, err)
 
-	_, err = NewPolynomial(2, ScalarZero)
+	_, err = GeneratePolynomial(2, ScalarZero)
 	assert.Error(t, err)
 
 	// Test Case 2: Valid constant
 	degree := 2
-	poly, err := NewPolynomial(degree, constant)
+	poly, err := GeneratePolynomial(degree, constant)
 	assert.NotNil(t, poly)
 	assert.NoError(t, err)
 	assert.Equal(t, degree+1, len(poly.coefficients))

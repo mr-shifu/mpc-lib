@@ -21,7 +21,7 @@ type Polynomial struct {
 // F(X) = A₀ + A₁⋅X + … + Aₜ⋅Xᵗ,
 // where Aᵢ = aᵢ•G, and G is the base point of the curve.
 // with coefficients in ℤₚ, and degree t.
-func NewPolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
+func GeneratePolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 	// throw erro if the constant is nil or Zero.
 	if constant == nil || constant.Equal(ed.NewScalar()) == 1 {
 		return nil, errors.New("polynomial: invalid constant")
