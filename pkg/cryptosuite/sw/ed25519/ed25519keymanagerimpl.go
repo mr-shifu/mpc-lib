@@ -142,3 +142,62 @@ func (mgr *Ed25519KeyManagerImpl) VerifySchnorrProof(h hash.Hash, opts keyopts.O
 
 	return k.VerifySchnorrProof(h, p)
 }
+
+func (mgr *Ed25519KeyManagerImpl) GenerateVss(degree int, opts keyopts.Options) (vssed25519.VssKey, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	key, ok := k.(*Ed25519Impl)
+	if !ok {
+		return nil, errors.New("ed25519: invalid key type")
+	}
+	vss, err := mgr.vssmgr.GenerateSecrets(key.s, degree, opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to generate vss secrets")
+	}
+
+	return vss, nil
+}
+
+func (mgr *Ed25519KeyManagerImpl) ImportVss(key interface{}, opts keyopts.Options) error {
+	_, err := mgr.GetKey(opts)
+	if err != nil {
+		return errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	switch kt := key.(type) {
+	case []byte:
+		if _, err := mgr.vssmgr.ImportSecrets(kt, opts); err != nil {
+			return errors.WithMessage(err, "ed25519: failed to import vss secrets")
+		}
+	case vssed25519.VssKey:
+		kb, err := kt.Bytes()
+		if err != nil {
+			return errors.WithMessage(err, "ed25519: failed to serialize vss key")
+		}
+
+		if _, err := mgr.vssmgr.ImportSecrets(kb, opts); err != nil {
+			return errors.WithMessage(err, "ed25519: failed to import vss secrets")
+		}
+	default:
+		return errors.New("ed25519: invalid key type")
+	}
+
+	return nil
+}
+
+func (mgr *Ed25519KeyManagerImpl) GetVss(opts keyopts.Options) (vssed25519.VssKey, error) {
+	_, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	vss, err := mgr.vssmgr.GetSecrets(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get vss secrets")
+	}
+
+	return vss, nil
+}

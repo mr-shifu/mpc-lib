@@ -3,6 +3,7 @@ package ed25519
 import (
 	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
 
@@ -50,4 +51,10 @@ type Ed25519KeyManager interface {
 	ImportSchnorrProof(pb []byte, opts keyopts.Options) error
 
 	VerifySchnorrProof(h hash.Hash, opts keyopts.Options) (bool, error)
+
+	GenerateVss(degree int, opts keyopts.Options) (vssed25519.VssKey, error)
+
+	ImportVss(key interface{}, opts keyopts.Options) error
+
+	GetVss(opts keyopts.Options) (vssed25519.VssKey, error)
 }
