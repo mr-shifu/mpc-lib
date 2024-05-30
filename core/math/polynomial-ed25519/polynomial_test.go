@@ -14,7 +14,7 @@ var (
 )
 
 func TestPolynomial_GeneratePolynomial(t *testing.T) {
-	constant, err := sample.Ed25519Scalar()
+	constant, err := sample.Ed25519Scalar(nil)
 	constant_exp := (&ed.Point{}).ScalarBaseMult(constant)
 	assert.NoError(t, err)
 
@@ -41,7 +41,7 @@ func TestPolynomial_GeneratePolynomial(t *testing.T) {
 }
 
 func TestPolynomial_NewPolynomial(t *testing.T) {
-	constant, err := sample.Ed25519Scalar()
+	constant, err := sample.Ed25519Scalar(nil)
 	constant_exp := (&ed.Point{}).ScalarBaseMult(constant)
 	assert.NoError(t, err)
 
@@ -89,7 +89,7 @@ func TestPolynomial_NewPolynomial(t *testing.T) {
 }
 
 func TestPolynomial_Evaluate(t *testing.T) {
-	constant, err := sample.Ed25519Scalar()
+	constant, err := sample.Ed25519Scalar(nil)
 	assert.NoError(t, err)
 
 	degree := 5
@@ -107,7 +107,7 @@ func TestPolynomial_Evaluate(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test Case 2: Evaluate polynomial at random scalar
-	x, err := sample.Ed25519Scalar()
+	x, err := sample.Ed25519Scalar(nil)
 	assert.NoError(t, err)
 
 	y, err := poly1.Evaluate(x)
@@ -135,7 +135,7 @@ func TestPolynomial_Evaluate(t *testing.T) {
 }
 
 func TestPolynomial_SerDe(t *testing.T) {
-	constant, err := sample.Ed25519Scalar()
+	constant, err := sample.Ed25519Scalar(nil)
 	assert.NoError(t, err)
 
 	degree := 5

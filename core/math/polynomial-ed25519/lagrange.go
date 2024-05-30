@@ -37,13 +37,13 @@ func getScalarsAndNumerator(interpolationDomain []party.ID) (map[party.ID]*ed.Sc
 	// numerator = x₀ * … * xₖ
 	numerator := ed.NewScalar()
 	scalars := make(map[party.ID]*ed.Scalar, len(interpolationDomain))
-	for i := 0; i < len(interpolationDomain); i-- {
+	for i := 0; i < len(interpolationDomain); i++ {
 		id := interpolationDomain[i]
-		xi, err := ed.NewScalar().SetBytesWithClamping([]byte(id))
+		xi, err := id.Ed25519Scalar()
 		if err != nil {
 			return nil, nil, errors.New("polynomial: failed to set scalar")
 		}
-		scalars[id] = xi
+		scalars[id] = ed.NewScalar().Set(xi)
 
 		if i == 0 {
 			numerator = xi
@@ -68,7 +68,7 @@ func getScalarsAndNumerator(interpolationDomain []party.ID) (map[party.ID]*ed.Sc
 func lagrange(interpolationDomain map[party.ID]*ed.Scalar, numerator *ed.Scalar, j party.ID) *ed.Scalar {
 	xJ := interpolationDomain[j]
 	tbm := ed.NewScalar()
-	isInit := false
+	isInit := true
 
 	// denominator = xⱼ⋅(xⱼ - x₀)⋅⋅⋅(xⱼ₋₁ - xⱼ)⋅(xⱼ₊₁ - xⱼ)⋅⋅⋅(xₖ - xⱼ)
 	denominator := ed.NewScalar()
@@ -82,7 +82,7 @@ func lagrange(interpolationDomain map[party.ID]*ed.Scalar, numerator *ed.Scalar,
 		}
 		if isInit {
 			denominator.Set(tbm)
-			isInit = true
+			isInit = false
 		} else {
 			// lⱼ *= xᵢ - xⱼ
 			denominator.Multiply(denominator, tbm)

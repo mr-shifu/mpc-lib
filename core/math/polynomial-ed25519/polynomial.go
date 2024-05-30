@@ -36,7 +36,7 @@ func GeneratePolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 	polynomial.exponents[0] = (&ed.Point{}).ScalarBaseMult(constant)
 
 	for i := 1; i <= degree; i++ {
-		c, err := sample.Ed25519Scalar()
+		c, err := sample.Ed25519Scalar(nil)
 		if err != nil {
 			return nil, errors.WithMessage(err, "polynomial: failed to sample scalar")
 		}
