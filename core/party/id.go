@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 
+	ed "filippo.io/edwards25519"
 	"github.com/cronokirby/saferith"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -24,6 +25,19 @@ type ID string
 // scalar value used for ECDSA.
 func (id ID) Scalar(group curve.Curve) curve.Scalar {
 	return group.NewScalar().SetNat(new(saferith.Nat).SetBytes([]byte(id)))
+}
+
+// Scalar converts this ID into a Ed25519 scalar.
+func (id ID) Ed25519Scalar() (*ed.Scalar, error) {
+	idbytes := []byte(id)
+	if len(idbytes) > 32 {
+		return nil, errors.New("scalar: invalid byte length")
+	}
+	if len(idbytes) < 32 {
+		idbytes = append(make([]byte, 32-len(idbytes)), idbytes...)
+	}
+
+	return ed.NewScalar().SetBytesWithClamping(idbytes[:])
 }
 
 // WriteTo makes ID implement the io.WriterTo interface.
