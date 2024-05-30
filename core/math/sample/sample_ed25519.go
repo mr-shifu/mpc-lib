@@ -1,8 +1,8 @@
 package sample
 
 import (
-	"crypto/sha512"
 	cryptorand "crypto/rand"
+	"crypto/sha512"
 	"io"
 
 	ed "filippo.io/edwards25519"
@@ -13,8 +13,10 @@ const (
 	SeedSize = 32
 )
 
-func Ed25519Scalar() (*ed.Scalar, error) {
-	rand := cryptorand.Reader
+func Ed25519Scalar(rand io.Reader) (*ed.Scalar, error) {
+	if rand == nil {
+		rand = cryptorand.Reader
+	}
 
 	seed := make([]byte, SeedSize)
 	if _, err := io.ReadFull(rand, seed); err != nil {
