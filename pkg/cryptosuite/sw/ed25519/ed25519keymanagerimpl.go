@@ -5,6 +5,7 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/pkg/errors"
 )
@@ -12,12 +13,14 @@ import (
 type Ed25519KeyManagerImpl struct {
 	keystore keystore.Keystore
 	schstore keystore.Keystore
+	vssmgr   vssed25519.VssKeyManager
 }
 
-func NewEd25519KeyManagerImpl(store, schstore keystore.Keystore) *Ed25519KeyManagerImpl {
+func NewEd25519KeyManagerImpl(store, schstore keystore.Keystore, vssmgr vssed25519.VssKeyManager) *Ed25519KeyManagerImpl {
 	return &Ed25519KeyManagerImpl{
 		keystore: store,
 		schstore: schstore,
+		vssmgr:   vssmgr,
 	}
 }
 

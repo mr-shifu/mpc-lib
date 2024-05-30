@@ -19,7 +19,7 @@ func getKeyManager() *Ed25519KeyManagerImpl {
 	sch_vault := vault.NewInMemoryVault()
 	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_keyopts)
 
-	return NewEd25519KeyManagerImpl(ed_ks, sch_ks)
+	return NewEd25519KeyManagerImpl(ed_ks, sch_ks, nil)
 }
 
 func TestEd25519KeyManagerImpl_GenerateKey(t *testing.T) {
@@ -127,12 +127,27 @@ func TestEd25519KeyManager_SchnorrProof(t *testing.T) {
 	proof, err := mgr1.NewSchnorrProof(h.Clone(), opts1)
 	assert.NoError(t, err)
 
+	// Verify Schnorr proof by proof generator key
+	v1, err := k1.VerifySchnorrProof(h.Clone(), proof)
+	assert.NoError(t, err)
+	assert.True(t, v1)
+
+
+	k2, err = mgr2.GetKey(opts1)
+	assert.NoError(t, err)
+
+	v2, err := k2.VerifySchnorrProof(h.Clone(), proof)
+	assert.NoError(t, err)
+	assert.True(t, v2)
+	
+
 	proofBytes := proof.Bytes()
 	assert.Equal(t, SchnorrProofSizeNoC, len(proofBytes))
 
 	err = mgr2.ImportSchnorrProof(proofBytes, opts1)
 	assert.NoError(t, err)
 
+	// Verify Schnorr proof by cloned key
 	v, err := mgr2.VerifySchnorrProof(h.Clone(), opts1)
 	assert.NoError(t, err)
 	assert.True(t, v)

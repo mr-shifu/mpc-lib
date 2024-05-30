@@ -120,6 +120,37 @@ func (poly *Polynomial) EvaluateExponent(x *ed.Scalar) (*ed.Point, error) {
 	return result, nil
 }
 
+// Sum creates a new Polynomial in the Exponent, by summing a slice of existing ones.
+func (poly *Polynomial) Sum(polynomials []*Polynomial) (*Polynomial, error) {
+	if len(polynomials) == 0 {
+		return nil, errors.New("polynomial: empty input")
+	}
+
+	degree := polynomials[0].Degree()
+	for i := 1; i < len(polynomials); i++ {
+		if polynomials[i].Degree() != degree {
+			return nil, errors.New("polynomial: degrees do not match")
+		}
+	}
+
+	exponents := make([]*ed.Point, degree+1)
+	for i := 0; i <= degree; i++ {
+		exponents[i] = new(ed.Point)
+		for j := 0; j < len(polynomials); j++ {
+			if j == 0 {
+				exponents[i] = polynomials[j].exponents[i]
+				continue
+			}
+			exponents[i] = exponents[i].Add(exponents[i], polynomials[j].exponents[i])
+		}
+	}
+
+	return &Polynomial{
+		coefficients: nil,
+		exponents:    exponents,
+	}, nil
+}
+
 func (poly *Polynomial) Constant() *ed.Point {
 	return poly.exponents[0]
 }
