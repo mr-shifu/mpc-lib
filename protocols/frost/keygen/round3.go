@@ -4,15 +4,15 @@ import (
 	"encoding/hex"
 	"errors"
 
+	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -27,7 +27,7 @@ type broadcast3 struct {
 }
 
 type message3 struct {
-	VSSShare curve.Scalar
+	VSSShare *ed.Scalar
 }
 
 type round3 struct {
@@ -37,9 +37,9 @@ type round3 struct {
 	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
-	ec_km       ecdsa.ECDSAKeyManager
-	ec_vss_km   ecdsa.ECDSAKeyManager
-	vss_mgr     vss.VssKeyManager
+	ed_km       ed25519.Ed25519KeyManager
+	ed_vss_km   ed25519.Ed25519KeyManager
+	vss_mgr     vssed25519.VssKeyManager
 	chainKey_km rid.RIDManager
 	commit_mgr  commitment.CommitmentManager
 }
@@ -129,12 +129,16 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	fromOpts.Set("id", r.ID, "partyid", string(from))
 
 	// 1. Verify VSS share against exponents evaluation
-	expected := body.VSSShare.ActOnBase()
-	actual, err := r.vss_mgr.EvaluateByExponents(r.SelfID().Scalar(r.Group()), fromOpts)
+	expected := new(ed.Point).ScalarBaseMult(body.VSSShare)
+	selfScalar, err := r.SelfID().Ed25519Scalar()
 	if err != nil {
 		return err
 	}
-	if !expected.Equal(actual) {
+	actual, err := r.vss_mgr.EvaluateByExponents(selfScalar, fromOpts)
+	if err != nil {
+		return err
+	}
+	if expected.Equal(actual) == 1 {
 		return errors.New("vss share verification failed")
 	}
 
@@ -145,8 +149,11 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	}
 	vssOpts := keyopts.Options{}
 	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-	ec_vss := r.ec_vss_km.NewKey(body.VSSShare, expected, r.Group())
-	if _, err := r.ec_vss_km.ImportKey(ec_vss, vssOpts); err != nil {
+	ed_vss, err := ed25519.NewKey(body.VSSShare, expected)
+	if err != nil {
+		return err
+	}
+	if _, err := r.ed_vss_km.ImportKey(ed_vss, vssOpts); err != nil {
 		return err
 	}
 
@@ -210,17 +217,20 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	pubKey := exponents.Constant()
-	key := r.ec_km.NewKey(nil, pubKey, r.Group())
-	if _, err := r.ec_km.ImportKey(key, rootOpts); err != nil {
+	key, err := ed25519.NewKey(nil, pubKey)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ed_km.ImportKey(key, rootOpts); err != nil {
 		return nil, err
 	}
 
 	// 4. Sum all VSS self shares to generate MPC VSS Share
-	var vss_shares []ecdsa.ECDSAKey
+	optsList := make([]com_keyopts.Options, 0)
 	for _, j := range r.PartyIDs() {
 		partyOpts := keyopts.Options{}
 		partyOpts.Set("id", r.ID, "partyid", string(j))
-
+		
 		vss, err := r.vss_mgr.GetSecrets(partyOpts)
 		if err != nil {
 			return nil, err
@@ -228,20 +238,16 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 
 		vssOpts := keyopts.Options{}
 		vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-		vss_share, err := r.ec_vss_km.GetKey(vssOpts)
-		if err != nil {
-			return nil, err
-		}
-		vss_shares = append(vss_shares, vss_share)
+		optsList = append(optsList, vssOpts)
 	}
 	// ToDo Verify
-	vssShare := r.ec_vss_km.NewKey(r.Group().NewScalar(), r.Group().NewPoint(), r.Group())
-	vssSharePrivateKey := vssShare.AddKeys(vss_shares...)
-	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
-	vssShareKey := r.ec_vss_km.NewKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
+	vssShareKey, err := r.ed_vss_km.SumKeys(optsList...)
+	if err != nil {
+		return nil, err
+	}
 	rootVssOpts := keyopts.Options{}
 	rootVssOpts.Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", string(r.SelfID()))
-	if _, err := r.ec_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
+	if _, err := r.ed_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
 		return nil, err
 	}
 
@@ -250,12 +256,19 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 
 		vssPartyOpts.Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
 
-		vssPub, err := vssPoly.EvaluateByExponents(j.Scalar(r.Group()))
+		jScalar, err := j.Ed25519Scalar()
 		if err != nil {
 			return nil, err
 		}
-		vssKeyShare := r.ec_vss_km.NewKey(nil, vssPub, r.Group())
-		if _, err := r.ec_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
+		vssPub, err := vssPoly.EvaluateByExponents(jScalar)
+		if err != nil {
+			return nil, err
+		}
+		vssKeyShare, err := ed25519.NewKey(nil, vssPub)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := r.ed_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
 			return nil, err
 		}
 	}
@@ -263,7 +276,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	return r.ResultRound(&Config{
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		PublicKey: pubKey,
+		// PublicKey: pubKey,
 	}), nil
 }
 
@@ -292,7 +305,7 @@ func (r *round3) BroadcastContent() round.BroadcastContent {
 // MessageContent implements round.Round.
 func (r *round3) MessageContent() round.Content {
 	return &message3{
-		VSSShare: r.Group().NewScalar(),
+		VSSShare: ed.NewScalar(),
 	}
 }
 

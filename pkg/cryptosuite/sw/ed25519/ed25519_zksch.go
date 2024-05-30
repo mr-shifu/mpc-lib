@@ -2,7 +2,6 @@ package ed25519
 
 import (
 	cryptorand "crypto/rand"
-	"fmt"
 	"io"
 
 	ed "filippo.io/edwards25519"
@@ -168,20 +167,15 @@ func newSchnorrProof(h hash.Hash, private *ed.Scalar, public *ed.Point) (*Proof,
 }
 
 func verifySchnorrProof(h hash.Hash, proof *Proof, public *ed.Point) (bool, error) {
-	fmt.Printf("public: %v\n", public)
-	fmt.Printf("proof: %v\n", proof)
-
 	challenge, err := newSchnorrChallenge(h.Clone(), proof.Commitment().C, public)
 	if err != nil {
 		return false, errors.WithMessage(err, "ed25519_zksch: failed to create challenge")
 	}
 
 	lhs := (&ed.Point{}).ScalarBaseMult(proof.Response().Z)
-	fmt.Printf("lhs: %v\n", lhs)
 
 	rhs := (&ed.Point{}).ScalarMult(challenge, public)
 	rhs = rhs.Add(rhs, proof.cmt.C)
-	fmt.Printf("rhs: %v\n", rhs)
 
 	return lhs.Equal(rhs) == 1, nil
 }

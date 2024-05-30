@@ -3,10 +3,11 @@ package ed25519
 import (
 	"encoding/hex"
 
+	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/pkg/errors"
 )
 
@@ -86,6 +87,35 @@ func (mgr *Ed25519KeyManagerImpl) GetKey(opts keyopts.Options) (Ed25519, error) 
 	}
 
 	return k, nil
+}
+
+func (mgr *Ed25519KeyManagerImpl) SumKeys(optsList ...keyopts.Options) (Ed25519, error) {
+	s := ed.NewScalar()
+	a := new(ed.Point)
+
+	for i := 0; i < len(optsList); i++ {
+		opts := optsList[i]
+		k, err := mgr.GetKey(opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		}
+
+		key, ok := k.(*Ed25519Impl)
+		if !ok {
+			return nil, errors.New("ed25519: invalid key type")
+		}
+
+		if i == 0 {
+			s = key.s
+			a = key.a
+			continue
+		}
+
+		s.Add(s, key.s)
+		a.Add(a, key.a)
+	}
+
+	return NewKey(s, a)
 }
 
 func (mgr *Ed25519KeyManagerImpl) NewSchnorrProof(h hash.Hash, opts keyopts.Options) (*Proof, error) {

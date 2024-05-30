@@ -9,10 +9,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -29,9 +29,9 @@ type FROSTKeygen struct {
 	statemgr    mpc_state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
-	ecdsa_km    ecdsa.ECDSAKeyManager
-	ec_vss_km   ecdsa.ECDSAKeyManager
-	vss_mgr     vss.VssKeyManager
+	eddsa_km    ed25519.Ed25519KeyManager
+	ed_vss_km   ed25519.Ed25519KeyManager
+	vss_mgr     vssed25519.VssKeyManager
 	chainKey_km rid.RIDManager
 	hash_mgr    hash.HashManager
 	commit_mgr  commitment.CommitmentManager
@@ -43,9 +43,9 @@ func NewFROSTKeygen(
 	keystatmgr mpc_state.MPCStateManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
-	ecdsa ecdsa.ECDSAKeyManager,
-	ec_vss_km ecdsa.ECDSAKeyManager,
-	vss_mgr vss.VssKeyManager,
+	eddsa_km ed25519.Ed25519KeyManager,
+	ed_vss_km ed25519.Ed25519KeyManager,
+	vss_mgr vssed25519.VssKeyManager,
 	chainKey rid.RIDManager,
 	hash_mgr hash.HashManager,
 	commit_mgr commitment.CommitmentManager,
@@ -56,8 +56,8 @@ func NewFROSTKeygen(
 		statemgr:    keystatmgr,
 		msgmgr:      msgmgr,
 		bcstmgr:     bcstmgr,
-		ecdsa_km:    ecdsa,
-		ec_vss_km:   ec_vss_km,
+		eddsa_km:    eddsa_km,
+		ed_vss_km:   ed_vss_km,
 		vss_mgr:     vss_mgr,
 		chainKey_km: chainKey,
 		hash_mgr:    hash_mgr,
@@ -103,8 +103,8 @@ func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
 			bcstmgr:     m.bcstmgr,
-			ec_km:       m.ecdsa_km,
-			ec_vss_km:   m.ec_vss_km,
+			ed_km:       m.eddsa_km,
+			ed_vss_km:   m.ed_vss_km,
 			vss_mgr:     m.vss_mgr,
 			chainKey_km: m.chainKey_km,
 			commit_mgr:  m.commit_mgr,
@@ -150,8 +150,8 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
 			bcstmgr:     m.bcstmgr,
-			ec_km:       m.ecdsa_km,
-			ec_vss_km:   m.ec_vss_km,
+			ed_km:       m.eddsa_km,
+			ed_vss_km:   m.ed_vss_km,
 			vss_mgr:     m.vss_mgr,
 			chainKey_km: m.chainKey_km,
 			commit_mgr:  m.commit_mgr,
@@ -163,8 +163,8 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
 			bcstmgr:     m.bcstmgr,
-			ec_km:       m.ecdsa_km,
-			ec_vss_km:   m.ec_vss_km,
+			ed_km:       m.eddsa_km,
+			ed_vss_km:   m.ed_vss_km,
 			vss_mgr:     m.vss_mgr,
 			chainKey_km: m.chainKey_km,
 			commit_mgr:  m.commit_mgr,
@@ -176,8 +176,8 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 			statemgr:    m.statemgr,
 			msgmgr:      m.msgmgr,
 			bcstmgr:     m.bcstmgr,
-			ec_km:       m.ecdsa_km,
-			ec_vss_km:   m.ec_vss_km,
+			ed_km:       m.eddsa_km,
+			ed_vss_km:   m.ed_vss_km,
 			vss_mgr:     m.vss_mgr,
 			chainKey_km: m.chainKey_km,
 			commit_mgr:  m.commit_mgr,
@@ -223,7 +223,7 @@ func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.S
 }
 
 func (m *FROSTKeygen) CanFinalize(keyID string) (bool, error) {
-	r, err := m.GetRound(keyID) 
+	r, err := m.GetRound(keyID)
 	if err != nil {
 		return false, errors.WithMessage(err, "keygen: failed to get round")
 	}

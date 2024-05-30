@@ -3,7 +3,7 @@ package vssed25519
 import (
 	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type VssKey interface {

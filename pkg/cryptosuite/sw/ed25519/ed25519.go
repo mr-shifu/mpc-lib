@@ -4,7 +4,7 @@ import (
 	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type Ed25519 interface {
@@ -35,8 +35,6 @@ type Ed25519 interface {
 }
 
 type Ed25519KeyManager interface {
-	NewKey(priv ed.Scalar, pub ed.Point) Ed25519
-
 	// GenerateKey generates a new Ed25519 key pair.
 	GenerateKey(opts keyopts.Options) (Ed25519, error)
 
@@ -45,6 +43,8 @@ type Ed25519KeyManager interface {
 
 	// GetKey returns a Ed25519 key by its SKI.
 	GetKey(opts keyopts.Options) (Ed25519, error)
+
+	SumKeys(optsList ...keyopts.Options) (Ed25519, error) 
 
 	NewSchnorrProof(h hash.Hash, opts keyopts.Options) (*Proof, error)
 

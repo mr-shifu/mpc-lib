@@ -12,10 +12,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
@@ -44,19 +44,19 @@ func newFROSTKeygen() *FROSTKeygen {
 	vss_keyopts := keyopts.NewInMemoryKeyOpts()
 	vss_vault := vault.NewInMemoryVault()
 	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_keyopts)
-	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	vss_km := vssed25519.NewVssKeyManager(vss_ks)
 
-	ec_keyopts := keyopts.NewInMemoryKeyOpts()
-	ec_vault := vault.NewInMemoryVault()
-	ec_ks := keystore.NewInMemoryKeystore(ec_vault, ec_keyopts)
+	ed_keyopts := keyopts.NewInMemoryKeyOpts()
+	ed_vault := vault.NewInMemoryVault()
+	ed_ks := keystore.NewInMemoryKeystore(ed_vault, ed_keyopts)
 	sch_keyopts := keyopts.NewInMemoryKeyOpts()
 	sch_vault := vault.NewInMemoryVault()
 	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_keyopts)
-	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	eddsa_km := ed25519.NewEd25519KeyManagerImpl(ed_ks, sch_ks, vss_km)
 
-	ec_vss_keyopts := keyopts.NewInMemoryKeyOpts()
-	ec_vss_ks := keystore.NewInMemoryKeystore(ec_vault, ec_vss_keyopts)
-	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ed_vss_keyopts := keyopts.NewInMemoryKeyOpts()
+	ed_vss_ks := keystore.NewInMemoryKeystore(ed_vault, ed_vss_keyopts)
+	ed_vss_km := ed25519.NewEd25519KeyManagerImpl(ed_vss_ks, sch_ks, vss_km)
 
 	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
 	chainKey_vault := vault.NewInMemoryVault()
@@ -78,8 +78,8 @@ func newFROSTKeygen() *FROSTKeygen {
 		keystatemgr,
 		msgmgr,
 		bcstmgr,
-		ecdsa_km,
-		ec_vss_km,
+		eddsa_km,
+		ed_vss_km,
 		vss_km,
 		chainKey_km,
 		hash_mgr,
