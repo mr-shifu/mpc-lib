@@ -230,7 +230,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	for _, j := range r.PartyIDs() {
 		partyOpts := keyopts.Options{}
 		partyOpts.Set("id", r.ID, "partyid", string(j))
-		
+
 		vss, err := r.vss_mgr.GetSecrets(partyOpts)
 		if err != nil {
 			return nil, err
@@ -317,3 +317,16 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 
 // RoundNumber implements round.Content.
 func (message3) RoundNumber() round.Number { return 3 }
+
+func (msg *message3) MarshalBinary() ([]byte, error) {
+	return msg.VSSShare.Bytes(), nil
+}
+
+func (msg *message3) UnmarshalBinary(data []byte) error {
+	s, err := ed.NewScalar().SetCanonicalBytes(data)
+	if err != nil {
+		return err
+	}
+	msg.VSSShare = s
+	return nil
+}
