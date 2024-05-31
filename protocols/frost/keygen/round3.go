@@ -138,7 +138,7 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if expected.Equal(actual) == 1 {
+	if expected.Equal(actual) != 1 {
 		return errors.New("vss share verification failed")
 	}
 
