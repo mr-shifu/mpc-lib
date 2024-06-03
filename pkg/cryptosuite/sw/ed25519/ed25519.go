@@ -20,11 +20,15 @@ type Ed25519 interface {
 	// PublicKey returns the corresponding public key part of ECDSA Key.
 	PublicKey() Ed25519
 
+	PublickeyPoint() *ed.Point
+
 	// Multiply returns the result of multiplying the key by m.
-	Multiply(m *ed.Scalar) *ed.Scalar
+	Multiply(m any) Ed25519
+
+	Add(c any) (*ed.Scalar, error)
 
 	// MultiplyAdd returns the result of multiplying the key by m and adding c.
-	MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar
+	MultiplyAdd(m any, c any) *ed.Scalar
 
 	NewScnorrProof(h hash.Hash) (*Proof, error)
 

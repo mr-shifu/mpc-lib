@@ -155,16 +155,59 @@ func (k *Ed25519Impl) PublicKey() Ed25519 {
 	}
 }
 
+func (k *Ed25519Impl) PublickeyPoint() *ed.Point {
+	return k.a
+}
+
+func (k *Ed25519Impl) Add(c any) (*ed.Scalar, error) {
+	cs := getScalar(c)
+	if cs == nil {
+		return nil, errors.New("ed25519: invalid key type for addition")
+	}
+
+	z := ed.NewScalar().Set(k.s)
+	return z.Add(z, cs), nil
+}
+
 // Multiply returns the result of multiplying the key by m.
-func (k *Ed25519Impl) Multiply(m *ed.Scalar) *ed.Scalar {
-	z := new(ed.Scalar)
-	return z.Multiply(k.s, m)
+func (k *Ed25519Impl) Multiply(m any) Ed25519 {
+	ms := getScalar(m)
+	if ms == nil {
+		return nil
+	}
+
+	if k.Private() {
+		z := new(ed.Scalar).Set(k.s)
+		z.Multiply(z, ms)
+		Z := new(ed.Point).ScalarBaseMult(z)
+		return &Ed25519Impl{
+			s: z,
+			a: Z,
+		}
+	} else {
+		Z := new(ed.Point).Set(k.a)
+		Z.ScalarMult(ms, Z)
+		return &Ed25519Impl{
+			s: nil,
+			a: Z,
+		}
+	}
 }
 
 // MultiplyAdd returns the result of multiplying the key by m and adding c.
-func (k *Ed25519Impl) MultiplyAdd(m *ed.Scalar, c *ed.Scalar) *ed.Scalar {
-	ma := new(ed.Scalar)
-	return ma.MultiplyAdd(k.s, m, c)
+func (k *Ed25519Impl) MultiplyAdd(m any, c any) *ed.Scalar {
+	ms := getScalar(m)
+	if ms == nil {
+		return nil
+	}
+
+	cs := getScalar(c)
+	if cs == nil {
+		return nil
+	}
+
+	z := ed.NewScalar().Set(k.s)
+	return z.MultiplyAdd(z, ms, cs)
 }
 
 // FromBytes creates a new Ed25519 key from a byte representation.
@@ -202,6 +245,17 @@ func (k *Ed25519Impl) FromBytes(data []byte) error {
 		}
 		k.a = A
 
+		return nil
+	}
+}
+
+func getScalar(s any) *ed.Scalar {
+	switch st := s.(type) {
+	case *ed.Scalar:
+		return st
+	case *Ed25519Impl:
+		return st.s
+	default:
 		return nil
 	}
 }
