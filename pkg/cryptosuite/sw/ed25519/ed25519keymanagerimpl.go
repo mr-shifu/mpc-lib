@@ -5,9 +5,9 @@ import (
 
 	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
-	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/pkg/errors"
 )
 
@@ -55,7 +55,11 @@ func (mgr *Ed25519KeyManagerImpl) ImportKey(raw interface{}, opts keyopts.Option
 			return nil, errors.WithMessage(err, "ed25519: failed to import key")
 		}
 	case Ed25519:
-		k = tt.(*Ed25519Impl)
+		key, ok := tt.(*Ed25519Impl)
+		if !ok {
+			return nil, errors.New("ed25519: invalid key type")
+		}
+		k = key
 	default:
 		return nil, errors.New("ed25519: invalid key type")
 	}
