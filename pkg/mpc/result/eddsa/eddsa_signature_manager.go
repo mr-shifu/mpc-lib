@@ -1,10 +1,9 @@
 package result
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
-
 )
 
 type EddsaSignatureManager struct {
@@ -17,7 +16,7 @@ func NewEddsaSignatureManager(ks *InMemoryEddsaSignature) result.EddsaSignatureM
 	}
 }
 
-func (m *EddsaSignatureManager) NewEddsaSignature(r curve.Point, z curve.Scalar) result.EddsaSignature {
+func (m *EddsaSignatureManager) NewEddsaSignature(r *edwards25519.Point, z *edwards25519.Scalar) result.EddsaSignature {
 	return NewEddsaSignature(r, z)
 }
 
@@ -25,7 +24,7 @@ func (m *EddsaSignatureManager) Import(sig result.EddsaSignature, opts keyopts.O
 	return m.ks.Import(sig, opts)
 }
 
-func (m *EddsaSignatureManager) SetR(R curve.Point, opts keyopts.Options) error {
+func (m *EddsaSignatureManager) SetR(R *edwards25519.Point, opts keyopts.Options) error {
 	sig, err := m.ks.Get(opts)
 	if err != nil {
 		return err
@@ -34,7 +33,7 @@ func (m *EddsaSignatureManager) SetR(R curve.Point, opts keyopts.Options) error 
 	return m.ks.Import(sig, opts)
 }
 
-func (m *EddsaSignatureManager) SetZ(z curve.Scalar, opts keyopts.Options) error {
+func (m *EddsaSignatureManager) SetZ(z *edwards25519.Scalar, opts keyopts.Options) error {
 	sig, err := m.ks.Get(opts)
 	if err != nil {
 		return err

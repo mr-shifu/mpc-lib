@@ -4,14 +4,14 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -33,12 +33,12 @@ type FROSTSign struct {
 	statemgr   state.MPCStateManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
-	ecdsa_km   ecdsa.ECDSAKeyManager
-	ec_vss_km  ecdsa.ECDSAKeyManager
-	ec_sign_km ecdsa.ECDSAKeyManager
-	vss_mgr    vss.VssKeyManager
-	sign_d     ecdsa.ECDSAKeyManager
-	sign_e     ecdsa.ECDSAKeyManager
+	eddsa_km   ed25519.Ed25519KeyManager
+	ed_vss_km  ed25519.Ed25519KeyManager
+	ed_sign_km ed25519.Ed25519KeyManager
+	vss_mgr    vssed25519.VssKeyManager
+	sign_d     ed25519.Ed25519KeyManager
+	sign_e     ed25519.Ed25519KeyManager
 	hash_mgr   hash.HashManager
 	pl         *pool.Pool
 }
@@ -49,12 +49,12 @@ func NewFROSTSign(
 	sigmgr result.EddsaSignatureManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
-	ecdsa_km ecdsa.ECDSAKeyManager,
-	ec_vss_km ecdsa.ECDSAKeyManager,
-	ec_sign_km ecdsa.ECDSAKeyManager,
-	vss_mgr vss.VssKeyManager,
-	sign_d ecdsa.ECDSAKeyManager,
-	sign_e ecdsa.ECDSAKeyManager,
+	eddsa_km ed25519.Ed25519KeyManager,
+	ed_vss_km ed25519.Ed25519KeyManager,
+	ed_sign_km ed25519.Ed25519KeyManager,
+	vss_mgr vssed25519.VssKeyManager,
+	sign_d ed25519.Ed25519KeyManager,
+	sign_e ed25519.Ed25519KeyManager,
 	hash_mgr hash.HashManager,
 	pl *pool.Pool) *FROSTSign {
 	return &FROSTSign{
@@ -63,9 +63,9 @@ func NewFROSTSign(
 		statemgr:   statemgr,
 		msgmgr:     msgmgr,
 		bcstmgr:    bcstmgr,
-		ecdsa_km:   ecdsa_km,
-		ec_vss_km:  ec_vss_km,
-		ec_sign_km: ec_sign_km,
+		eddsa_km:   eddsa_km,
+		ed_vss_km:  ed_vss_km,
+		ed_sign_km: ed_sign_km,
 		vss_mgr:    vss_mgr,
 		sign_d:     sign_d,
 		sign_e:     sign_e,
@@ -102,7 +102,10 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 		}
 
 		// clone the vss share multiplied by the lagrange coefficient
-		lagrange := polynomial.Lagrange(cfg.Group(), cfg.PartyIDs())
+		lagrange, err := polynomial.Lagrange(cfg.PartyIDs())
+		if err != nil {
+			return nil, err
+		}
 		for _, j := range helper.PartyIDs() {
 			vssOpts := keyopts.Options{}
 			vssOpts.Set("id", cfg.KeyID(), "partyid", "ROOT")
@@ -114,15 +117,18 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 			partyVSSOpts := keyopts.Options{}
 			partyVSSOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
 
-			vssShareKey, err := f.ec_vss_km.GetKey(partyVSSOpts)
+			vssShareKey, err := f.ed_vss_km.GetKey(partyVSSOpts)
 			if err != nil {
 				return nil, err
 			}
 
 			partyOpts := keyopts.Options{}
 			partyOpts.Set("id", cfg.ID(), "partyid", string(j))
-			clonedj := vssShareKey.CloneByMultiplier(lagrange[j])
-			if _, err := f.ec_sign_km.ImportKey(clonedj, partyOpts); err != nil {
+			clonedj := vssShareKey.Multiply(lagrange[j])
+			if err != nil {
+				return nil, err
+			}
+			if _, err := f.ed_sign_km.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
 			}
 		}
@@ -142,9 +148,9 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 			sigmgr:     f.sigmgr,
 			msgmgr:     f.msgmgr,
 			bcstmgr:    f.bcstmgr,
-			ecdsa_km:   f.ecdsa_km,
-			ec_vss_km:  f.ec_vss_km,
-			ec_sign_km: f.ec_sign_km,
+			eddsa_km:   f.eddsa_km,
+			ed_vss_km:  f.ed_vss_km,
+			ed_sign_km: f.ed_sign_km,
 			vss_mgr:    f.vss_mgr,
 			sign_d:     f.sign_d,
 			sign_e:     f.sign_e,
@@ -192,9 +198,9 @@ func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
 			sigmgr:     f.sigmgr,
 			msgmgr:     f.msgmgr,
 			bcstmgr:    f.bcstmgr,
-			ecdsa_km:   f.ecdsa_km,
-			ec_vss_km:  f.ec_vss_km,
-			ec_sign_km: f.ec_sign_km,
+			eddsa_km:   f.eddsa_km,
+			ed_vss_km:  f.ed_vss_km,
+			ed_sign_km: f.ed_sign_km,
 			vss_mgr:    f.vss_mgr,
 			sign_d:     f.sign_d,
 			sign_e:     f.sign_e,
@@ -208,9 +214,9 @@ func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
 			sigmgr:     f.sigmgr,
 			msgmgr:     f.msgmgr,
 			bcstmgr:    f.bcstmgr,
-			ecdsa_km:   f.ecdsa_km,
-			ec_vss_km:  f.ec_vss_km,
-			ec_sign_km: f.ec_sign_km,
+			eddsa_km:   f.eddsa_km,
+			ed_vss_km:  f.ed_vss_km,
+			ed_sign_km: f.ed_sign_km,
 			vss_mgr:    f.vss_mgr,
 			sign_d:     f.sign_d,
 			sign_e:     f.sign_e,
@@ -224,9 +230,9 @@ func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
 			sigmgr:     f.sigmgr,
 			msgmgr:     f.msgmgr,
 			bcstmgr:    f.bcstmgr,
-			ecdsa_km:   f.ecdsa_km,
-			ec_vss_km:  f.ec_vss_km,
-			ec_sign_km: f.ec_sign_km,
+			eddsa_km:   f.eddsa_km,
+			ed_vss_km:  f.ed_vss_km,
+			ed_sign_km: f.ed_sign_km,
 			vss_mgr:    f.vss_mgr,
 			sign_d:     f.sign_d,
 			sign_e:     f.sign_e,
@@ -273,7 +279,7 @@ func (f *FROSTSign) Finalize(out chan<- *round.Message, signID string) (round.Se
 }
 
 func (m *FROSTSign) CanFinalize(signID string) (bool, error) {
-	r, err := m.GetRound(signID) 
+	r, err := m.GetRound(signID)
 	if err != nil {
 		return false, errors.WithMessage(err, "frost_sign: failed to get round")
 	}
