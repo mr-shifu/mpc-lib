@@ -144,6 +144,14 @@ func (mgr *Ed25519KeyManagerImpl) NewSchnorrProof(h hash.Hash, opts keyopts.Opti
 }
 
 func (mgr *Ed25519KeyManagerImpl) ImportSchnorrProof(pb []byte, opts keyopts.Options) error {
+	p := new(Proof)
+	if err := p.fromBytes(pb); err != nil {
+		return errors.WithMessage(err, "ed25519: failed to import schnorr proof")
+	}
+	if p.cmt.C.Equal(ed.NewIdentityPoint()) == 1 || p.rsp.Z.Equal(ed.NewScalar()) == 1 {
+		return errors.New("ed25519: invalid schnorr proof")
+	}
+
 	k, err := mgr.GetKey(opts)
 	if err != nil {
 		return errors.WithMessage(err, "ed25519: failed to get key from keystore")

@@ -11,7 +11,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
-	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
@@ -50,13 +49,6 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	// validate broadcast params
-	// if body.SchnorrCommitment.IsIdentity() {
-	// 	return errors.New("frost.Keygen.Round2: invalid schnorr commitment")
-	// }
-	// if body.SchnorrProof.IsZero() {
-	// 	return errors.New("frost.Keygen.Round2: invalid schnorr proof")
-	// }
 	if body.VSSPolynomial == nil {
 		return errors.New("frost.Keygen.Round2: invalid VSS polynomial")
 	}
@@ -99,7 +91,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Import VSS Polynomial
-	vssKey := sw_vss.NewVssKey(body.VSSPolynomial)
+	vssKey := vssed25519.NewVssKey(body.VSSPolynomial)
 	if _, err := r.vss_mgr.ImportSecrets(vssKey, fromOpts); err != nil {
 		return err
 	}
