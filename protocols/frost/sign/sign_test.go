@@ -2,10 +2,8 @@ package sign
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/pool"
@@ -26,10 +24,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
 	"github.com/mr-shifu/mpc-lib/protocols/frost/keygen"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
-	"golang.org/x/sync/errgroup"
 )
 
 func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
@@ -160,7 +156,7 @@ func TestSign(t *testing.T) {
 	}
 
 	for {
-		rounds, done, err := testRounds(mpckeygens, keyID)
+		rounds, done, err := test.FROSTRounds(mpckeygens, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
 			for _, r := range rounds {
@@ -190,7 +186,7 @@ func TestSign(t *testing.T) {
 	}
 
 	for {
-		rounds, done, err := testRounds(mpcsigns, signID)
+		rounds, done, err := test.FROSTRounds(mpcsigns, signID)
 		require.NoError(t, err, "failed to process round")
 		if done {
 			for _, r := range rounds {
@@ -205,132 +201,4 @@ func TestSign(t *testing.T) {
 			break
 		}
 	}
-}
-
-func testRounds(kgs []protocol.Processor, keyID string) ([]round.Session, bool, error) {
-	var (
-		err       error
-		roundType reflect.Type
-		errGroup  errgroup.Group
-		N         = len(kgs)
-		out       = make(chan *round.Message, N*(N+1))
-	)
-
-	rounds := make([]round.Session, N)
-	for id := range kgs {
-		idx := id
-		kg := kgs[idx]
-		r, err := kg.GetRound(keyID)
-		if err != nil {
-			return nil, false, err
-		}
-		rounds[idx] = r
-	}
-	if _, err = checkAllRoundsSame(rounds); err != nil {
-		return nil, false, err
-	}
-
-	// get the second set of messages
-	for id := range kgs {
-		idx := id
-		kg := kgs[idx]
-		errGroup.Go(func() error {
-			rNew, err := kg.Finalize(out, keyID)
-			if err != nil {
-				return err
-			}
-			if rNew != nil {
-				rounds[idx] = rNew
-			}
-			return nil
-		})
-	}
-	if err = errGroup.Wait(); err != nil {
-		return nil, false, err
-	}
-	close(out)
-
-	// Check that all rounds are the same type
-	if roundType, err = checkAllRoundsSame(rounds); err != nil {
-		return nil, false, err
-	}
-	if roundType.String() == reflect.TypeOf(&round.Output{}).String() {
-		return rounds, true, nil
-	}
-	if roundType.String() == reflect.TypeOf(&round.Abort{}).String() {
-		return rounds, true, nil
-	}
-
-	for msg := range out {
-		msgBytes, err := cbor.Marshal(msg.Content)
-		if err != nil {
-			return nil, false, err
-		}
-		for _, kg := range kgs {
-			kg := kg
-			r, err := kg.GetRound(keyID)
-			if err != nil {
-				return nil, false, err
-			}
-			m := *msg
-			if msg.From == r.SelfID() || msg.Content.RoundNumber() != r.Number() {
-				continue
-			}
-			errGroup.Go(func() error {
-				if m.Broadcast {
-					b, ok := r.(round.BroadcastRound)
-					if !ok {
-						return errors.New("broadcast message but not broadcast round")
-					}
-					m.Content = b.BroadcastContent()
-					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
-						return err
-					}
-
-					if err = b.StoreBroadcastMessage(m); err != nil {
-						return err
-					}
-				} else {
-					m.Content = r.MessageContent()
-					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
-						return err
-					}
-
-					if m.To == "" || m.To == r.SelfID() {
-						if err = r.VerifyMessage(m); err != nil {
-							return err
-						}
-						if err = r.StoreMessage(m); err != nil {
-							return err
-						}
-					}
-				}
-
-				return nil
-			})
-		}
-		if err = errGroup.Wait(); err != nil {
-			return nil, false, err
-		}
-	}
-
-	return rounds, false, nil
-}
-
-func checkAllRoundsSame(rounds []round.Session) (reflect.Type, error) {
-	var t reflect.Type
-	for _, r := range rounds {
-		rReal := getRound(r)
-		t2 := reflect.TypeOf(rReal)
-		if t == nil {
-			t = t2
-		} else if t != t2 {
-			return t, fmt.Errorf("two different rounds: %s %s", t, t2)
-		}
-	}
-	return t, nil
-}
-
-func getRound(outerRound round.Session) round.Session {
-	return outerRound
 }
