@@ -13,10 +13,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
@@ -50,19 +50,19 @@ func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
 	vss_keyopts := keyopts.NewInMemoryKeyOpts()
 	vss_vault := vault.NewInMemoryVault()
 	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_keyopts)
-	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	vss_km := vssed25519.NewVssKeyManager(vss_ks)
 
-	ec_keyopts := keyopts.NewInMemoryKeyOpts()
-	ec_vault := vault.NewInMemoryVault()
-	ec_ks := keystore.NewInMemoryKeystore(ec_vault, ec_keyopts)
+	ed_keyopts := keyopts.NewInMemoryKeyOpts()
+	ed_vault := vault.NewInMemoryVault()
+	ed_ks := keystore.NewInMemoryKeystore(ed_vault, ed_keyopts)
 	sch_keyopts := keyopts.NewInMemoryKeyOpts()
 	sch_vault := vault.NewInMemoryVault()
 	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_keyopts)
-	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := ed25519.NewEd25519KeyManagerImpl(ed_ks, sch_ks, vss_km)
 
-	ec_vss_keyopts := keyopts.NewInMemoryKeyOpts()
-	ec_vss_ks := keystore.NewInMemoryKeystore(ec_vault, ec_vss_keyopts)
-	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ed_vss_keyopts := keyopts.NewInMemoryKeyOpts()
+	ed_vss_ks := keystore.NewInMemoryKeystore(ed_vault, ed_vss_keyopts)
+	ed_vss_km := ed25519.NewEd25519KeyManagerImpl(ed_vss_ks, sch_ks, vss_km)
 
 	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
 	chainKey_vault := vault.NewInMemoryVault()
@@ -86,17 +86,17 @@ func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
 	edsigstore := edsig.NewInMemoryEddsaSignature(edsig_keyopts)
 	edsigmgr := edsig.NewEddsaSignatureManager(edsigstore)
 
-	ec_sign_keyopts := keyopts.NewInMemoryKeyOpts()
-	ec_sign_ks := keystore.NewInMemoryKeystore(ec_vault, ec_sign_keyopts)
-	ec_sign_km := ecdsa.NewECDSAKeyManager(ec_sign_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ed_sign_keyopts := keyopts.NewInMemoryKeyOpts()
+	ed_sign_ks := keystore.NewInMemoryKeystore(ed_vault, ed_sign_keyopts)
+	ed_sign_km := ed25519.NewEd25519KeyManagerImpl(ed_sign_ks, sch_ks, vss_km)
 
 	sign_d_keyopts := keyopts.NewInMemoryKeyOpts()
-	sign_d_ks := keystore.NewInMemoryKeystore(ec_vault, sign_d_keyopts)
-	sign_d_km := ecdsa.NewECDSAKeyManager(sign_d_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	sign_d_ks := keystore.NewInMemoryKeystore(ed_vault, sign_d_keyopts)
+	sign_d_km := ed25519.NewEd25519KeyManagerImpl(sign_d_ks, sch_ks, vss_km)
 
 	sign_e_keyopts := keyopts.NewInMemoryKeyOpts()
-	sign_e_ks := keystore.NewInMemoryKeystore(ec_vault, sign_e_keyopts)
-	sign_e_km := ecdsa.NewECDSAKeyManager(sign_e_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	sign_e_ks := keystore.NewInMemoryKeystore(ed_vault, sign_e_keyopts)
+	sign_e_km := ed25519.NewEd25519KeyManagerImpl(sign_e_ks, sch_ks, vss_km)
 
 	keygenmgr := keygen.NewFROSTKeygen(
 		keycfgmr,
@@ -104,7 +104,7 @@ func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
 		msgmgr,
 		bcstmgr,
 		ecdsa_km,
-		ec_vss_km,
+		ed_vss_km,
 		vss_km,
 		chainKey_km,
 		hash_mgr,
@@ -119,8 +119,8 @@ func newFROSTMPC() (*keygen.FROSTKeygen, *FROSTSign) {
 		msgmgr,
 		bcstmgr,
 		ecdsa_km,
-		ec_vss_km,
-		ec_sign_km,
+		ed_vss_km,
+		ed_sign_km,
 		vss_km,
 		sign_d_km,
 		sign_e_km,
@@ -196,41 +196,6 @@ func TestSign(t *testing.T) {
 			break
 		}
 	}
-
-	// rounds := make([]round.Session, 0, N)
-	// for _, partyID := range partyIDs {
-	// 	cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
-	// 	mpckg, mpcsign := newFROSTMPC()
-	// 	r, err := mpckg.Start(cfg, pl)(nil)
-	// 	fmt.Printf("r: %v\n", r)
-	// 	require.NoError(t, err, "round creation should not result in an error")
-	// 	rounds = append(rounds, r)
-	// }
-
-	// for {
-	// 	err, done := test.Rounds(rounds, nil)
-	// 	require.NoError(t, err, "failed to process round")
-	// 	if done {
-	// 		break
-	// 	}
-	// }
-
-	// for _, partyID := range partyIDs {
-	// 	cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
-	// 	mpckg, mpcsign := newFROSTMPC()
-	// 	r, err := mpckg.Start(cfg, pl)(nil)
-	// 	fmt.Printf("r: %v\n", r)
-	// 	require.NoError(t, err, "round creation should not result in an error")
-	// 	rounds = append(rounds, r)
-	// }
-
-	// for {
-	// 	err, done := test.Rounds(rounds, nil)
-	// 	require.NoError(t, err, "failed to process round")
-	// 	if done {
-	// 		break
-	// 	}
-	// }
 }
 
 func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {

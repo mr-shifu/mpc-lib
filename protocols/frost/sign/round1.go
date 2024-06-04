@@ -3,16 +3,18 @@ package sign
 import (
 	"crypto/rand"
 
+	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 	"github.com/zeebo/blake3"
 )
 
@@ -33,12 +35,12 @@ type round1 struct {
 	sigmgr     result.EddsaSignatureManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
-	ecdsa_km   ecdsa.ECDSAKeyManager
-	ec_vss_km  ecdsa.ECDSAKeyManager
-	ec_sign_km ecdsa.ECDSAKeyManager
-	vss_mgr    vss.VssKeyManager
-	sign_d     ecdsa.ECDSAKeyManager
-	sign_e     ecdsa.ECDSAKeyManager
+	eddsa_km   ed25519.Ed25519KeyManager
+	ed_vss_km  ed25519.Ed25519KeyManager
+	ed_sign_km ed25519.Ed25519KeyManager
+	vss_mgr    vssed25519.VssKeyManager
+	sign_d     ed25519.Ed25519KeyManager
+	sign_e     ed25519.Ed25519KeyManager
 	hash_mgr   hash.HashManager
 }
 
@@ -57,7 +59,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	kopts := keyopts.Options{}
 	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
 
-	k, err := r.ecdsa_km.GetKey(kopts)
+	k, err := r.eddsa_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
@@ -78,21 +80,39 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	nonceDigest := nonceHasher.Digest()
 
 	// Generate random (d, D) pair param and import them into EC keystore
-	d := sample.ScalarUnit(nonceDigest, r.Group())
-	D := d.ActOnBase()
-	sign_d := r.sign_d.NewKey(d, D, r.Group())
-	r.sign_d.ImportKey(sign_d, opts)
+	d, err := sample.Ed25519Scalar(nonceDigest)
+	if err != nil {
+		return nil, err
+	}
+	D := new(ed.Point).ScalarBaseMult(d)
+	sign_d, err := ed25519.NewKey(d, D)
+	if err != nil {
+		return nil, err
+	}
+	sign_d, err = r.sign_d.ImportKey(sign_d, opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to import D into EC keystore")
+	}
 
 	// Generate random (e, E) pair param and import them into EC keystore
-	e := sample.ScalarUnit(nonceDigest, r.Group())
-	E := e.ActOnBase()
-	sign_e := r.sign_e.NewKey(e, E, r.Group())
-	r.sign_e.ImportKey(sign_e, opts)
+	e, err := sample.Ed25519Scalar(nonceDigest)
+	if err != nil {
+		return nil, err
+	}
+	E := new(ed.Point).ScalarBaseMult(e)
+	sign_e, err := ed25519.NewKey(e, E)
+	if err != nil {
+		return nil, err
+	}
+	sign_e, err = r.sign_e.ImportKey(sign_e, opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to import E into EC keystore")
+	}
 
 	// Broadcast the commitments
 	err = r.BroadcastMessage(out, &broadcast2{
-		D: D,
-		E: E,
+		D: sign_d.PublickeyPoint(),
+		E: sign_e.PublickeyPoint(),
 	})
 	if err != nil {
 		return r, err
@@ -109,9 +129,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		sigmgr:     r.sigmgr,
 		msgmgr:     r.msgmgr,
 		bcstmgr:    r.bcstmgr,
-		ecdsa_km:   r.ecdsa_km,
-		ec_vss_km:  r.ec_vss_km,
-		ec_sign_km: r.ec_sign_km,
+		eddsa_km:   r.eddsa_km,
+		ed_vss_km:  r.ed_vss_km,
+		ed_sign_km: r.ed_sign_km,
 		vss_mgr:    r.vss_mgr,
 		sign_d:     r.sign_d,
 		sign_e:     r.sign_e,

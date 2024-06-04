@@ -4,15 +4,14 @@ import (
 	"encoding/hex"
 	"errors"
 
+	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
-	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -21,10 +20,9 @@ import (
 
 type broadcast2 struct {
 	round.ReliableBroadcastContent
-	VSSPolynomial *polynomial.Exponent
+	VSSPolynomial *polynomial.Polynomial
 
-	SchnorrCommitment curve.Point
-	SchnorrProof      curve.Scalar
+	SchnorrProof []byte
 
 	Commitment hash.Commitment
 }
@@ -36,9 +34,9 @@ type round2 struct {
 	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
-	ec_km       ecdsa.ECDSAKeyManager
-	ec_vss_km   ecdsa.ECDSAKeyManager
-	vss_mgr     vss.VssKeyManager
+	ed_km       ed25519.Ed25519KeyManager
+	ed_vss_km   ed25519.Ed25519KeyManager
+	vss_mgr     vssed25519.VssKeyManager
 	chainKey_km rid.RIDManager
 	commit_mgr  commitment.CommitmentManager
 }
@@ -51,13 +49,6 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	// validate broadcast params
-	if body.SchnorrCommitment.IsIdentity() {
-		return errors.New("frost.Keygen.Round2: invalid schnorr commitment")
-	}
-	if body.SchnorrProof.IsZero() {
-		return errors.New("frost.Keygen.Round2: invalid schnorr proof")
-	}
 	if body.VSSPolynomial == nil {
 		return errors.New("frost.Keygen.Round2: invalid VSS polynomial")
 	}
@@ -77,18 +68,21 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	// ToDo we must be able to first verify schnorr proof before importing commitment
 	// Import Party Public Key and VSS Exponents
 	pk := body.VSSPolynomial.Constant()
-	k := r.ec_km.NewKey(nil, pk, r.Group())
-	ecKey, err := r.ec_km.ImportKey(k, fromOpts)
+	k, err := ed25519.NewKey(nil, pk)
+	if err != nil {
+		return err
+	}
+	_, err = r.ed_km.ImportKey(k, fromOpts)
 	if err != nil {
 		return err
 	}
 
 	// ToDo it's better to verify proof without importing commitment
 	// verify schnorr proof
-	if err := ecKey.ImportSchnorrCommitment(body.SchnorrCommitment); err != nil {
+	if err := r.ed_km.ImportSchnorrProof(body.SchnorrProof, fromOpts); err != nil {
 		return err
 	}
-	verified, err := ecKey.VerifySchnorrProof(r.Helper.HashForID(from), body.SchnorrProof)
+	verified, err := r.ed_km.VerifySchnorrProof(r.Helper.HashForID(from), fromOpts)
 	if err != nil {
 		return err
 	}
@@ -97,7 +91,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// Import VSS Polynomial
-	vssKey := sw_vss.NewVssKey(nil, body.VSSPolynomial)
+	vssKey := vssed25519.NewVssKey(body.VSSPolynomial)
 	if _, err := r.vss_mgr.ImportSecrets(vssKey, fromOpts); err != nil {
 		return err
 	}
@@ -152,7 +146,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 	for _, j := range r.PartyIDs() {
-		share, err := vssKey.Evaluate(j.Scalar(r.Group()))
+		jScalar, err := j.Ed25519Scalar()
+		if err != nil {
+			return nil, err
+		}
+		share, err := vssKey.Evaluate(jScalar)
 		if err != nil {
 			return r, err
 		}
@@ -165,11 +163,14 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			}
 		} else {
 			// Import Self Share to the keystore
-			sharePublic := share.ActOnBase()
-			shareKey := r.ec_km.NewKey(share, sharePublic, r.Group())
+			sharePublic := new(ed.Point).ScalarBaseMult(share)
+			shareKey, err := ed25519.NewKey(share, sharePublic)
+			if err != nil {
+				return nil, err
+			}
 			vssOpts := keyopts.Options{}
 			vssOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
-			if _, err := r.ec_vss_km.ImportKey(shareKey, vssOpts); err != nil {
+			if _, err := r.ed_vss_km.ImportKey(shareKey, vssOpts); err != nil {
 				return nil, err
 			}
 		}
@@ -186,8 +187,8 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		statemgr:    r.statemgr,
 		msgmgr:      r.msgmgr,
 		bcstmgr:     r.bcstmgr,
-		ec_km:       r.ec_km,
-		ec_vss_km:   r.ec_vss_km,
+		ed_km:       r.ed_km,
+		ed_vss_km:   r.ed_vss_km,
 		vss_mgr:     r.vss_mgr,
 		chainKey_km: r.chainKey_km,
 		commit_mgr:  r.commit_mgr,
@@ -210,9 +211,8 @@ func (r *round2) CanFinalize() bool {
 // BroadcastContent implements round.BroadcastRound.
 func (r *round2) BroadcastContent() round.BroadcastContent {
 	return &broadcast2{
-		VSSPolynomial:     polynomial.EmptyExponent(r.Group()),
-		SchnorrCommitment: r.Group().NewPoint(),
-		SchnorrProof:      r.Group().NewScalar(),
+		VSSPolynomial: new(polynomial.Polynomial),
+		// SchnorrProof:  r.Group().NewScalar(),
 	}
 }
 

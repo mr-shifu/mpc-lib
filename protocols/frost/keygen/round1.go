@@ -5,9 +5,9 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -23,9 +23,9 @@ type round1 struct {
 	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
-	ec_km       ecdsa.ECDSAKeyManager
-	ec_vss_km   ecdsa.ECDSAKeyManager
-	vss_mgr     vss.VssKeyManager
+	ed_km       ed25519.Ed25519KeyManager
+	ed_vss_km   ed25519.Ed25519KeyManager
+	vss_mgr     vssed25519.VssKeyManager
 	chainKey_km rid.RIDManager
 	commit_mgr  commitment.CommitmentManager
 }
@@ -46,19 +46,16 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
 
 	// 1, Generate a new EC Key Pair
-	k, err := r.ec_km.GenerateKey(opts)
+	_, err := r.ed_km.GenerateKey(opts)
 	if err != nil {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate EC key pair")
 	}
 
 	// ToDo maybe we'd better to return vss instance by Generate function
 	// 2. Generate a new VSS share with EC Private Key as polynomial constant
-	if err := k.GenerateVSSSecrets(r.Threshold(), opts); err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate VSS secrets")
-	}
-	vss, err := k.VSS(opts)
+	vss, err := r.ed_km.GenerateVss(r.Threshold(), opts)
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to get VSS")
+		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate VSS secrets")
 	}
 	exp, err := vss.ExponentsRaw()
 	if err != nil {
@@ -67,13 +64,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// ToDo maybe we can combine commit and proof generation into a single function
 	// 3. Generate a Schnorr proof of knowledge for the EC Private Key
-	sch_cmt, err := k.NewSchnorrCommitment()
+	sch_proof, err := r.ed_km.NewSchnorrProof(r.Helper.HashForID(r.SelfID()), opts)
 	if err != nil {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate Schnorr commitment")
-	}
-	sch_proof, err := k.GenerateSchnorrProof(r.Helper.HashForID(r.SelfID()))
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate Schnorr proof")
 	}
 
 	// 4. Generate a new RID for the chaining key
@@ -96,8 +89,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// 6. Broadcast public data
 	err = r.BroadcastMessage(out, &broadcast2{
 		VSSPolynomial:     exp,
-		SchnorrCommitment: sch_cmt,
-		SchnorrProof:      sch_proof,
+		SchnorrProof:      sch_proof.Bytes(),
 		Commitment:        cmt,
 	})
 	if err != nil {
@@ -115,8 +107,8 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		statemgr:    r.statemgr,
 		msgmgr:      r.msgmgr,
 		bcstmgr:     r.bcstmgr,
-		ec_km:       r.ec_km,
-		ec_vss_km:   r.ec_vss_km,
+		ed_km:       r.ed_km,
+		ed_vss_km:   r.ed_vss_km,
 		vss_mgr:     r.vss_mgr,
 		chainKey_km: r.chainKey_km,
 		commit_mgr:  r.commit_mgr,

@@ -1,8 +1,14 @@
 package keyopts
 
-import "errors"
+import (
+	"errors"
+
+	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+)
 
 type Options map[string]interface{}
+
+var _ com_keyopts.Options = Options{}
 
 func (opts Options) Set(kVs ...interface{}) error {
 	if len(kVs)%2 != 0 {
