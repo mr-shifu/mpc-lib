@@ -1,6 +1,8 @@
 package sign
 
 import (
+	"crypto/sha512"
+
 	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/party"
@@ -172,11 +174,15 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
-	cHash := sw_hash.New(nil)
-	_ = cHash.WriteAny(R, edKey.PublickeyPoint(), r.cfg.Message())
-	c, err := sample.Ed25519Scalar(cHash.Digest())
+	kh := sha512.New()
+	kh.Write(R.Bytes())
+	kh.Write(edKey.PublickeyPoint().Bytes())
+	kh.Write(r.cfg.Message())
+	hramDigest := make([]byte, 0, sha512.Size)
+	hramDigest = kh.Sum(hramDigest)
+	c, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
-		return nil, err
+		panic("ed25519: internal error: setting scalar failed")
 	}
 
 	// 4. Compute zᵢ = dᵢ + (eᵢ ρᵢ) + λᵢ sᵢ c

@@ -1,17 +1,16 @@
 package sign
 
 import (
+	"crypto/sha512"
 	"fmt"
 
 	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/eddsa"
 	"github.com/pkg/errors"
 
-	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
-	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
@@ -73,11 +72,15 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	cHash := sw_hash.New(nil)
-	_ = cHash.WriteAny(rootSig.R(), edKey.PublickeyPoint(), r.cfg.Message())
-	c, err := sample.Ed25519Scalar(cHash.Digest())
+	kh := sha512.New()
+	kh.Write(rootSig.R().Bytes())
+	kh.Write(edKey.PublickeyPoint().Bytes())
+	kh.Write(r.cfg.Message())
+	hramDigest := make([]byte, 0, sha512.Size)
+	hramDigest = kh.Sum(hramDigest)
+	c, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
 	if err != nil {
-		return err
+		panic("ed25519: internal error: setting scalar failed")
 	}
 
 	// 2. Verify the z_i response
@@ -89,9 +92,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-
-	// expected := c.Act(signKey.PublicKeyRaw()).Add(fromSig.R())
-	// actual := body.Z.ActOnBase()
 
 	expected := new(edwards25519.Point)
 	expected.ScalarMult(c, signKey.PublickeyPoint()).Add(expected, fromSig.R())

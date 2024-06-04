@@ -108,7 +108,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to import E into EC keystore")
 	}
-	
 
 	// Broadcast the commitments
 	err = r.BroadcastMessage(out, &broadcast2{
