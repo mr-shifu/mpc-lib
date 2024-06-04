@@ -1,20 +1,16 @@
-package vss
+package vssed25519
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
+	ed "filippo.io/edwards25519"
+	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
-
-type VSSShare struct {
-	Index  curve.Scalar
-	Secret curve.Scalar
-	Public curve.Point
-}
 
 type VssKey interface {
 	// Bytes returns the byte representation of the vss coefficients.
 	Bytes() ([]byte, error)
+
+	FromBytes(data []byte) error
 
 	// SKI returns the serialized key identifier.
 	SKI() []byte
@@ -26,31 +22,31 @@ type VssKey interface {
 	Exponents() (VssKey, error)
 
 	// ExponentsRaw returns the corresponding Raw Exponents of coefficients.
-	ExponentsRaw() (*polynomial.Exponent, error)
+	ExponentsRaw() (*polynomial.Polynomial, error)
 
 	// Evaluate evaluates polynomial at a scalar using coefficients.
-	Evaluate(index curve.Scalar) (curve.Scalar, error)
+	Evaluate(index *ed.Scalar) (*ed.Scalar, error)
 
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
-	EvaluateByExponents(index curve.Scalar) (curve.Point, error)
+	EvaluateByExponents(index *ed.Scalar) (*ed.Point, error)
 }
 
 type VssKeyManager interface {
 	// GenerateSecrets generates a Polynomail of a specified degree with secret as constant value
 	// and stores coefficients and expponents of coefficients.
-	GenerateSecrets(secret curve.Scalar, degree int, opts keyopts.Options) (VssKey, error)
+	GenerateSecrets(secret *ed.Scalar, degree int, opts keyopts.Options) (VssKey, error)
 
 	// ImportSecrets imports exponents of coefficients and returns VssKey.
-	ImportSecrets(key VssKey, opts keyopts.Options) (VssKey, error)
+	ImportSecrets(key any, opts keyopts.Options) (VssKey, error)
 
 	// GetSecrets returns VssKey of coefficients.
 	GetSecrets(opts keyopts.Options) (VssKey, error)
 
 	// Evaluate evaluates polynomial at a scalar using coefficients.
-	Evaluate(index curve.Scalar,opts keyopts.Options) (curve.Scalar, error)
+	Evaluate(index *ed.Scalar, opts keyopts.Options) (*ed.Scalar, error)
 
 	// EvaluateByExponents evaluates polynomial using exponents of coefficients.
-	EvaluateByExponents(index curve.Scalar, opts keyopts.Options) (curve.Point, error)
+	EvaluateByExponents(index *ed.Scalar, opts keyopts.Options) (*ed.Point, error)
 
 	SumExponents(optsList ...keyopts.Options) (VssKey, error)
 }

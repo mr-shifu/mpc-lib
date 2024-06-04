@@ -2,7 +2,6 @@ package polynomial
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -86,7 +85,7 @@ func (p *Polynomial) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-func (p *Polynomial) UnmarshalBinary(data []byte) (error) {
+func (p *Polynomial) UnmarshalBinary(data []byte) error {
 	// 1. Group name
 	gnlen := int(data[0])
 	gn := string(data[1 : 1+gnlen])
@@ -113,50 +112,6 @@ func (p *Polynomial) UnmarshalBinary(data []byte) (error) {
 		}
 		p.coefficients[i] = c
 		offset += blen
-	}
-
-	return nil
-}
-
-type PolynomialSerialized struct {
-	Coefficients [][]byte
-}
-
-func NewEmptyPolynomial(g curve.Curve, degree int) *Polynomial {
-	polynomial := &Polynomial{
-		group:        g,
-		coefficients: make([]curve.Scalar, degree+1),
-	}
-	return polynomial
-}
-func (p *Polynomial) Serialize() (ser []byte, err error) {
-	cs := make([][]byte, len(p.coefficients))
-	for i, c := range p.coefficients {
-		cs[i], err = c.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-	}
-	ps := PolynomialSerialized{
-		Coefficients: cs,
-	}
-	pss, err := json.Marshal(ps)
-	if err != nil {
-		return nil, err
-	}
-	return pss, nil
-}
-func (p *Polynomial) Deserialize(pss []byte) (err error) {
-	var ps PolynomialSerialized
-	if err = json.Unmarshal(pss, &ps); err != nil {
-		return err
-	}
-	for id, cs := range ps.Coefficients {
-		var c curve.Secp256k1Scalar
-		if err = c.UnmarshalBinary(cs); err != nil {
-			return err
-		}
-		p.coefficients[id] = &c
 	}
 
 	return nil

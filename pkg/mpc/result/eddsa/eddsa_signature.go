@@ -1,31 +1,31 @@
 package result
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 )
 
 type EddsaSignature struct {
-	r curve.Point
-	z curve.Scalar
+	r *edwards25519.Point
+	z *edwards25519.Scalar
 }
 
-func NewEddsaSignature(r curve.Point, z curve.Scalar) result.EddsaSignature {
+func NewEddsaSignature(r *edwards25519.Point, z *edwards25519.Scalar) result.EddsaSignature {
 	return &EddsaSignature{r: r, z: z}
 }
 
-func (es *EddsaSignature) SetR(r curve.Point) {
+func (es *EddsaSignature) SetR(r *edwards25519.Point) {
 	es.r = r
 }
 
-func (es *EddsaSignature) SetZ(z curve.Scalar) {
+func (es *EddsaSignature) SetZ(z *edwards25519.Scalar) {
 	es.z = z
 }
 
-func (es *EddsaSignature) R() curve.Point {
+func (es *EddsaSignature) R() *edwards25519.Point {
 	return es.r
 }
 
-func (es *EddsaSignature) Z() curve.Scalar {
+func (es *EddsaSignature) Z() *edwards25519.Scalar {
 	return es.z
 }

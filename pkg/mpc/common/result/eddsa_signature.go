@@ -1,15 +1,15 @@
 package result
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
 type EddsaSignature interface {
-	SetR(r curve.Point) 
-	SetZ(z curve.Scalar)
-	R() curve.Point
-	Z() curve.Scalar
+	SetR(r *ed.Point)
+	SetZ(z *ed.Scalar)
+	R() *ed.Point
+	Z() *ed.Scalar
 }
 
 type EddsaSignatureStore interface {
@@ -18,10 +18,9 @@ type EddsaSignatureStore interface {
 }
 
 type EddsaSignatureManager interface {
-	NewEddsaSignature(r curve.Point, z curve.Scalar) EddsaSignature
+	NewEddsaSignature(r *ed.Point, z *ed.Scalar) EddsaSignature
 	Import(sig EddsaSignature, opts keyopts.Options) error
-	SetR(R curve.Point, opts keyopts.Options) error
-	SetZ(z curve.Scalar, opts keyopts.Options) error
+	SetR(R *ed.Point, opts keyopts.Options) error
+	SetZ(z *ed.Scalar, opts keyopts.Options) error
 	Get(opts keyopts.Options) (EddsaSignature, error)
 }
-

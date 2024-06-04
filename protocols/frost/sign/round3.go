@@ -1,17 +1,17 @@
 package sign
 
 import (
+	"crypto/sha512"
 	"fmt"
 
+	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/eddsa"
+	"github.com/pkg/errors"
 
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
-	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
@@ -22,7 +22,7 @@ import (
 type broadcast3 struct {
 	round.NormalBroadcastContent
 	// Z_i is the response scalar computed by the sender of this message.
-	Z curve.Scalar
+	Z *edwards25519.Scalar
 }
 
 type round3 struct {
@@ -32,12 +32,12 @@ type round3 struct {
 	sigmgr     result.EddsaSignatureManager
 	msgmgr     message.MessageManager
 	bcstmgr    message.MessageManager
-	ecdsa_km   ecdsa.ECDSAKeyManager
-	ec_vss_km  ecdsa.ECDSAKeyManager
-	ec_sign_km ecdsa.ECDSAKeyManager
-	vss_mgr    vss.VssKeyManager
-	sign_d     ecdsa.ECDSAKeyManager
-	sign_e     ecdsa.ECDSAKeyManager
+	eddsa_km   ed25519.Ed25519KeyManager
+	ed_vss_km  ed25519.Ed25519KeyManager
+	ed_sign_km ed25519.Ed25519KeyManager
+	vss_mgr    vssed25519.VssKeyManager
+	sign_d     ed25519.Ed25519KeyManager
+	sign_e     ed25519.Ed25519KeyManager
 	hash_mgr   hash.HashManager
 }
 
@@ -68,16 +68,23 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	ecKey, err := r.ecdsa_km.GetKey(kopts)
+	edKey, err := r.eddsa_km.GetKey(kopts)
 	if err != nil {
 		return err
 	}
-	cHash := sw_hash.New(nil)
-	_ = cHash.WriteAny(rootSig.R(), ecKey.PublicKeyRaw(), r.cfg.Message())
-	c := sample.Scalar(cHash.Digest(), r.Group())
+	kh := sha512.New()
+	kh.Write(rootSig.R().Bytes())
+	kh.Write(edKey.PublickeyPoint().Bytes())
+	kh.Write(r.cfg.Message())
+	hramDigest := make([]byte, 0, sha512.Size)
+	hramDigest = kh.Sum(hramDigest)
+	c, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+	if err != nil {
+		panic("ed25519: internal error: setting scalar failed")
+	}
 
 	// 2. Verify the z_i response
-	signKey, err := r.ec_sign_km.GetKey(sopts)
+	signKey, err := r.ed_sign_km.GetKey(sopts)
 	if err != nil {
 		return err
 	}
@@ -85,9 +92,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	expected := c.Act(signKey.PublicKeyRaw()).Add(fromSig.R())
-	actual := body.Z.ActOnBase()
-	if !actual.Equal(expected) {
+
+	expected := new(edwards25519.Point)
+	expected.ScalarMult(c, signKey.PublickeyPoint()).Add(expected, fromSig.R())
+	actual := new(edwards25519.Point).ScalarBaseMult(body.Z)
+	if actual.Equal(expected) != 1 {
 		return fmt.Errorf("failed to verify response from %v", from)
 	}
 
@@ -115,7 +124,7 @@ func (round3) StoreMessage(round.Message) error { return nil }
 // Finalize implements round.Round.
 func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	// 1. Compute the group's response z = ∑ᵢ zᵢ
-	z := r.Group().NewScalar()
+	z := edwards25519.NewScalar()
 	for _, l := range r.PartyIDs() {
 		opts := keyopts.Options{}
 		opts.Set("id", r.ID, "partyid", string(l))
@@ -123,7 +132,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return r.AbortRound(err), nil
 		}
-		z.Add(sig.Z())
+		z.Add(z, sig.Z())
 	}
 	rootOpts := keyopts.Options{}
 	rootOpts.Set("id", r.ID, "partyid", "ROOT")
@@ -132,7 +141,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 2. Verify the signature
-	ecKey, err := r.ecdsa_km.GetKey(keyopts.Options{"id": r.cfg.KeyID(), "partyid": "ROOT"})
+	ecKey, err := r.eddsa_km.GetKey(keyopts.Options{"id": r.cfg.KeyID(), "partyid": "ROOT"})
 	if err != nil {
 		return r.AbortRound(err), nil
 	}
@@ -144,7 +153,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		R: s.R(),
 		Z: s.Z(),
 	}
-	verified := eddsa.Verify(ecKey.PublicKeyRaw(), sig, r.cfg.Message()) 
+	verified := eddsa.Verify(ecKey.PublickeyPoint(), sig, r.cfg.Message())
 	if !verified {
 		return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
 	}
@@ -176,10 +185,30 @@ func (round3) MessageContent() round.Content { return nil }
 // RoundNumber implements round.Content.
 func (broadcast3) RoundNumber() round.Number { return 3 }
 
+func (msg *broadcast3) MarshalBinary() ([]byte, error) {
+	zbytes := msg.Z.Bytes()
+	return zbytes[:], nil
+}
+
+func (msg *broadcast3) UnmarshalBinary(data []byte) error {
+	if len(data) != 32 {
+		return errors.New("invalid data length")
+	}
+
+	z, err := edwards25519.NewScalar().SetCanonicalBytes(data)
+	if err != nil {
+		return err
+	}
+
+	msg.Z = z
+
+	return nil
+}
+
 // BroadcastContent implements round.BroadcastRound.
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
-		Z: r.Group().NewScalar(),
+		Z: edwards25519.NewScalar(),
 	}
 }
 

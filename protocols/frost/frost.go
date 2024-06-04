@@ -6,18 +6,16 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
 	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	comm_msg "github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	comm_result "github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
@@ -38,17 +36,17 @@ type FROST struct {
 	signstatemgr comm_state.MPCStateManager
 	msgmgr       comm_msg.MessageManager
 	bcstmgr      comm_msg.MessageManager
-	ecdsa_km     comm_ecdsa.ECDSAKeyManager
-	ec_vss_km    comm_ecdsa.ECDSAKeyManager
-	vss_mgr      comm_vss.VssKeyManager
+	eddsa_km     ed25519.Ed25519KeyManager
+	ed_vss_km    ed25519.Ed25519KeyManager
+	vss_mgr      vssed25519.VssKeyManager
 	chainKey_km  comm_rid.RIDManager
 	hash_mgr     comm_hash.HashManager
 	commit_mgr   comm_commitment.CommitmentManager
 
 	sigmgr     comm_result.EddsaSignatureManager
-	ec_sign_km comm_ecdsa.ECDSAKeyManager
-	sign_d     comm_ecdsa.ECDSAKeyManager
-	sign_e     comm_ecdsa.ECDSAKeyManager
+	ec_sign_km ed25519.Ed25519KeyManager
+	sign_d     ed25519.Ed25519KeyManager
+	sign_e     ed25519.Ed25519KeyManager
 
 	pl *pool.Pool
 }
@@ -79,7 +77,7 @@ func NewFROST(
 	vss_keyopts := krf.NewKeyOpts(nil)
 	vss_vault := vf.NewVault(nil)
 	vss_ks := ksf.NewKeystore(vss_vault, vss_keyopts, nil)
-	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+	vss_km := vssed25519.NewVssKeyManager(vss_ks)
 
 	ec_keyopts := krf.NewKeyOpts(nil)
 	ec_vault := vf.NewVault(nil)
@@ -87,11 +85,11 @@ func NewFROST(
 	sch_keyopts := krf.NewKeyOpts(nil)
 	sch_vault := vf.NewVault(nil)
 	sch_ks := ksf.NewKeystore(sch_vault, sch_keyopts, nil)
-	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	eddsa_km := ed25519.NewEd25519KeyManagerImpl(ec_ks, sch_ks, vss_km)
 
 	ec_vss_keyopts := krf.NewKeyOpts(nil)
 	ec_vss_ks := ksf.NewKeystore(ec_vault, ec_vss_keyopts, nil)
-	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ed_vss_km := ed25519.NewEd25519KeyManagerImpl(ec_vss_ks, sch_ks, vss_km)
 
 	chainKey_keyopts := krf.NewKeyOpts(nil)
 	chainKey_vault := vf.NewVault(nil)
@@ -116,32 +114,31 @@ func NewFROST(
 
 	ec_sign_keyopts := krf.NewKeyOpts(nil)
 	ec_sign_ks := ksf.NewKeystore(ec_vault, ec_sign_keyopts, nil)
-	ec_sign_km := ecdsa.NewECDSAKeyManager(ec_sign_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	ed_sign_km := ed25519.NewEd25519KeyManagerImpl(ec_sign_ks, sch_ks, vss_km)
 
 	sign_d_keyopts := krf.NewKeyOpts(nil)
 	sign_d_ks := ksf.NewKeystore(ec_vault, sign_d_keyopts, nil)
-	sign_d_km := ecdsa.NewECDSAKeyManager(sign_d_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	sign_d_km := ed25519.NewEd25519KeyManagerImpl(sign_d_ks, sch_ks, vss_km)
 
 	sign_e_keyopts := krf.NewKeyOpts(nil)
 	sign_e_ks := ksf.NewKeystore(ec_vault, sign_e_keyopts, nil)
-	sign_e_km := ecdsa.NewECDSAKeyManager(sign_e_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+	sign_e_km := ed25519.NewEd25519KeyManagerImpl(sign_e_ks, sch_ks, vss_km)
 
 	return &FROST{
 		keyconfigmgr: keycfgmr,
 		keystatemgr:  keystatemgr,
 		msgmgr:       msgmgr,
 		bcstmgr:      bcstmgr,
-		ecdsa_km:     ecdsa_km,
+		eddsa_km:     eddsa_km,
 		vss_mgr:      vss_km,
-		ec_vss_km:    ec_vss_km,
+		ed_vss_km:    ed_vss_km,
 		chainKey_km:  chainKey_km,
 		hash_mgr:     hash_mgr,
 		commit_mgr:   commit_mgr,
-
 		signcfgmgr:   signcfgmgr,
 		signstatemgr: signstatemgr,
 		sigmgr:       edsigmgr,
-		ec_sign_km:   ec_sign_km,
+		ec_sign_km:   ed_sign_km,
 		sign_d:       sign_d_km,
 		sign_e:       sign_e_km,
 	}
@@ -153,8 +150,8 @@ func (frost *FROST) NewMPCKeygenManager() *keygen.FROSTKeygen {
 		frost.keystatemgr,
 		frost.msgmgr,
 		frost.bcstmgr,
-		frost.ecdsa_km,
-		frost.ec_vss_km,
+		frost.eddsa_km,
+		frost.ed_vss_km,
 		frost.vss_mgr,
 		frost.chainKey_km,
 		frost.hash_mgr,
@@ -170,8 +167,8 @@ func (frost *FROST) NewMPCSignManager() *sign.FROSTSign {
 		frost.sigmgr,
 		frost.msgmgr,
 		frost.bcstmgr,
-		frost.ecdsa_km,
-		frost.ec_vss_km,
+		frost.eddsa_km,
+		frost.ed_vss_km,
 		frost.ec_sign_km,
 		frost.vss_mgr,
 		frost.sign_d,

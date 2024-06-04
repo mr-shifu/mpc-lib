@@ -1,27 +1,20 @@
 package eddsa
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/hash"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/math/sample"
+	"crypto/ed25519"
+
+	"filippo.io/edwards25519"
 )
 
 type Signature struct {
-	R curve.Point
-	Z curve.Scalar
+	R *edwards25519.Point
+	Z *edwards25519.Scalar
 }
 
-func Verify(public curve.Point, sig Signature, msg []byte) bool {
-	group := public.Curve()
+func Verify(public *edwards25519.Point, sig Signature, msg []byte) bool {
+	signature := make([]byte, 64)
+	copy(signature[:32], sig.R.Bytes())
+	copy(signature[32:], sig.Z.Bytes())
 
-	challengeHash := hash.New()
-	_ = challengeHash.WriteAny(sig.R, public, msg)
-	challenge := sample.Scalar(challengeHash.Digest(), group)
-
-	expected := challenge.Act(public)
-	expected = expected.Add(sig.R)
-
-	actual := sig.Z.ActOnBase()
-
-	return expected.Equal(actual)
+	return ed25519.Verify(public.Bytes(), msg, signature)
 }

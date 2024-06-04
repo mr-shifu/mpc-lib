@@ -5,6 +5,7 @@ go 1.21.4
 require github.com/stretchr/testify v1.8.4
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/sys v0.17.0 // indirect
