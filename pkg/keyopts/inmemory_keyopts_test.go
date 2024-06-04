@@ -23,15 +23,14 @@ func TestImportKeys(t *testing.T) {
 		},
 	}
 	for _, key := range keys {
-		opts := make(Options)
-		err := opts.Set("ID", keyID, "PartyID", key.PartyID)
+		opts, err := NewOptions().Set("id", keyID, "partyid", key.PartyID)
 		assert.NoError(t, err)
 		err = kr.Import(key.SKI, opts)
 		assert.NoError(t, err, "Import should not return an error")
 	}
 
 	opts := make(Options)
-	opts.Set("ID", "1")
+	opts.Set("id", "1")
 	ks, err := kr.GetAll(opts)
 	assert.NoError(t, err, "GetAll should not return an error")
 	assert.Len(t, ks, len(keys), fmt.Sprintf("GetAll should return %d key", len(keys)))

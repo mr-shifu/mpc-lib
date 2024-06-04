@@ -42,11 +42,13 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // Finalize implements round.Round
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// ToDo maybe we can include create options into helper
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return r, fmt.Errorf("frost.Keygen.Round1: failed to create options")
+	}
 
 	// 1, Generate a new EC Key Pair
-	_, err := r.ed_km.GenerateKey(opts)
+	_, err = r.ed_km.GenerateKey(opts)
 	if err != nil {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate EC key pair")
 	}
@@ -88,9 +90,9 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// 6. Broadcast public data
 	err = r.BroadcastMessage(out, &broadcast2{
-		VSSPolynomial:     exp,
-		SchnorrProof:      sch_proof.Bytes(),
-		Commitment:        cmt,
+		VSSPolynomial: exp,
+		SchnorrProof:  sch_proof.Bytes(),
+		Commitment:    cmt,
 	})
 	if err != nil {
 		return r, err
