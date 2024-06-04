@@ -54,14 +54,20 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", "ROOT")
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", "ROOT")
+	if err != nil {
+		return errors.New("forst.sign.Round3: failed to set options")
+	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.ID, "partyid", string(msg.From))
+	sopts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(msg.From))
+	if err != nil {
+		return errors.New("forst.sign.Round3: failed to set options")
+	}
 
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return errors.New("forst.sign.Round3: failed to set options")
+	}
 
 	// 1. Reproduce c random number as commitment to the nonce
 	rootSig, err := r.sigmgr.Get(rootOpts)
@@ -126,16 +132,20 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	// 1. Compute the group's response z = ∑ᵢ zᵢ
 	z := edwards25519.NewScalar()
 	for _, l := range r.PartyIDs() {
-		opts := keyopts.Options{}
-		opts.Set("id", r.ID, "partyid", string(l))
+		opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(l))
+		if err != nil {
+			return nil, errors.New("forst.sign.Round3: failed to set options")
+		}
 		sig, err := r.sigmgr.Get(opts)
 		if err != nil {
 			return r.AbortRound(err), nil
 		}
 		z.Add(z, sig.Z())
 	}
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.New("forst.sign.Round3: failed to set options")
+	}
 	if err := r.sigmgr.SetZ(z, rootOpts); err != nil {
 		return r, nil
 	}

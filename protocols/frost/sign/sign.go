@@ -43,6 +43,8 @@ type FROSTSign struct {
 	pl         *pool.Pool
 }
 
+var _ protocol.Processor = (*FROSTSign)(nil)
+
 func NewFROSTSign(
 	signcfgmgr config.SignConfigManager,
 	statemgr state.MPCStateManager,
@@ -74,7 +76,12 @@ func NewFROSTSign(
 	}
 }
 
-func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
+func (f *FROSTSign) Start(configs any) protocol.StartFunc {
+	cfg, ok := configs.(config.SignConfig)
+	if !ok {
+		return nil
+	}
+
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			ProtocolID:       SIGN_CONFIG_PROTOCOL_ID,
@@ -85,8 +92,10 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 			Group:            cfg.Group(),
 		}
 
-		opts := keyopts.Options{}
-		opts.Set("id", cfg.ID(), "partyid", info.SelfID)
+		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", info.SelfID)
+		if err != nil {
+			return nil, errors.New("frost_sign: failed to set options")
+		}
 
 		h := f.hash_mgr.NewHasher(cfg.ID(), opts)
 
@@ -107,23 +116,29 @@ func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
 			return nil, err
 		}
 		for _, j := range helper.PartyIDs() {
-			vssOpts := keyopts.Options{}
-			vssOpts.Set("id", cfg.KeyID(), "partyid", "ROOT")
+			vssOpts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", "ROOT")
+			if err != nil {
+				return nil, errors.New("frost_sign: failed to set options")
+			}
 			vss, err := f.vss_mgr.GetSecrets(vssOpts)
 			if err != nil {
 				return nil, err
 			}
 
-			partyVSSOpts := keyopts.Options{}
-			partyVSSOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+			partyVSSOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+			if err != nil {
+				return nil, errors.New("frost_sign: failed to set options")
+			}
 
 			vssShareKey, err := f.ed_vss_km.GetKey(partyVSSOpts)
 			if err != nil {
 				return nil, err
 			}
 
-			partyOpts := keyopts.Options{}
-			partyOpts.Set("id", cfg.ID(), "partyid", string(j))
+			partyOpts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(j))
+			if err != nil {
+				return nil, errors.New("frost_sign: failed to set options")
+			}
 			clonedj := vssShareKey.Multiply(lagrange[j])
 			if err != nil {
 				return nil, err
@@ -174,8 +189,10 @@ func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
 		FinalRoundNumber: protocolRounds,
 	}
 	// instantiate a new hasher for new sign session
-	opts := keyopts.Options{}
-	opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	if err != nil {
+		return nil, errors.New("frost_sign: failed to set options")
+	}
 	h := f.hash_mgr.NewHasher(cfg.ID(), opts)
 
 	// generate new helper for new sign session

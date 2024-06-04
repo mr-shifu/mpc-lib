@@ -6,7 +6,7 @@ type KeyData struct {
 }
 
 type Options interface {
-	Set(kVs ...interface{}) error
+	Set(kVs ...interface{}) (Options, error)
 	Get(key string) (interface{}, bool)
 }
 

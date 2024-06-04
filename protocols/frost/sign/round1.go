@@ -53,11 +53,14 @@ const deriveHashKeyContext = "Derive hash Key"
 
 // Finalize implements round.Round.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
-
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return r, errors.New("frost.Sign.Round1: failed to create options")
+	}
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return r, errors.New("frost.Sign.Round1: failed to create options")
+	}
 
 	k, err := r.eddsa_km.GetKey(kopts)
 	if err != nil {

@@ -53,8 +53,10 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("frost.Keygen.Round2: invalid VSS polynomial")
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.New("frost.Keygen.Round2: failed to create options")
+	}
 
 	// validate commitment and import it to commitment store
 	if err := body.Commitment.Validate(); err != nil {
@@ -118,8 +120,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.New("frost.Keygen.Round2: failed to create options")
+	}
 
 	// 1. Get ChainKey from commitment store
 	chainKey, err := r.chainKey_km.GetKey(opts)
@@ -168,8 +172,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			if err != nil {
 				return nil, err
 			}
-			vssOpts := keyopts.Options{}
-			vssOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+			vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+			if err != nil {
+				return nil, errors.New("frost.Keygen.Round2: failed to create options")
+			}
 			if _, err := r.ed_vss_km.ImportKey(shareKey, vssOpts); err != nil {
 				return nil, err
 			}

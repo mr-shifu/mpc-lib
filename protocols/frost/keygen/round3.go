@@ -125,8 +125,10 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	//   fₗ(i) * G =? ∑ₖ₌₀ᵗ (iᵏ mod q) * ϕₗₖ
 	//
 	// aborting if the check fails."
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.New("frost.Keygen.Round2: failed to create options")
+	}
 
 	// 1. Verify VSS share against exponents evaluation
 	expected := new(ed.Point).ScalarBaseMult(body.VSSShare)
@@ -147,8 +149,10 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	vssOpts := keyopts.Options{}
-	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+	vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+	if err != nil {
+		return errors.New("frost.Keygen.Round2: failed to create options")
+	}
 	ed_vss, err := ed25519.NewKey(body.VSSShare, expected)
 	if err != nil {
 		return err
@@ -174,17 +178,18 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
-
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.New("frost.Keygen.Round3: failed to create options")
+	}
 
 	// 1. XOR all chainKeys to get the group chainKey
 	chainKey := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.New("frost.Keygen.Round3: failed to create options")
+		}
 		ck, err := r.chainKey_km.GetKey(partyOpts)
 		if err != nil {
 			return nil, err
@@ -198,8 +203,10 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	// 2. Sum all VSS Exponents Shares to generate MPC VSS Exponent and Import it to VSS Keystore
 	vssOptsList := make([]com_keyopts.Options, 0)
 	for _, partyID := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(partyID))
+		if err != nil {
+			return nil, errors.New("frost.Keygen.Round3: failed to create options")
+		}
 		vssOptsList = append(vssOptsList, partyOpts)
 	}
 	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
@@ -228,16 +235,20 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	// 4. Sum all VSS self shares to generate MPC VSS Share
 	optsList := make([]com_keyopts.Options, 0)
 	for _, j := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.New("frost.Keygen.Round3: failed to create options")
+		}
 
 		vss, err := r.vss_mgr.GetSecrets(partyOpts)
 		if err != nil {
 			return nil, err
 		}
 
-		vssOpts := keyopts.Options{}
-		vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+		vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
+		if err != nil {
+			return nil, errors.New("frost.Keygen.Round3: failed to create options")
+		}
 		optsList = append(optsList, vssOpts)
 	}
 	// ToDo Verify
@@ -245,16 +256,19 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	rootVssOpts := keyopts.Options{}
-	rootVssOpts.Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", string(r.SelfID()))
+	rootVssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.New("frost.Keygen.Round3: failed to create options")
+	}
 	if _, err := r.ed_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
 		return nil, err
 	}
 
 	for _, j := range r.OtherPartyIDs() {
-		vssPartyOpts := keyopts.Options{}
-
-		vssPartyOpts.Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+		vssPartyOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+		if err != nil {
+			return nil, errors.New("frost.Keygen.Round3: failed to create options")
+		}
 
 		jScalar, err := j.Ed25519Scalar()
 		if err != nil {
@@ -276,7 +290,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	return r.ResultRound(&Config{
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		// PublicKey: pubKey,
+		PublicKey: pubKey,
 	}), nil
 }
 
