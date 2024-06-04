@@ -1,7 +1,6 @@
 package frost
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
@@ -186,10 +185,8 @@ type Config = keygen.Config
 //
 // This needs to be used for unmarshalling, otherwise the points on the curve can't
 // be decoded.
-func EmptyConfig(group curve.Curve) *Config {
-	return &Config{
-		PublicKey: group.NewPoint(),
-	}
+func EmptyConfig() *Config {
+	return keygen.EmptyConfig()
 }
 
 // Keygen generates a new shared ECDSA key over the curve defined by `group`. After a successful execution,

@@ -276,7 +276,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	return r.ResultRound(&Config{
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		// PublicKey: pubKey,
+		PublicKey: pubKey,
 	}), nil
 }
 
