@@ -16,6 +16,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 // This round roughly corresponds with steps 3-6 of Figure 3 in the Frost paper:
@@ -60,9 +61,9 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	// if body.D.IsIdentity() || body.E.IsIdentity() {
-	// 	return fmt.Errorf("nonce commitment is the identity point")
-	// }
+	if body.D.Equal(edwards25519.NewIdentityPoint()) == 1 || body.E.Equal(edwards25519.NewIdentityPoint()) == 1 {
+		return errors.New("nonce commitment is the identity point")
+	}
 
 	opts := keyopts.Options{}
 	opts.Set("id", r.ID, "partyid", string(msg.From))
