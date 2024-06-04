@@ -10,9 +10,13 @@ type Options map[string]interface{}
 
 var _ com_keyopts.Options = Options{}
 
-func (opts Options) Set(kVs ...interface{}) error {
+func NewOptions() Options {
+	return Options{}
+}
+
+func (opts Options) Set(kVs ...interface{}) (com_keyopts.Options, error) {
 	if len(kVs)%2 != 0 {
-		return errors.New("keyrepository: invalid options")
+		return nil, errors.New("keyrepository: invalid options")
 	}
 
 	for i := 0; i < len(kVs); i += 2 {
@@ -21,7 +25,7 @@ func (opts Options) Set(kVs ...interface{}) error {
 		opts[key] = val
 	}
 
-	return nil
+	return opts, nil
 }
 
 func (opts Options) Get(key string) (interface{}, bool) {

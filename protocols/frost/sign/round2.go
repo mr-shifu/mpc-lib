@@ -65,8 +65,10 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("nonce commitment is the identity point")
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(msg.From))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(msg.From))
+	if err != nil {
+		return errors.New("frost.sign.Round2: failed to set options")
+	}
 
 	// store D params as EC Key into EC keystore
 	dk, err := ed25519.NewKey(nil, body.D)
@@ -110,8 +112,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	Ds := make(map[party.ID]*edwards25519.Point)
 	Es := make(map[party.ID]*edwards25519.Point)
 	for _, l := range r.PartyIDs() {
-		opts := keyopts.Options{}
-		opts.Set("id", r.ID, "partyid", string(l))
+		opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(l))
+		if err != nil {
+			return nil, errors.New("frost.sign.Round2: failed to set options")
+		}
 		dk, err := r.sign_d.GetKey(opts)
 		if err != nil {
 			return r, err
@@ -150,8 +154,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		RShares[l] = new(edwards25519.Point).ScalarMult(rho[l], Es[l])
 		RShares[l].Add(RShares[l], Ds[l])
 
-		opts_l := keyopts.Options{}
-		opts_l.Set("id", r.ID, "partyid", string(l))
+		opts_l, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(l))
+		if err != nil {
+			return nil, errors.New("frost.sign.Round2: failed to set options")
+		}
 		if err := r.sigmgr.Import(r.sigmgr.NewEddsaSignature(RShares[l], nil), opts_l); err != nil {
 			return r, nil
 		}
@@ -162,15 +168,19 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 		R.Add(R, RShares[l])
 	}
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.New("frost.sign.Round2: failed to set options")
+	}
 	if err := r.sigmgr.Import(r.sigmgr.NewEddsaSignature(R, nil), rootOpts); err != nil {
 		return r, nil
 	}
 
 	// 3. Generate a random number as commitment to the nonce
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", "ROOT")
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.New("frost.sign.Round2: failed to set options")
+	}
 	edKey, err := r.eddsa_km.GetKey(kopts)
 	if err != nil {
 		return r, err
@@ -187,8 +197,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 4. Compute zᵢ = dᵢ + (eᵢ ρᵢ) + λᵢ sᵢ c
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.New("frost.sign.Round2: failed to set options")
+	}
 	ek, err := r.sign_e.GetKey(sopts)
 	if err != nil {
 		return r, err
