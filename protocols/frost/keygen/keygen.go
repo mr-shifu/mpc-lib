@@ -14,7 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
@@ -25,7 +25,7 @@ const (
 )
 
 type FROSTKeygen struct {
-	configmgr   mpc_config.KeyConfigManager
+	configmgr   config.KeyConfigManager
 	statemgr    mpc_state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
@@ -38,8 +38,10 @@ type FROSTKeygen struct {
 	pl          *pool.Pool
 }
 
+var _ protocol.Processor = (*FROSTKeygen)(nil)
+
 func NewFROSTKeygen(
-	keyconfigmgr mpc_config.KeyConfigManager,
+	keyconfigmgr config.KeyConfigManager,
 	keystatmgr mpc_state.MPCStateManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
@@ -66,7 +68,12 @@ func NewFROSTKeygen(
 	}
 }
 
-func (m *FROSTKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
+func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
+	cfg, ok := configs.(config.KeyConfig)
+	if !ok {
+		return nil
+	}
+
 	return func(sessionID []byte) (_ round.Session, err error) {
 		// TODO we should supprt taproot for next version
 		info := round.Info{

@@ -43,6 +43,8 @@ type FROSTSign struct {
 	pl         *pool.Pool
 }
 
+var _ protocol.Processor = (*FROSTSign)(nil)
+
 func NewFROSTSign(
 	signcfgmgr config.SignConfigManager,
 	statemgr state.MPCStateManager,
@@ -74,7 +76,12 @@ func NewFROSTSign(
 	}
 }
 
-func (f *FROSTSign) Start(cfg config.SignConfig) protocol.StartFunc {
+func (f *FROSTSign) Start(configs any) protocol.StartFunc {
+	cfg, ok := configs.(config.SignConfig)
+	if !ok {
+		return nil
+	}
+
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			ProtocolID:       SIGN_CONFIG_PROTOCOL_ID,

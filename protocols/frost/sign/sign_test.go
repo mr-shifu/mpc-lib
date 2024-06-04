@@ -8,8 +8,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
@@ -19,6 +19,7 @@ import (
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	edsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
@@ -142,31 +143,33 @@ func TestSign(t *testing.T) {
 	N := 2
 	partyIDs := test.PartyIDs(N)
 
-	mpckeygens := make(map[party.ID]*keygen.FROSTKeygen)
-	mpcsigns := make(map[party.ID]*FROSTSign)
-
-	for _, partyID := range partyIDs {
+	mpckeygens := make([]protocol.Processor, 0, N)
+	mpcsigns := make([]protocol.Processor, 0, N)
+	for range partyIDs {
 		mpckg, mpcSign := newFROSTMPC()
-		mpckeygens[partyID] = mpckg
-		mpcsigns[partyID] = mpcSign
+		mpckeygens = append(mpckeygens, mpckg)
+		mpcsigns = append(mpcsigns, mpcSign)
 	}
 
-	rounds := make([]round.Session, 0, N)
-	for _, partyID := range partyIDs {
+	for i, partyID := range partyIDs {
+		mpckg := mpckeygens[i]
 		keycfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 
-		mpckg := mpckeygens[partyID]
-
-		r, err := mpckg.Start(keycfg)(nil)
-		fmt.Printf("r: %v\n", r)
+		_, err := mpckg.Start(keycfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
-		rounds = append(rounds, r)
 	}
 
 	for {
-		err, done := test.Rounds(rounds, nil)
+		rounds, done, err := testRounds(mpckeygens, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(*keygen.Config)
+					fmt.Printf("[Party %s]Output PublicKey: %x\n", r.SelfID(), res.PublicKey.Bytes())
+				}
+			}
 			break
 		}
 	}
@@ -177,28 +180,34 @@ func TestSign(t *testing.T) {
 	messageHash := make([]byte, 64)
 	sha3.ShakeSum128(messageHash, messageToSign)
 
-	signRounds := make([]round.Session, 0, N)
-	for _, partyID := range partyIDs {
+	for i, partyID := range partyIDs {
 		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
 
-		mpcsign := mpcsigns[partyID]
+		mpcsign := mpcsigns[i]
 
-		r, err := mpcsign.Start(cfg)(nil)
-		fmt.Printf("r: %v\n", r)
+		_, err := mpcsign.Start(cfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
-		signRounds = append(signRounds, r)
 	}
 
 	for {
-		err, done := test.Rounds(signRounds, nil)
+		rounds, done, err := testRounds(mpcsigns, signID)
 		require.NoError(t, err, "failed to process round")
 		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(result.EddsaSignature)
+					// sig := make([]byte, 0)
+					sig := append(res.R().Bytes(), res.Z().Bytes()...)
+					fmt.Printf("[Party %s]Output Signature: %x\n", r.SelfID(), sig)
+				}
+			}
 			break
 		}
 	}
 }
 
-func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
+func testRounds(kgs []protocol.Processor, keyID string) ([]round.Session, bool, error) {
 	var (
 		err       error
 		roundType reflect.Type
@@ -213,12 +222,12 @@ func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
 		kg := kgs[idx]
 		r, err := kg.GetRound(keyID)
 		if err != nil {
-			return err, false
+			return nil, false, err
 		}
 		rounds[idx] = r
 	}
 	if _, err = checkAllRoundsSame(rounds); err != nil {
-		return err, false
+		return nil, false, err
 	}
 
 	// get the second set of messages
@@ -226,13 +235,10 @@ func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
 		idx := id
 		kg := kgs[idx]
 		errGroup.Go(func() error {
-			// var rNew round.Session
 			rNew, err := kg.Finalize(out, keyID)
-
 			if err != nil {
 				return err
 			}
-
 			if rNew != nil {
 				rounds[idx] = rNew
 			}
@@ -240,32 +246,31 @@ func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
 		})
 	}
 	if err = errGroup.Wait(); err != nil {
-		return err, false
+		return nil, false, err
 	}
 	close(out)
 
 	// Check that all rounds are the same type
 	if roundType, err = checkAllRoundsSame(rounds); err != nil {
-		return err, false
+		return nil, false, err
 	}
 	if roundType.String() == reflect.TypeOf(&round.Output{}).String() {
-		return nil, true
+		return rounds, true, nil
 	}
 	if roundType.String() == reflect.TypeOf(&round.Abort{}).String() {
-		return nil, true
+		return rounds, true, nil
 	}
 
 	for msg := range out {
-		fmt.Printf("Party msg: %v\n", msg)
 		msgBytes, err := cbor.Marshal(msg.Content)
 		if err != nil {
-			return err, false
+			return nil, false, err
 		}
 		for _, kg := range kgs {
 			kg := kg
 			r, err := kg.GetRound(keyID)
 			if err != nil {
-				return err, false
+				return nil, false, err
 			}
 			m := *msg
 			if msg.From == r.SelfID() || msg.Content.RoundNumber() != r.Number() {
@@ -305,11 +310,11 @@ func testRounds(kgs []*FROSTSign, keyID string) (error, bool) {
 			})
 		}
 		if err = errGroup.Wait(); err != nil {
-			return err, false
+			return nil, false, err
 		}
 	}
 
-	return nil, false
+	return rounds, false, nil
 }
 
 func checkAllRoundsSame(rounds []round.Session) (reflect.Type, error) {

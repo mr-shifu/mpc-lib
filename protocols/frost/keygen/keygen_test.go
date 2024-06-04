@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
@@ -96,31 +97,36 @@ func TestKeygen(t *testing.T) {
 
 	var group = curve.Secp256k1{}
 
-	N := 2
+	N := 3
 	partyIDs := test.PartyIDs(N)
 
-	// rounds := make([]round.Session, 0, N)
-	kgs := make([]*FROSTKeygen, 0, N)
+	kgs := make([]protocol.Processor, 0, N)
 	for _, partyID := range partyIDs {
 		cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newFROSTKeygen()
 		kgs = append(kgs, mpckg)
-		r, err := mpckg.Start(cfg)(nil)
-		fmt.Printf("r: %v\n", r)
+		_, err := mpckg.Start(cfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		// rounds = append(rounds, r)
 	}
 
 	for {
-		err, done := testRounds(kgs, keyID)
+		rounds, done, err := testRounds(kgs, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(*Config)
+					fmt.Printf("Output: %x\n", res.PublicKey.Bytes())
+				}
+			}
 			break
 		}
 	}
 }
 
-func testRounds(kgs []*FROSTKeygen, keyID string) (error, bool) {
+func testRounds(kgs []protocol.Processor, keyID string) ([]round.Session, bool, error) {
 	var (
 		err       error
 		roundType reflect.Type
@@ -135,12 +141,12 @@ func testRounds(kgs []*FROSTKeygen, keyID string) (error, bool) {
 		kg := kgs[idx]
 		r, err := kg.GetRound(keyID)
 		if err != nil {
-			return err, false
+			return nil, false, err
 		}
 		rounds[idx] = r
 	}
 	if _, err = checkAllRoundsSame(rounds); err != nil {
-		return err, false
+		return nil, false, err
 	}
 
 	// get the second set of messages
@@ -148,13 +154,10 @@ func testRounds(kgs []*FROSTKeygen, keyID string) (error, bool) {
 		idx := id
 		kg := kgs[idx]
 		errGroup.Go(func() error {
-			// var rNew round.Session
 			rNew, err := kg.Finalize(out, keyID)
-
 			if err != nil {
 				return err
 			}
-
 			if rNew != nil {
 				rounds[idx] = rNew
 			}
@@ -162,32 +165,31 @@ func testRounds(kgs []*FROSTKeygen, keyID string) (error, bool) {
 		})
 	}
 	if err = errGroup.Wait(); err != nil {
-		return err, false
+		return nil, false, err
 	}
 	close(out)
 
 	// Check that all rounds are the same type
 	if roundType, err = checkAllRoundsSame(rounds); err != nil {
-		return err, false
+		return nil, false, err
 	}
 	if roundType.String() == reflect.TypeOf(&round.Output{}).String() {
-		return nil, true
+		return rounds, true, nil
 	}
 	if roundType.String() == reflect.TypeOf(&round.Abort{}).String() {
-		return nil, true
+		return rounds, true, nil
 	}
 
 	for msg := range out {
-		fmt.Printf("Party msg: %v\n", msg)
 		msgBytes, err := cbor.Marshal(msg.Content)
 		if err != nil {
-			return err, false
+			return nil, false, err
 		}
 		for _, kg := range kgs {
 			kg := kg
 			r, err := kg.GetRound(keyID)
 			if err != nil {
-				return err, false
+				return nil, false, err
 			}
 			m := *msg
 			if msg.From == r.SelfID() || msg.Content.RoundNumber() != r.Number() {
@@ -227,11 +229,11 @@ func testRounds(kgs []*FROSTKeygen, keyID string) (error, bool) {
 			})
 		}
 		if err = errGroup.Wait(); err != nil {
-			return err, false
+			return nil, false, err
 		}
 	}
 
-	return nil, false
+	return rounds, false, nil
 }
 
 func checkAllRoundsSame(rounds []round.Session) (reflect.Type, error) {
