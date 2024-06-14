@@ -1,8 +1,6 @@
 package state
 
 import (
-	"errors"
-
 	com_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 )
 
@@ -21,12 +19,8 @@ func (mgr *MPCStateManager) NewState(ID string) error {
 	return mgr.Import(s)
 }
 
-func (m *MPCStateManager) Import(stat com_state.State) error {
-	s, ok := stat.(*State)
-	if !ok {
-		return errors.New("invalid state type")
-	}
-	return m.store.Import(stat.ID(), s)
+func (m *MPCStateManager) Import(state com_state.State) error {
+	return m.store.Import(state.ID(), state)
 }
 
 func (mgr *MPCStateManager) SetLastRound(ID string, round int) error {
@@ -35,14 +29,9 @@ func (mgr *MPCStateManager) SetLastRound(ID string, round int) error {
 		return err
 	}
 
-	s, ok := state.(*State)
-	if !ok {
-		return errors.New("invalid state type")
-	}
+	state.SetLastRound(round)
 
-	s.lastRound = round
-
-	return mgr.Import(s)
+	return mgr.Import(state)
 }
 
 func (mgr *MPCStateManager) SetAborted(ID string) error {
@@ -51,14 +40,9 @@ func (mgr *MPCStateManager) SetAborted(ID string) error {
 		return err
 	}
 
-	s, ok := state.(*State)
-	if !ok {
-		return errors.New("invalid state type")
-	}
+	state.SetAborted()
 
-	s.aborted = true
-
-	return mgr.Import(s)
+	return mgr.Import(state)
 }
 
 func (mgr *MPCStateManager) SetCompleted(ID string) error {
@@ -67,26 +51,11 @@ func (mgr *MPCStateManager) SetCompleted(ID string) error {
 		return err
 	}
 
-	s, ok := state.(*State)
-	if !ok {
-		return errors.New("invalid state type")
-	}
+	state.SetCompleted()
 
-	s.completed = true
-
-	return mgr.Import(s)
+	return mgr.Import(state)
 }
 
 func (m *MPCStateManager) Get(ID string) (com_state.State, error) {
-	state, err := m.store.Get(ID)
-	if err != nil {
-		return nil, err
-	}
-
-	s, ok := state.(*State)
-	if !ok {
-		return nil, errors.New("invalid state type")
-	}
-
-	return s, nil
+	return m.store.Get(ID)
 }
