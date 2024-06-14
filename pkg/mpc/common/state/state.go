@@ -8,8 +8,8 @@ type State interface {
 }
 
 type MPCStateStore interface {
-	Import(ID string, stat interface{}) error
-	Get(ID string) (interface{}, error)
+	Import(ID string, stat State) error
+	Get(ID string) (State, error)
 }
 
 type MPCStateManager interface {

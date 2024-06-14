@@ -1,14 +1,23 @@
 package message
 
 type Message struct {
-	keyID     string
+	id     string
 	round     int
 	partyID   string
 	verified  bool
 }
 
-func (m *Message) KeyID() string {
-	return m.keyID
+func NewMessage(id string, round int, partyID string, verified bool) *Message {
+	return &Message{
+		id:     id,
+		round:     round,
+		partyID:   partyID,
+		verified:  verified,
+	}
+}
+
+func (m *Message) ID() string {
+	return m.id
 }
 
 func (m *Message) Round() int {
