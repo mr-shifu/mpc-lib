@@ -3,8 +3,11 @@ package state
 type State interface {
 	ID() string
 	LastRound() int
+	SetLastRound(round int)
 	Aborted() bool
+	SetAborted()
 	Completed() bool
+	SetCompleted()
 }
 
 type MPCStateStore interface {

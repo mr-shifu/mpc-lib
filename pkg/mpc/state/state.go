@@ -21,10 +21,22 @@ func (s *State) LastRound() int {
 	return s.lastRound
 }
 
+func (s *State) SetLastRound(round int) {
+	s.lastRound = round
+}
+
 func (s *State) Aborted() bool {
 	return s.aborted
 }
 
+func (s *State) SetAborted() {
+	s.aborted = true
+}
+
 func (s *State) Completed() bool {
 	return s.completed
+}
+
+func (s *State) SetCompleted() {
+	s.completed = true
 }
