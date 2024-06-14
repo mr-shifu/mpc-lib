@@ -12,9 +12,9 @@ func NewMessageManager(store com_msg.MessageStore) *MessageManager {
 	}
 }
 
-func (m *MessageManager) NewMessage(keyID string, round int, partyID string, verified bool) com_msg.Message {
+func (m *MessageManager) NewMessage(id string, round int, partyID string, verified bool) com_msg.Message {
 	return &Message{
-		keyID:    keyID,
+		id:       id,
 		round:    round,
 		partyID:  partyID,
 		verified: verified,

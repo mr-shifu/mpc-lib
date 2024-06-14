@@ -1,7 +1,7 @@
 package message
 
 type Message interface {
-	KeyID() string
+	ID() string
 	Round() int
 	PartyID() string
 	Verified() bool
