@@ -8,6 +8,8 @@ type State interface {
 	SetAborted()
 	Completed() bool
 	SetCompleted()
+	Refresh() bool
+	SetRefresh(refresh bool)
 }
 
 type MPCStateStore interface {
@@ -21,5 +23,6 @@ type MPCStateManager interface {
 	SetLastRound(ID string, round int) error
 	SetAborted(ID string) error
 	SetCompleted(ID string) error
+	SetRefresh(ID string, refresh bool) error
 	Get(ID string) (State, error)
 }

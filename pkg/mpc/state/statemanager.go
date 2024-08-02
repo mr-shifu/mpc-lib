@@ -56,6 +56,17 @@ func (mgr *MPCStateManager) SetCompleted(ID string) error {
 	return mgr.Import(state)
 }
 
+func (mgr *MPCStateManager) SetRefresh(ID string, refresh bool) error {
+	state, err := mgr.store.Get(ID)
+	if err != nil {
+		return err
+	}
+
+	state.SetRefresh(refresh)
+
+	return mgr.Import(state)
+}
+
 func (m *MPCStateManager) Get(ID string) (com_state.State, error) {
 	return m.store.Get(ID)
 }
