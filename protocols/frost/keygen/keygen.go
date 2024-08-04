@@ -85,25 +85,64 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 			FinalRoundNumber: Rounds,
 		}
 
-		if err := m.configmgr.ImportConfig(cfg); err != nil {
-			return nil, errors.WithMessage(err, "keygen: failed to import config")
+		// 1. if config already exists and the state is completed -> update state to refresh
+		// otherwise import new config
+		refresh := false
+		_, err = m.configmgr.GetConfig(cfg.ID())
+		if err == nil {
+			state, err := m.statemgr.Get(cfg.ID())
+			if err != nil {
+				// unexpected error as the config exists but state does not; return an internal error
+				return nil, fmt.Errorf("keygen: unxpected error, key state not found")
+			} else {
+				if state.Completed() {
+					// we must refresh the key, update key state to Refresh
+					refresh = true
+				} else {
+					// new request must be ignored as keygen is running
+					return nil, fmt.Errorf("keygen: key genereation is still running")
+				}
+			}
 		}
 
-		// instantiate a new hasher for new keygen session
-		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
+		// 2. if NOT Refreshing -> Import configs for new key
+		if !refresh {
+			if err := m.configmgr.ImportConfig(cfg); err != nil {
+				return nil, errors.WithMessage(err, "keygen: failed to import config")
+			}
+		}
+
+		// 3. conform new option based on keygen or key refreshing
+		var kid string
+		if !refresh {
+			kid = cfg.ID()
+		} else {
+			kid = fmt.Sprintf("refresh-%s", cfg.ID())
+		}
+		opts, err := keyopts.NewOptions().Set("id", kid, "partyid", string(info.SelfID))
 		if err != nil {
 			return nil, errors.WithMessage(err, "keygen: failed to set options")
 		}
+
+		// 4. instantiate a new hasher for new keygen session
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
-		// generate new helper for new keygen session
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, m.pl, h)
+		// 5. generate new helper for new keygen session
+		// ToDo we'd better to remove Helper or regenerate it from data store
+		helper, err := round.NewSession(kid, info, sessionID, m.pl, h)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
-		if err := m.statemgr.NewState(cfg.ID()); err != nil {
-			return nil, err
+		// 6. if keygen -> Import new state, otherwise, update state.refresh = true
+		if !refresh {
+			if err := m.statemgr.NewState(cfg.ID()); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := m.statemgr.SetRefresh(cfg.ID(), true); err != nil {
+				return nil, fmt.Errorf("keygen: failed to update key state to refresh stateh")
+			}
 		}
 
 		return &round1{
