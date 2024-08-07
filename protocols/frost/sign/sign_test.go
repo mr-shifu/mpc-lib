@@ -147,9 +147,11 @@ func TestSign(t *testing.T) {
 		mpcsigns = append(mpcsigns, mpcSign)
 	}
 
+	keycfgs := make([]*config.KeyConfig, 0, N)
 	for i, partyID := range partyIDs {
 		mpckg := mpckeygens[i]
 		keycfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
+		keycfgs = append(keycfgs, keycfg)
 
 		_, err := mpckg.Start(keycfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
@@ -164,6 +166,26 @@ func TestSign(t *testing.T) {
 				if ok {
 					res := r.Result.(*keygen.Config)
 					fmt.Printf("[Party %s]Output PublicKey: %x\n", r.SelfID(), res.PublicKey.Bytes())
+				}
+			}
+			break
+		}
+	}
+
+	for i, kg := range mpckeygens {
+		_, err := kg.Start(keycfgs[i])(nil)
+		require.NoError(t, err, "round creation should not result in an error")
+	}
+
+	for {
+		rounds, done, err := test.FROSTRounds(mpckeygens, keyID)
+		require.NoError(t, err, "failed to process round")
+		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(*keygen.Config)
+					fmt.Printf("Output: %x\n", res.PublicKey.Bytes())
 				}
 			}
 			break
