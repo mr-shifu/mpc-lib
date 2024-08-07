@@ -113,10 +113,8 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 		}
 
 		// 3. conform new option based on keygen or key refreshing
-		var kid string
-		if !refresh {
-			kid = cfg.ID()
-		} else {
+		var kid = cfg.ID()
+		if refresh {
 			kid = fmt.Sprintf("refresh-%s", cfg.ID())
 		}
 		opts, err := keyopts.NewOptions().Set("id", kid, "partyid", string(info.SelfID))
@@ -140,8 +138,9 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 				return nil, err
 			}
 		} else {
+			// ToDo Set state.Completed = false
 			if err := m.statemgr.SetRefresh(cfg.ID(), true); err != nil {
-				return nil, fmt.Errorf("keygen: failed to update key state to refresh stateh")
+				return nil, fmt.Errorf("keygen: failed to update key state to refresh state")
 			}
 		}
 
