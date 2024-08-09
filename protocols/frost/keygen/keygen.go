@@ -85,16 +85,14 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 			FinalRoundNumber: Rounds,
 		}
 
-		// 1. if config already exists and the state is completed -> update state to refresh
-		// otherwise import new config
+		// 1. if key state exists, check if it is completed, if so, we must refresh the key, 
+		// otherwise if key state does not exist generate new key
 		refresh := false
 		state, err := m.statemgr.Get(cfg.ID())
 		if err == nil {
 			if state.Completed() {
-				// we must refresh the key, update key state to Refresh
 				refresh = true
 			} else {
-				// new request must be ignored as keygen is running
 				return nil, fmt.Errorf("keygen: key genereation is still running")
 			}
 		}
@@ -133,7 +131,10 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 			}
 		} else {
 			// ToDo Set state.Completed = false
-			if err := m.statemgr.SetRefresh(cfg.ID(), true); err != nil {
+			state.SetCompleted(false)
+			state.SetRefresh(true)
+			state.SetLastRound(0)
+			if err := m.statemgr.Import(state); err != nil {
 				return nil, fmt.Errorf("keygen: failed to update key state to refresh state")
 			}
 		}

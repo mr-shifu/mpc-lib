@@ -375,7 +375,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 	}
 
-	if err := r.statemgr.SetCompleted(r.ID); err != nil {
+	if err := r.statemgr.SetCompleted(r.ID, true); err != nil {
 		return nil, errors.WithMessage(err, "frost.Keygen.Round3: failed to update key state to Completed")
 	}
 

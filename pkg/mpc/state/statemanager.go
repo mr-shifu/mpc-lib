@@ -34,24 +34,24 @@ func (mgr *MPCStateManager) SetLastRound(ID string, round int) error {
 	return mgr.Import(state)
 }
 
-func (mgr *MPCStateManager) SetAborted(ID string) error {
+func (mgr *MPCStateManager) SetAborted(ID string, aborted bool) error {
 	state, err := mgr.store.Get(ID)
 	if err != nil {
 		return err
 	}
 
-	state.SetAborted()
+	state.SetAborted(aborted)
 
 	return mgr.Import(state)
 }
 
-func (mgr *MPCStateManager) SetCompleted(ID string) error {
+func (mgr *MPCStateManager) SetCompleted(ID string, completed bool) error {
 	state, err := mgr.store.Get(ID)
 	if err != nil {
 		return err
 	}
 
-	state.SetCompleted()
+	state.SetCompleted(completed)
 
 	return mgr.Import(state)
 }
