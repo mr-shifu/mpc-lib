@@ -60,26 +60,25 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return r, fmt.Errorf("frost.Keygen.Round1: failed to create options")
 	}
 
-	// 3. Generate a new VSS share with EC Private Key as polynomial constant
-	var vss vssed25519.VssKey
-	if refresh {
-		vss, err = r.vss_mgr.GenerateSecrets(edwards25519.NewScalar(), r.Threshold(), opts)
-		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate refreshing VSS secrets")
-		}
-		if err := r.ed_vss_km.ImportVss(vss, refreshOpts); err != nil {
-			return nil, fmt.Errorf("frost.Keygen.Round1: failed to import VSS secrets")
-		}
-	} else {
+	// 2. if not refreshing Generate a new Edd25519 key pair as the party share
+	if !refresh {
 		_, err = r.ed_km.GenerateKey(opts)
 		if err != nil {
 			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate EC key pair")
 		}
+	}
 
-		// ToDo maybe we'd better to return vss instance by Generate function
+	// 3. Generate a new VSS share with EC Private Key as polynomial constant
+	var vss vssed25519.VssKey
+	if !refresh {
 		vss, err = r.ed_km.GenerateVss(r.Threshold(), opts)
 		if err != nil {
 			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate VSS secrets")
+		}
+	} else {
+		vss, err = r.vss_mgr.GenerateSecrets(edwards25519.NewScalar(), r.Threshold(), refreshOpts)
+		if err != nil {
+			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate refreshing VSS secrets")
 		}
 	}
 	exp, err := vss.ExponentsRaw()
