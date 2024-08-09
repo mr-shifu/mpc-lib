@@ -88,20 +88,14 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 		// 1. if config already exists and the state is completed -> update state to refresh
 		// otherwise import new config
 		refresh := false
-		_, err = m.configmgr.GetConfig(cfg.ID())
+		state, err := m.statemgr.Get(cfg.ID())
 		if err == nil {
-			state, err := m.statemgr.Get(cfg.ID())
-			if err != nil {
-				// unexpected error as the config exists but state does not; return an internal error
-				return nil, fmt.Errorf("keygen: unxpected error, key state not found")
+			if state.Completed() {
+				// we must refresh the key, update key state to Refresh
+				refresh = true
 			} else {
-				if state.Completed() {
-					// we must refresh the key, update key state to Refresh
-					refresh = true
-				} else {
-					// new request must be ignored as keygen is running
-					return nil, fmt.Errorf("keygen: key genereation is still running")
-				}
+				// new request must be ignored as keygen is running
+				return nil, fmt.Errorf("keygen: key genereation is still running")
 			}
 		}
 
