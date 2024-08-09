@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"fmt"
-
 	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
@@ -53,18 +51,18 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// ToDo maybe we can include create options into helper
 	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to create options")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to create options")
 	}
 	refreshOpts, err := keyopts.NewOptions().Set("id", "refresh-"+r.ID, "partyid", string(r.SelfID()))
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to create options")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to create options")
 	}
 
 	// 2. if not refreshing Generate a new Edd25519 key pair as the party share
 	if !refresh {
 		_, err = r.ed_km.GenerateKey(opts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate EC key pair")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate EC key pair")
 		}
 	}
 
@@ -73,26 +71,25 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if !refresh {
 		vss, err = r.ed_km.GenerateVss(r.Threshold(), opts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate VSS secrets")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate VSS secrets")
 		}
 	} else {
 		vss, err = r.vss_mgr.GenerateSecrets(edwards25519.NewScalar(), r.Threshold(), refreshOpts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate refreshing VSS secrets")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate refreshing VSS secrets")
 		}
 	}
 	exp, err := vss.ExponentsRaw()
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to get VSS exponents")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to get VSS exponents")
 	}
 
-	// ToDo maybe we can combine commit and proof generation into a single function
 	// 4. Generate a Schnorr proof of knowledge for the EC Private Key
 	var sch_proof *ed25519.Proof
 	if !refresh {
 		sch_proof, err = r.ed_km.NewSchnorrProof(r.Helper.HashForID(r.SelfID()), opts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate Schnorr commitment")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate Schnorr commitment")
 		}
 	}
 
@@ -101,12 +98,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if !refresh {
 		chainKey, err = r.chainKey_km.GenerateKey(opts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate RID")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate RID")
 		}
 	} else {
 		chainKey, err = r.chainKey_km.GenerateKey(refreshOpts)
 		if err != nil {
-			return r, fmt.Errorf("frost.Keygen.Round1: failed to generate RID")
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate RID")
 		}
 	}
 
@@ -114,11 +111,11 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// 6. Generate commitment from chainKey and import them to the commitment store
 	cmt, dcmt, err := r.HashForID(r.SelfID()).Commit(chainKey.Raw())
 	if err != nil {
-		return r, fmt.Errorf("failed to commit to chain key")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to commit to chain key")
 	}
 	commitment := r.commit_mgr.NewCommitment(cmt, dcmt)
 	if err := r.commit_mgr.Import(commitment, opts); err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to import commitment")
 	}
 
 	// 7. Broadcast public data
@@ -128,12 +125,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Commitment:    cmt,
 	})
 	if err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to broadcast public data")
 	}
 
 	// update last round processed in StateManager
 	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to update last round processed")
 	}
 
 	return &round2{
