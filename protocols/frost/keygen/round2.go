@@ -70,18 +70,18 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 
 	// validate commitment and import it to commitment store
 	if err := body.Commitment.Validate(); err != nil {
-		return err
+		return errors.WithMessage(err, "frost.Keygen.Round2: invalid commitment")
 	}
 	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
-	if !refresh {
-		if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
-			return err
-		}
-	} else {
-		if err := r.commit_mgr.Import(cmt, fromRefreshOpts); err != nil {
-			return err
-		}
+	// if !refresh {
+	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
+		return errors.WithMessage(err, "frost.Keygen.Round2: failed to import commitment")
 	}
+	// } else {
+	// 	if err := r.commit_mgr.Import(cmt, fromRefreshOpts); err != nil {
+	// 		return errors.WithMessage(err, "frost.Keygen.Round2: failed to import commitment")
+	// 	}
+	// }
 
 	// ToDo we must be able to first verify schnorr proof before importing commitment
 	// Import Party Public Key and VSS Exponents
@@ -180,18 +180,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 2. Get Decommitment generated for chainKey by round1
-	var cmt commitment.Commitment
-	if !refresh {
-		cmt, err = r.commit_mgr.Get(opts)
-		if err != nil {
-			return r, err
-		}
-	} else {
-		cmt, err = r.commit_mgr.Get(refreshOpts)
-		if err != nil {
-			return r, err
-		}
+	// var cmt commitment.Commitment
+	// if !refresh {
+	cmt, err := r.commit_mgr.Get(opts)
+	if err != nil {
+		return r, err
 	}
+	// } else {
+	// 	cmt, err = r.commit_mgr.Get(refreshOpts)
+	// 	if err != nil {
+	// 		return r, err
+	// 	}
+	// }
 
 	if err := r.BroadcastMessage(out, &broadcast3{
 		ChainKey:     chainKey.Raw(),
@@ -208,7 +208,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return r, err
 		}
 	} else {
-		vssKey, err = r.vss_mgr.GetSecrets(opts)
+		vssKey, err = r.vss_mgr.GetSecrets(refreshOpts)
 		if err != nil {
 			return r, err
 		}
