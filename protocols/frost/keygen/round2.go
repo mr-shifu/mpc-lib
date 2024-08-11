@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"encoding/hex"
-
 	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
@@ -237,7 +235,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 				return nil, err
 			}
 
-			vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+			kid := r.ID
+			if refresh {
+				kid = "refresh-" + r.ID
+			}
+			vssOpts, err := keyopts.NewOptions().Set("id", kid, "partyid", string(r.SelfID()))
 			if err != nil {
 				return nil, errors.New("frost.Keygen.Round2: failed to create options")
 			}

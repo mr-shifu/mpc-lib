@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial-ed25519"
@@ -116,16 +115,7 @@ func (f *FROSTSign) Start(configs any) protocol.StartFunc {
 			return nil, err
 		}
 		for _, j := range helper.PartyIDs() {
-			vssOpts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", "ROOT")
-			if err != nil {
-				return nil, errors.New("frost_sign: failed to set options")
-			}
-			vss, err := f.vss_mgr.GetSecrets(vssOpts)
-			if err != nil {
-				return nil, err
-			}
-
-			partyVSSOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+			partyVSSOpts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", string(j))
 			if err != nil {
 				return nil, errors.New("frost_sign: failed to set options")
 			}

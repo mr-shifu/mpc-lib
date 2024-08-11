@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"encoding/hex"
-
 	ed "filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/round"
@@ -99,9 +97,9 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 
 	// 3. Import the decommitment
 	// if !refresh {
-		if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromOpts); err != nil {
-			return err
-		}
+	if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromOpts); err != nil {
+		return err
+	}
 	// } else {
 	// 	if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromRefreshOpts); err != nil {
 	// 		return err
@@ -196,28 +194,18 @@ func (r *round3) StoreMessage(msg round.Message) error {
 	}
 
 	// 2. Import the VSS share as an EC key
-	var vss vssed25519.VssKey
-	if !refresh {
-		vss, err = r.vss_mgr.GetSecrets(fromOpts)
-		if err != nil {
-			return err
-		}
-	} else {
-		vss, err = r.vss_mgr.GetSecrets(fromRefreshOpts)
-		if err != nil {
-			return err
-		}
-	}
-	vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-	if err != nil {
-		return errors.New("frost.Keygen.Round2: failed to create options")
-	}
 	ed_vss, err := ed25519.NewKey(body.VSSShare, expected)
 	if err != nil {
 		return err
 	}
-	if _, err := r.ed_vss_km.ImportKey(ed_vss, vssOpts); err != nil {
-		return err
+	if !refresh {
+		if _, err := r.ed_vss_km.ImportKey(ed_vss, fromOpts); err != nil {
+			return err
+		}
+	} else {
+		if _, err := r.ed_vss_km.ImportKey(ed_vss, fromRefreshOpts); err != nil {
+			return err
+		}
 	}
 
 	// Mark the message as received
@@ -243,11 +231,11 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	refresh := state.Refresh()
 
-	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	selfOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
 	if err != nil {
 		return nil, errors.New("frost.Keygen.Round3: failed to create options")
 	}
-	rootRefreshOpts, err := keyopts.NewOptions().Set("id", "refresh-"+r.ID, "partyid", "ROOT")
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
 	if err != nil {
 		return nil, errors.New("frost.Keygen.Round3: failed to create options")
 	}
@@ -274,7 +262,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 2. Sum all VSS Exponents Shares to generate MPC VSS Exponent and Import it to VSS Keystore
-	// ToDo if refresh Sum Refresh VSS Eponents, otherwise, Sum VSS Exponents
+	// ToDo if refresh Sum Refresh VSS Exponents, otherwise, Sum VSS Exponents
 	vssOptsList := make([]com_keyopts.Options, 0)
 	for _, partyID := range r.PartyIDs() {
 		kid := r.ID
@@ -289,24 +277,17 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	// ToDo if rerfresh Sum current Root Exponents with new Summmed Exponents
 	if refresh {
-		vssOptsList = append(vssOptsList, rootOpts)
+		vssOptsList = append(vssOptsList, selfOpts)
 	}
 	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
 	if err != nil {
 		return nil, err
 	}
-	if !refresh {
-		_, err := r.vss_mgr.ImportSecrets(rootVss, rootOpts)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		_, err := r.vss_mgr.ImportSecrets(rootVss, rootRefreshOpts)
-		if err != nil {
-			return nil, err
-		}
+	_, err = r.vss_mgr.ImportSecrets(rootVss, selfOpts)
+	if err != nil {
+		return nil, err
 	}
-	
+	// ToDo Delete Parties' VSS Polynomials
 
 	// 3. calculate the group public key from group VSS Exponents and import it to EDDSA Keystore
 	exponents, err := rootVss.ExponentsRaw()
@@ -336,40 +317,24 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 			return nil, errors.New("frost.Keygen.Round3: failed to create options")
 		}
 
-		vss, err := r.vss_mgr.GetSecrets(partyOpts)
-		if err != nil {
-			return nil, err
-		}
-
-		vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-		if err != nil {
-			return nil, errors.New("frost.Keygen.Round3: failed to create options")
-		}
-		optsList = append(optsList, vssOpts)
+		optsList = append(optsList, partyOpts)
 	}
-	// ToDo Verify
-	origRootVss, err := r.vss_mgr.GetSecrets(rootOpts)
-	if err != nil {
-		return nil, err		
-	}
-	origRrootVssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(origRootVss.SKI()), "partyid", "ROOT")
-	if err != nil {
-		return nil, errors.New("frost.Keygen.Round3: failed to create options")
-	}
+	// ToDo
 	if refresh {
-		optsList = append(optsList, origRrootVssOpts)
+		optsList = append(optsList, selfOpts)
 	}
 	vssShareKey, err := r.ed_vss_km.SumKeys(optsList...)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := r.ed_vss_km.ImportKey(vssShareKey, origRrootVssOpts); err != nil {
+	if _, err := r.ed_vss_km.ImportKey(vssShareKey, selfOpts); err != nil {
 		return nil, err
 	}
 
 	// 5. Evaluate VSS Polynomial by each PartyID to get public share
 	for _, j := range r.OtherPartyIDs() {
-		vssPartyOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", string(j))
+		// override the VSS Share of root over the party vss share
+		vssPartyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
 		if err != nil {
 			return nil, errors.New("frost.Keygen.Round3: failed to create options")
 		}
