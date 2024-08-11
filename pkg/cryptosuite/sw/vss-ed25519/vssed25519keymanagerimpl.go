@@ -105,6 +105,14 @@ func (mgr *VssKeyManagerImpl) GetSecrets(opts keyopts.Options) (VssKey, error) {
 	return k, nil
 }
 
+func (mgr *VssKeyManagerImpl) DeleteSecrets(opts keyopts.Options) error {
+	return mgr.ks.Delete(opts)
+}
+
+func (mgr *VssKeyManagerImpl) DeleteAllSecrets(opts keyopts.Options) error {
+	return mgr.ks.DeleteAll(opts)
+}
+
 // Evaluate evaluates polynomial at a scalar using coefficients.
 func (mgr *VssKeyManagerImpl) Evaluate(index *ed.Scalar, opts keyopts.Options) (*ed.Scalar, error) {
 	k, err := mgr.GetSecrets(opts)

@@ -75,6 +75,24 @@ func (ks *InMemoryKeystore) Delete(opts keyopts.Options) error {
 	return nil
 }
 
+func (ks *InMemoryKeystore) DeleteAll(opts keyopts.Options) error {
+	keys, err := ks.kr.GetAll(opts)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		if err := ks.v.Delete(key.SKI); err != nil {
+			return err
+		}
+	}
+
+	if err := ks.kr.DeleteAll(opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (ks *InMemoryKeystore) KeyAccessor(ski string, opts keyopts.Options) keystore.KeyAccessor {
 	return NewInMemoryKeyAccessor(ski, opts, ks)
 }

@@ -7,6 +7,7 @@ type Keystore interface {
 	Update(key []byte, opts keyopts.Options) error
 	Get(opts keyopts.Options) ([]byte, error)
 	Delete(opts keyopts.Options) error
+	DeleteAll(opts keyopts.Options) error
 	KeyAccessor(ski string, opts keyopts.Options) KeyAccessor
 }
 

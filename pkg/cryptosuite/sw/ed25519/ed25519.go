@@ -48,6 +48,10 @@ type Ed25519KeyManager interface {
 	// GetKey returns a Ed25519 key by its SKI.
 	GetKey(opts keyopts.Options) (Ed25519, error)
 
+	DeleteKey(opts keyopts.Options) error
+
+	DeleteAllKeys(opts keyopts.Options) error
+
 	SumKeys(optsList ...keyopts.Options) (Ed25519, error) 
 
 	NewSchnorrProof(h hash.Hash, opts keyopts.Options) (*Proof, error)

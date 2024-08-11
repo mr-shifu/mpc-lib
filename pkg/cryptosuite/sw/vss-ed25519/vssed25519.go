@@ -42,6 +42,10 @@ type VssKeyManager interface {
 	// GetSecrets returns VssKey of coefficients.
 	GetSecrets(opts keyopts.Options) (VssKey, error)
 
+	DeleteSecrets(opts keyopts.Options) error
+
+	DeleteAllSecrets(opts keyopts.Options) error
+
 	// Evaluate evaluates polynomial at a scalar using coefficients.
 	Evaluate(index *ed.Scalar, opts keyopts.Options) (*ed.Scalar, error)
 

@@ -93,6 +93,20 @@ func (mgr *Ed25519KeyManagerImpl) GetKey(opts keyopts.Options) (Ed25519, error) 
 	return k, nil
 }
 
+func (mgr *Ed25519KeyManagerImpl) DeleteKey(opts keyopts.Options) error {
+	if err := mgr.keystore.Delete(opts); err != nil {
+		return errors.WithMessage(err, "ed25519: failed to delete key from keystore")
+	}
+	return nil
+}
+
+func (mgr *Ed25519KeyManagerImpl) DeleteAllKeys(opts keyopts.Options) error {
+	if err := mgr.keystore.DeleteAll(opts); err != nil {
+		return errors.WithMessage(err, "ed25519: failed to delete all keys from keystore")
+	}
+	return nil
+}
+
 func (mgr *Ed25519KeyManagerImpl) SumKeys(optsList ...keyopts.Options) (Ed25519, error) {
 	s := ed.NewScalar()
 	a := new(ed.Point)
