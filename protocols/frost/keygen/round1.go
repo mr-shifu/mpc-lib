@@ -119,9 +119,13 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// 7. Broadcast public data
+	var sch_proof_bytes []byte
+	if sch_proof != nil {
+		sch_proof_bytes = sch_proof.Bytes()
+	}
 	err = r.BroadcastMessage(out, &broadcast2{
 		VSSPolynomial: exp,
-		SchnorrProof:  sch_proof.Bytes(),
+		SchnorrProof:  sch_proof_bytes,
 		Commitment:    cmt,
 	})
 	if err != nil {
