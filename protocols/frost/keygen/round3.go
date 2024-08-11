@@ -235,6 +235,10 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.New("frost.Keygen.Round3: failed to create options")
 	}
+	selfRefreshOpts, err := keyopts.NewOptions().Set("id", "refresh-"+r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.New("frost.Keygen.Round3: failed to create options")
+	}
 	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
 	if err != nil {
 		return nil, errors.New("frost.Keygen.Round3: failed to create options")
@@ -283,11 +287,19 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.vss_mgr.ImportSecrets(rootVss, selfOpts)
+	if !refresh {
+		if err := r.vss_mgr.DeleteAllSecrets(selfOpts); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := r.vss_mgr.DeleteAllSecrets(selfRefreshOpts); err != nil {
+			return nil, err
+		}
+	}
+	_, err = r.vss_mgr.ImportSecrets(rootVss, rootOpts)
 	if err != nil {
 		return nil, err
 	}
-	// ToDo Delete Parties' VSS Polynomials
 
 	// 3. calculate the group public key from group VSS Exponents and import it to EDDSA Keystore
 	exponents, err := rootVss.ExponentsRaw()
