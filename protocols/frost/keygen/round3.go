@@ -261,6 +261,15 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 		chainKey.XOR(ck.Raw())
 	}
+	if !refresh {
+		if err := r.chainKey_km.DeleteAllKeys(selfOpts); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := r.chainKey_km.DeleteAllKeys(selfRefreshOpts); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
 		return nil, err
 	}

@@ -63,6 +63,14 @@ func (mgr *RIDManager) GetKey(opts keyopts.Options) (cs_rid.RID, error) {
 	return &RID{r}, nil
 }
 
+func (mgr *RIDManager) DeleteKey(opts keyopts.Options) error {
+	return mgr.ks.Delete(opts)
+}
+
+func (mgr *RIDManager) DeleteAllKeys(opts keyopts.Options) error {
+	return mgr.ks.DeleteAll(opts)
+}
+
 // modifies the receiver by taking the XOR with the argument.
 func (mgr *RIDManager) XOR(message []byte, opts keyopts.Options) (cs_rid.RID, error) {
 	rid, err := mgr.GetKey(opts)

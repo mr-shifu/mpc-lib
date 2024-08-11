@@ -32,6 +32,10 @@ type RIDManager interface {
 	// GetKey returns a RID key by its SKI.
 	GetKey(opts keyopts.Options) (RID, error)
 
+	DeleteKey(opts keyopts.Options) error
+
+	DeleteAllKeys(opts keyopts.Options) error
+
 	// modifies the receiver by taking the XOR with the argument.
 	XOR(message []byte, opts keyopts.Options) (RID, error)
 
