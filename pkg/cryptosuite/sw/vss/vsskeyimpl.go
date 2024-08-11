@@ -57,8 +57,11 @@ func (k *VssKey) Bytes() ([]byte, error) {
 
 // SKI returns the serialized key identifier.
 func (k *VssKey) SKI() []byte {
-	pub := k.exponents.Constant()
-	pub_bytes, err := pub.MarshalBinary()
+	pub, err := k.Exponents()
+	if err != nil {
+		return nil
+	}
+	pub_bytes, err := pub.Bytes()
 	if err != nil {
 		return nil
 	}
