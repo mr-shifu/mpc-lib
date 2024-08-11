@@ -281,7 +281,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	// ToDo if rerfresh Sum current Root Exponents with new Summmed Exponents
 	if refresh {
-		vssOptsList = append(vssOptsList, selfOpts)
+		vssOptsList = append(vssOptsList, rootOpts)
 	}
 	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
 	if err != nil {
@@ -338,6 +338,15 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	vssShareKey, err := r.ed_vss_km.SumKeys(optsList...)
 	if err != nil {
 		return nil, err
+	}
+	if !refresh {
+		if err := r.ed_vss_km.DeleteAllKeys(selfOpts); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := r.ed_vss_km.DeleteAllKeys(selfRefreshOpts); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := r.ed_vss_km.ImportKey(vssShareKey, selfOpts); err != nil {
 		return nil, err
