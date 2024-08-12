@@ -5,7 +5,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
@@ -58,7 +57,7 @@ type MPC struct {
 	rid        comm_rid.RIDManager
 	chainKey   comm_rid.RIDManager
 	hash_mgr   comm_hash.HashManager
-	commit_mgr comm_commitment.CommitmentManager
+	commit_mgr commitment.CommitmentManager
 
 	vss_mgr comm_vss.VssKeyManager
 
@@ -142,7 +141,7 @@ func NewMPC(
 	commit_keyopts := krf.NewKeyOpts(nil)
 	commit_vault := vf.NewVault(nil)
 	commit_ks := ksf.NewKeystore(commit_vault, commit_keyopts, nil)
-	commit_mgr := commitment.NewCommitmentManager(commit_ks)
+	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
 
 	sigma_kr := krf.NewKeyOpts(nil)
 	sigma_vault := vf.NewVault(nil)

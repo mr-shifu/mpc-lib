@@ -105,7 +105,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	commit_keyopts := keyopts.NewInMemoryKeyOpts()
 	commit_vault := vault.NewInMemoryVault()
 	commit_ks := keystore.NewInMemoryKeystore(commit_vault, commit_keyopts)
-	commit_mgr := commitment.NewCommitmentManager(commit_ks)
+	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
 
 	mpc_keygen := keygen.NewMPCKeygen(
 		keycfgmgr,

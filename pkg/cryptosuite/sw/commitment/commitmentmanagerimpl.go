@@ -4,29 +4,28 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
-type CommitmentManager struct {
+type CommitmentManagerImpl struct {
 	ks keystore.Keystore
 }
 
-func NewCommitmentManager(ks keystore.Keystore) *CommitmentManager {
-	return &CommitmentManager{
+func NewCommitmentManagerImpl(ks keystore.Keystore) *CommitmentManagerImpl {
+	return &CommitmentManagerImpl{
 		ks: ks,
 	}
 }
 
-func (cm *CommitmentManager) NewCommitment(cmt []byte, dcm []byte) comm_commitment.Commitment {
-	return &Commitment{
+func (cm *CommitmentManagerImpl) NewCommitment(cmt []byte, dcm []byte) Commitment {
+	return &CommitmentImpl{
 		cmt:  cmt,
 		dcmt: dcm,
 	}
 }
 
-func (cm *CommitmentManager) Import(cmt comm_commitment.Commitment, opts keyopts.Options) error {
+func (cm *CommitmentManagerImpl) Import(cmt Commitment, opts keyopts.Options) error {
 	cb, err := cmt.Bytes()
 	if err != nil {
 		return err
@@ -39,13 +38,13 @@ func (cm *CommitmentManager) Import(cmt comm_commitment.Commitment, opts keyopts
 	return err
 }
 
-func (cm *CommitmentManager) ImportCommitment(cmt []byte, opts keyopts.Options) error {
+func (cm *CommitmentManagerImpl) ImportCommitment(cmt []byte, opts keyopts.Options) error {
 	cc, err := cm.Get(opts)
 	if err != nil {
 		return err
 	}
 
-	c, ok := cc.(*Commitment)
+	c, ok := cc.(*CommitmentImpl)
 	if !ok {
 		return errors.New("invalid commitment type")
 	}
@@ -54,13 +53,13 @@ func (cm *CommitmentManager) ImportCommitment(cmt []byte, opts keyopts.Options) 
 	return cm.Import(c, opts)
 }
 
-func (cm *CommitmentManager) ImportDecommitment(dcmt []byte, opts keyopts.Options) error {
+func (cm *CommitmentManagerImpl) ImportDecommitment(dcmt []byte, opts keyopts.Options) error {
 	cc, err := cm.Get(opts)
 	if err != nil {
 		return err
 	}
 
-	c, ok := cc.(*Commitment)
+	c, ok := cc.(*CommitmentImpl)
 	if !ok {
 		return errors.New("invalid commitment type")
 	}
@@ -69,7 +68,7 @@ func (cm *CommitmentManager) ImportDecommitment(dcmt []byte, opts keyopts.Option
 	return cm.Import(c, opts)
 }
 
-func (cm *CommitmentManager) Get(opts keyopts.Options) (comm_commitment.Commitment, error) {
+func (cm *CommitmentManagerImpl) Get(opts keyopts.Options) (Commitment, error) {
 	cb, err := cm.ks.Get(opts)
 	if err != nil {
 		return nil, err
