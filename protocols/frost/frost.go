@@ -194,14 +194,20 @@ func EmptyConfig() *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func (frost *FROST) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
+func (frost *FROST) Keygen(cfg comm_config.KeyConfig) protocol.StartFunc {
 	kg := frost.NewMPCKeygenManager()
+	return kg.Start(cfg)
+}
+
+func (frost *FROST) Refresh(keyID string) protocol.StartFunc {
+	kg := frost.NewMPCKeygenManager()
+	cfg := mpc_config.NewKeyConfig(keyID, nil, 0, "", nil)
 	return kg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (frost *FROST) Sign(cfg comm_config.SignConfig, pl *pool.Pool) protocol.StartFunc {
+func (frost *FROST) Sign(cfg comm_config.SignConfig) protocol.StartFunc {
 	sign := frost.NewMPCSignManager()
 	return sign.Start(cfg)
 }
