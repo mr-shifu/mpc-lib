@@ -93,14 +93,14 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 			if state.Completed() {
 				refresh = true
 			} else {
-				return nil, fmt.Errorf("keygen: key genereation is still running")
+				return nil, fmt.Errorf("frost.Keygen: key genereation is still running")
 			}
 		}
 
 		// 2. if NOT Refreshing -> Import configs for new key
 		if !refresh {
 			if err := m.configmgr.ImportConfig(cfg); err != nil {
-				return nil, errors.WithMessage(err, "keygen: failed to import config")
+				return nil, errors.WithMessage(err, "frost.Keygen: failed to import config")
 			}
 		}
 
@@ -111,17 +111,16 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 		}
 		opts, err := keyopts.NewOptions().Set("id", kid, "partyid", string(info.SelfID))
 		if err != nil {
-			return nil, errors.WithMessage(err, "keygen: failed to set options")
+			return nil, errors.WithMessage(err, "frost.Keygen: failed to set options")
 		}
 
 		// 4. instantiate a new hasher for new keygen session
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		// 5. generate new helper for new keygen session
-		// ToDo we'd better to remove Helper or regenerate it from data store
 		helper, err := round.NewSession(kid, info, sessionID, m.pl, h)
 		if err != nil {
-			return nil, fmt.Errorf("keygen: %w", err)
+			return nil, fmt.Errorf("frost.Keygen: %w", err)
 		}
 
 		// 6. if keygen -> Import new state, otherwise, update state.refresh = true
@@ -130,12 +129,11 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 				return nil, err
 			}
 		} else {
-			// ToDo Set state.Completed = false
 			state.SetCompleted(false)
 			state.SetRefresh(true)
 			state.SetLastRound(0)
 			if err := m.statemgr.Import(state); err != nil {
-				return nil, fmt.Errorf("keygen: failed to update key state to refresh state")
+				return nil, fmt.Errorf("frost.Keygen: failed to update key state to refresh state")
 			}
 		}
 
@@ -157,7 +155,7 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 	cfg, err := m.configmgr.GetConfig(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get config")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get config")
 	}
 
 	info := round.Info{
@@ -176,12 +174,12 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 	// generate new helper for new keygen session
 	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
 	if err != nil {
-		return nil, fmt.Errorf("keygen: %w", err)
+		return nil, fmt.Errorf("frost.Keygen: %w", err)
 	}
 
 	state, err := m.statemgr.Get(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get state")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get state")
 	}
 	rn := state.LastRound()
 	switch rn {
@@ -225,18 +223,18 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 			commit_mgr:  m.commit_mgr,
 		}, nil
 	default:
-		return nil, errors.New("keygen: invalid round number")
+		return nil, errors.New("frost.Keygen: invalid round number")
 	}
 }
 
 func (m *FROSTKeygen) StoreBroadcastMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "keygen: failed to get round")
+		return errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	if err := r.StoreBroadcastMessage(msg); err != nil {
-		return errors.WithMessage(err, "keygen: failed to store message")
+		return errors.WithMessage(err, "frost.Keygen: failed to store message")
 	}
 
 	return nil
@@ -245,11 +243,11 @@ func (m *FROSTKeygen) StoreBroadcastMessage(keyID string, msg round.Message) err
 func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "keygen: failed to get round")
+		return errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	if err := r.StoreMessage(msg); err != nil {
-		return errors.WithMessage(err, "keygen: failed to store message")
+		return errors.WithMessage(err, "frost.Keygen: failed to store message")
 	}
 
 	return nil
@@ -258,7 +256,7 @@ func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get round")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	return r.Finalize(out)
@@ -267,7 +265,7 @@ func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.S
 func (m *FROSTKeygen) CanFinalize(keyID string) (bool, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return false, errors.WithMessage(err, "keygen: failed to get round")
+		return false, errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 	return r.CanFinalize(), nil
 }
