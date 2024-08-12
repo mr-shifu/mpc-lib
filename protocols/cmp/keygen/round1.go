@@ -10,12 +10,12 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"

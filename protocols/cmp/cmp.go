@@ -6,7 +6,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	comm_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
 	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
@@ -19,7 +18,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	sw_elgamal "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
@@ -49,7 +48,7 @@ type MPC struct {
 	keystatmgr  comm_state.MPCStateManager
 	signstatmgr comm_state.MPCStateManager
 
-	elgamal    comm_elgamal.ElgamalKeyManager
+	elgamal    elgamal.ElgamalKeyManager
 	paillier   comm_paillier.PaillierKeyManager
 	pedersen   comm_pedersen.PedersenKeyManager
 	ec         comm_ecdsa.ECDSAKeyManager
@@ -94,7 +93,7 @@ func NewMPC(
 	elgamal_kr := krf.NewKeyOpts(nil)
 	elgamal_vault := vf.NewVault(nil)
 	elgamal_ks := ksf.NewKeystore(elgamal_vault, elgamal_kr, nil)
-	elgamal_km := sw_elgamal.NewElgamalKeyManager(elgamal_ks, &sw_elgamal.Config{Group: curve.Secp256k1{}})
+	elgamal_km := elgamal.NewElgamalKeyManager(elgamal_ks, &elgamal.Config{Group: curve.Secp256k1{}})
 
 	paillier_kr := krf.NewKeyOpts(nil)
 	paillier_vault := vf.NewVault(nil)

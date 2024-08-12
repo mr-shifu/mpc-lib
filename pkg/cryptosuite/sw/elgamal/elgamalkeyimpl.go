@@ -8,14 +8,13 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/elgamal"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	cs_elgamal "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/elgamal"
 )
 
 var (
 	ErrInvalidKey = errors.New("invalid key")
 )
 
-type ElgamalKey struct {
+type ElgamalKeyImpl struct {
 	secretKey curve.Scalar
 	publicKey curve.Point
 	group     curve.Curve
@@ -27,7 +26,9 @@ type rawElgamalKey struct {
 	Public []byte
 }
 
-func (key ElgamalKey) Bytes() ([]byte, error) {
+var _ ElgamalKey = (*ElgamalKeyImpl)(nil)
+
+func (key ElgamalKeyImpl) Bytes() ([]byte, error) {
 	raw := &rawElgamalKey{}
 
 	raw.Group = key.group.Name()
@@ -48,7 +49,7 @@ func (key ElgamalKey) Bytes() ([]byte, error) {
 	return cbor.Marshal(raw)
 }
 
-func (key ElgamalKey) SKI() []byte {
+func (key ElgamalKeyImpl) SKI() []byte {
 	raw, err := key.publicKey.MarshalBinary()
 	if err != nil {
 		return nil
@@ -58,19 +59,19 @@ func (key ElgamalKey) SKI() []byte {
 	return hash.Sum(nil)
 }
 
-func (key ElgamalKey) Private() bool {
+func (key ElgamalKeyImpl) Private() bool {
 	return key.secretKey != nil
 }
 
-func (key ElgamalKey) PublicKey() cs_elgamal.ElgamalKey {
-	return ElgamalKey{nil, key.publicKey, key.group}
+func (key ElgamalKeyImpl) PublicKey() ElgamalKey {
+	return ElgamalKeyImpl{nil, key.publicKey, key.group}
 }
 
-func (key ElgamalKey) PublicKeyRaw() curve.Point {
+func (key ElgamalKeyImpl) PublicKeyRaw() curve.Point {
 	return key.publicKey
 }
 
-func (key ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
+func (key ElgamalKeyImpl) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error) {
 	ct, nonce := elgamal.Encrypt(key.publicKey, message)
 
 	var buf bytes.Buffer
@@ -81,12 +82,12 @@ func (key ElgamalKey) Encrypt(message curve.Scalar) ([]byte, curve.Scalar, error
 	return buf.Bytes(), nonce, nil
 }
 
-func fromBytes(data []byte) (ElgamalKey, error) {
-	key := ElgamalKey{}
+func fromBytes(data []byte) (ElgamalKeyImpl, error) {
+	key := ElgamalKeyImpl{}
 
 	raw := &rawElgamalKey{}
 	if err := cbor.Unmarshal(data, raw); err != nil {
-		return ElgamalKey{}, err
+		return ElgamalKeyImpl{}, err
 	}
 
 	var group curve.Curve
@@ -99,14 +100,14 @@ func fromBytes(data []byte) (ElgamalKey, error) {
 	if len(raw.Secret) > 0 {
 		secret := group.NewScalar()
 		if err := secret.UnmarshalBinary(raw.Secret); err != nil {
-			return ElgamalKey{}, err
+			return ElgamalKeyImpl{}, err
 		}
 		key.secretKey = secret
 	}
 
 	pub := group.NewPoint()
 	if err := pub.UnmarshalBinary(raw.Public); err != nil {
-		return ElgamalKey{}, err
+		return ElgamalKeyImpl{}, err
 	}
 	key.publicKey = pub
 
