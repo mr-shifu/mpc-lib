@@ -81,12 +81,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	// } else {
-	// 	cmt, err = r.commit_mgr.Get(fromRefreshOpts)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
 	if !r.HashForID(from).Decommit(
 		cmt.Commitment(),
 		body.Decommitment,
@@ -100,11 +94,6 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromOpts); err != nil {
 		return err
 	}
-	// } else {
-	// 	if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromRefreshOpts); err != nil {
-	// 		return err
-	// 	}
-	// }
 
 	// 5. Import the chainKey
 	if !refresh {

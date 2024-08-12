@@ -75,11 +75,6 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
 		return errors.WithMessage(err, "frost.Keygen.Round2: failed to import commitment")
 	}
-	// } else {
-	// 	if err := r.commit_mgr.Import(cmt, fromRefreshOpts); err != nil {
-	// 		return errors.WithMessage(err, "frost.Keygen.Round2: failed to import commitment")
-	// 	}
-	// }
 
 	// ToDo we must be able to first verify schnorr proof before importing commitment
 	// Import Party Public Key and VSS Exponents
@@ -184,12 +179,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return r, err
 	}
-	// } else {
-	// 	cmt, err = r.commit_mgr.Get(refreshOpts)
-	// 	if err != nil {
-	// 		return r, err
-	// 	}
-	// }
 
 	if err := r.BroadcastMessage(out, &broadcast3{
 		ChainKey:     chainKey.Raw(),
