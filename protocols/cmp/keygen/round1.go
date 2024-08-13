@@ -10,12 +10,12 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
@@ -176,7 +176,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	nextRound := &round2{
-		round1:             r,
+		round1: r,
 	}
 	return nextRound, nil
 }

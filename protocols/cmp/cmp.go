@@ -9,7 +9,6 @@ import (
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	comm_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
@@ -23,6 +22,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	sw_pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
@@ -50,7 +50,7 @@ type MPC struct {
 
 	elgamal    elgamal.ElgamalKeyManager
 	paillier   paillier.PaillierKeyManager
-	pedersen   comm_pedersen.PedersenKeyManager
+	pedersen   pedersen.PedersenKeyManager
 	ec         comm_ecdsa.ECDSAKeyManager
 	ec_vss     comm_ecdsa.ECDSAKeyManager
 	rid        comm_rid.RIDManager

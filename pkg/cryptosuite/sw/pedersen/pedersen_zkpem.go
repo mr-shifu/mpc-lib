@@ -17,7 +17,7 @@ import (
 
 // NewProof generates a proof that:
 // s = t^lambda (mod N).
-func (k PedersenKey) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
+func (k *PedersenKeyImpl) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	n := k.public.NArith()
 	phi := n.ModulusPhi()
 
@@ -54,7 +54,7 @@ func (k PedersenKey) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	}
 }
 
-func (k PedersenKey) VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
+func (k *PedersenKeyImpl) VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
 	if p == nil {
 		return false
 	}

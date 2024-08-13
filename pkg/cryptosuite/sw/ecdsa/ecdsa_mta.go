@@ -8,7 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
 func (k ECDSAKey) NewMtAAffgProof(

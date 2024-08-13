@@ -10,7 +10,7 @@ import (
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 

@@ -14,16 +14,16 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 )
 
 // protocolSignID for the "3 round" variant using echo broadcast.

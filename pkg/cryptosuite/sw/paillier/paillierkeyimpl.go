@@ -11,7 +11,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	pailliercore "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pool"
-	cs_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
@@ -116,7 +115,7 @@ func (k *PaillierKeyImpl) ValidateCiphertexts(cts ...*pailliercore.Ciphertext) b
 }
 
 // Derive Pedersen Key from Paillier Key prime factors
-func (k *PaillierKeyImpl) DerivePedersenKey() (cs_pedersen.PedersenKey, error) {
+func (k *PaillierKeyImpl) DerivePedersenKey() (pedersen.PedersenKey, error) {
 	pk, sk := k.secretKey.GeneratePedersen()
 	return pedersen.NewPedersenKey(sk, pk), nil
 }
