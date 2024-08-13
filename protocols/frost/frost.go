@@ -5,7 +5,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
@@ -37,7 +36,7 @@ type FROST struct {
 	eddsa_km     ed25519.Ed25519KeyManager
 	ed_vss_km    ed25519.Ed25519KeyManager
 	vss_mgr      vssed25519.VssKeyManager
-	chainKey_km  comm_rid.RIDManager
+	chainKey_km  rid.RIDManager
 	hash_mgr     comm_hash.HashManager
 	commit_mgr   commitment.CommitmentManager
 
@@ -92,7 +91,7 @@ func NewFROST(
 	chainKey_keyopts := krf.NewKeyOpts(nil)
 	chainKey_vault := vf.NewVault(nil)
 	chainKey_ks := ksf.NewKeystore(chainKey_vault, chainKey_keyopts, nil)
-	chainKey_km := rid.NewRIDManager(chainKey_ks)
+	chainKey_km := rid.NewRIDManagerImpl(chainKey_ks)
 
 	hahs_keyopts := krf.NewKeyOpts(nil)
 	hahs_vault := vf.NewVault(nil)

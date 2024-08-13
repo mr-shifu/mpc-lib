@@ -58,7 +58,7 @@ func newFROSTKeygen() *FROSTKeygen {
 	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
 	chainKey_vault := vault.NewInMemoryVault()
 	chainKey_ks := keystore.NewInMemoryKeystore(chainKey_vault, chainKey_keyopts)
-	chainKey_km := rid.NewRIDManager(chainKey_ks)
+	chainKey_km := rid.NewRIDManagerImpl(chainKey_ks)
 
 	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
 	hahs_vault := vault.NewInMemoryVault()

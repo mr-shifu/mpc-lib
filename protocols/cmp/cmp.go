@@ -9,7 +9,6 @@ import (
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
@@ -24,6 +23,7 @@ import (
 	sw_pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	sw_pedersen "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	sw_rid "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	sw_vss "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	comm_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
@@ -53,8 +53,8 @@ type MPC struct {
 	pedersen   pedersen.PedersenKeyManager
 	ec         comm_ecdsa.ECDSAKeyManager
 	ec_vss     comm_ecdsa.ECDSAKeyManager
-	rid        comm_rid.RIDManager
-	chainKey   comm_rid.RIDManager
+	rid        rid.RIDManager
+	chainKey   rid.RIDManager
 	hash_mgr   comm_hash.HashManager
 	commit_mgr commitment.CommitmentManager
 
@@ -125,12 +125,12 @@ func NewMPC(
 	rid_kr := krf.NewKeyOpts(nil)
 	rid_vault := vf.NewVault(nil)
 	rid_ks := ksf.NewKeystore(rid_vault, rid_kr, nil)
-	rid_km := sw_rid.NewRIDManager(rid_ks)
+	rid_km := sw_rid.NewRIDManagerImpl(rid_ks)
 
 	chainKey_kr := krf.NewKeyOpts(nil)
 	chainKey_vault := vf.NewVault(nil)
 	chainKey_ks := ksf.NewKeystore(chainKey_vault, chainKey_kr, nil)
-	chainKey_km := sw_rid.NewRIDManager(chainKey_ks)
+	chainKey_km := sw_rid.NewRIDManagerImpl(chainKey_ks)
 
 	hash_kr := krf.NewKeyOpts(nil)
 	hash_vault := vf.NewVault(nil)

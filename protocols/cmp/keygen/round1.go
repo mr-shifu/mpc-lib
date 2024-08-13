@@ -10,7 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
