@@ -5,7 +5,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
@@ -46,8 +46,8 @@ type MPC struct {
 	elgamal    elgamal.ElgamalKeyManager
 	paillier   paillier.PaillierKeyManager
 	pedersen   pedersen.PedersenKeyManager
-	ec         comm_ecdsa.ECDSAKeyManager
-	ec_vss     comm_ecdsa.ECDSAKeyManager
+	ec         ecdsa.ECDSAKeyManager
+	ec_vss     ecdsa.ECDSAKeyManager
 	rid        rid.RIDManager
 	chainKey   rid.RIDManager
 	hash_mgr   hash.HashManager
@@ -55,11 +55,11 @@ type MPC struct {
 
 	vss_mgr vss.VssKeyManager
 
-	gamma    comm_ecdsa.ECDSAKeyManager
-	signK    comm_ecdsa.ECDSAKeyManager
-	delta    comm_ecdsa.ECDSAKeyManager
-	chi      comm_ecdsa.ECDSAKeyManager
-	bigDelta comm_ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
 
 	gamma_pek pek.PaillierEncodedKeyManager
 	signK_pek pek.PaillierEncodedKeyManager

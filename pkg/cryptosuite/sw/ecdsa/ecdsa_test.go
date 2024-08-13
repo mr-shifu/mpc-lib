@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newEcdsakeyManager() *ECDSAKeyManager {
+func newEcdsakeyManager() *ECDSAKeyManagerImpl {
 	cfg := &Config{curve.Secp256k1{}}
 
 	ec_vault := vault.NewInMemoryVault()

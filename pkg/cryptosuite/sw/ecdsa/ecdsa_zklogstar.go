@@ -10,7 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
-func (k ECDSAKey) NewZKLogstarProof(
+func (k *ECDSAKeyImpl) NewZKLogstarProof(
 	h hash.Hash,
 	pek pek.PaillierEncodedKey,
 	C *core_paillier.Ciphertext,

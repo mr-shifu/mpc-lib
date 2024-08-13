@@ -67,8 +67,8 @@ func TestMtA(t *testing.T) {
 
 	pks := make(map[string]paillier.PaillierKey, 0)
 	peds := make(map[string]pedersen.PedersenKey, 0)
-	ks := make(map[string]ECDSAKey, 0)
-	gammas := make(map[string]ECDSAKey, 0)
+	ks := make(map[string]*ECDSAKeyImpl, 0)
+	gammas := make(map[string]*ECDSAKeyImpl, 0)
 	Gs := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
 	Ks := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
 
@@ -83,13 +83,13 @@ func TestMtA(t *testing.T) {
 		opts.Set("id", "123", "partyid", party)
 
 		gamma, _ := ec_km.GenerateKey(opts)
-		gammas[party] = gamma.(ECDSAKey)
+		gammas[party] = gamma.(*ECDSAKeyImpl)
 
 		G, _ := gamma.EncodeByPaillier(pk.PublicKey())
 		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKeyImpl)
 
 		k, _ := ec_km.GenerateKey(opts)
-		ks[party] = k.(ECDSAKey)
+		ks[party] = k.(*ECDSAKeyImpl)
 
 		K, _ := k.EncodeByPaillier(pk.PublicKey())
 		Ks[party] = K.(*paillierencodedkey.PaillierEncodedKeyImpl)

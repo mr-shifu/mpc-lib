@@ -11,7 +11,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
-func (k ECDSAKey) NewMtAAffgProof(
+func (k *ECDSAKeyImpl) NewMtAAffgProof(
 	h hash.Hash,
 	encoded *paillier.Ciphertext,
 	selfPaillier cs_paillier.PaillierKey,

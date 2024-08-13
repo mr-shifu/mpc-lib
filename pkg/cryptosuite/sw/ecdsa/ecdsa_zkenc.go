@@ -9,7 +9,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
-func (k ECDSAKey) NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error) {
+func (k *ECDSAKeyImpl) NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error) {
 	proof := zkenc.NewProof(
 		k.Group(),
 		h,

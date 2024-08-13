@@ -6,7 +6,6 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
@@ -17,7 +16,7 @@ type Config struct {
 	Group curve.Curve
 }
 
-type ECDSAKeyManager struct {
+type ECDSAKeyManagerImpl struct {
 	keystore     keystore.Keystore
 	schnorrstore keystore.Keystore
 	vssmgr       vss.VssKeyManager
@@ -28,8 +27,8 @@ func NewECDSAKeyManager(
 	store keystore.Keystore,
 	schnorrstore keystore.Keystore,
 	vssmgr vss.VssKeyManager,
-	cfg *Config) *ECDSAKeyManager {
-	return &ECDSAKeyManager{
+	cfg *Config) *ECDSAKeyManagerImpl {
+	return &ECDSAKeyManagerImpl{
 		keystore:     store,
 		schnorrstore: schnorrstore,
 		vssmgr:       vssmgr,
@@ -37,11 +36,11 @@ func NewECDSAKeyManager(
 	}
 }
 
-func (mgr *ECDSAKeyManager) NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) comm_ecdsa.ECDSAKey {
+func (mgr *ECDSAKeyManagerImpl) NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey {
 	return NewECDSAKey(priv, pub, group)
 }
 
-func (mgr *ECDSAKeyManager) GenerateKey(opts keyopts.Options) (comm_ecdsa.ECDSAKey, error) {
+func (mgr *ECDSAKeyManagerImpl) GenerateKey(opts keyopts.Options) (ECDSAKey, error) {
 	// Generate a new ECDSA key pair
 	sk, pk := sample.ScalarPointPair(rand.Reader, mgr.cfg.Group)
 
@@ -49,7 +48,7 @@ func (mgr *ECDSAKeyManager) GenerateKey(opts keyopts.Options) (comm_ecdsa.ECDSAK
 	key := NewECDSAKey(sk, pk, mgr.cfg.Group)
 	decoded, err := key.Bytes()
 	if err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 
 	// get key SKI and encode it to hex string as keyID
@@ -58,7 +57,7 @@ func (mgr *ECDSAKeyManager) GenerateKey(opts keyopts.Options) (comm_ecdsa.ECDSAK
 
 	// import the decoded key to the keystore with keyID
 	if err := mgr.keystore.Import(keyID, decoded, opts); err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 
 	// return the key pair
@@ -67,18 +66,18 @@ func (mgr *ECDSAKeyManager) GenerateKey(opts keyopts.Options) (comm_ecdsa.ECDSAK
 		withVSSKeyMgr(mgr.vssmgr), nil
 }
 
-func (mgr *ECDSAKeyManager) ImportKey(raw interface{}, opts keyopts.Options) (comm_ecdsa.ECDSAKey, error) {
+func (mgr *ECDSAKeyManagerImpl) ImportKey(raw interface{}, opts keyopts.Options) (ECDSAKey, error) {
 	var err error
-	var key ECDSAKey
+	key := &ECDSAKeyImpl{}
 
 	switch raw := raw.(type) {
 	case []byte:
 		key, err = fromBytes(raw)
 		if err != nil {
-			return ECDSAKey{}, err
+			return nil, err
 		}
-	case ECDSAKey:
-		key = raw
+	case ECDSAKeyImpl:
+		key = &raw
 	}
 
 	// decode the key
@@ -101,18 +100,18 @@ func (mgr *ECDSAKeyManager) ImportKey(raw interface{}, opts keyopts.Options) (co
 		withVSSKeyMgr(mgr.vssmgr), nil
 }
 
-func (mgr *ECDSAKeyManager) GetKey(opts keyopts.Options) (comm_ecdsa.ECDSAKey, error) {
+func (mgr *ECDSAKeyManagerImpl) GetKey(opts keyopts.Options) (ECDSAKey, error) {
 	// get the key from the keystore
 	// keyID := hex.EncodeToString(ski)
 	decoded, err := mgr.keystore.Get(opts)
 	if err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 
 	// decode the key
 	k, err := fromBytes(decoded)
 	if err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 
 	// get key SKI and encode it to hex string as keyID
