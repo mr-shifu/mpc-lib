@@ -6,8 +6,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
@@ -15,7 +14,7 @@ var (
 	ErrInvalidKey = errors.New("invalid key")
 )
 
-type ECDSAKey struct {
+type ECDSAKeyImpl struct {
 	// Private key
 	priv curve.Scalar
 
@@ -27,7 +26,7 @@ type ECDSAKey struct {
 
 	zks *zksch.ZKSchnorr
 
-	vssmgr comm_vss.VssKeyManager
+	vssmgr vss.VssKeyManager
 }
 
 type rawECDSAKey struct {
@@ -36,15 +35,15 @@ type rawECDSAKey struct {
 	Pub   []byte
 }
 
-func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey {
-	return ECDSAKey{
+func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) *ECDSAKeyImpl {
+	return &ECDSAKeyImpl{
 		priv:  priv,
 		pub:   pub,
 		group: group,
 	}
 }
 
-func (key ECDSAKey) Bytes() ([]byte, error) {
+func (key *ECDSAKeyImpl) Bytes() ([]byte, error) {
 	raw := &rawECDSAKey{}
 
 	raw.Group = key.group.Name()
@@ -65,7 +64,7 @@ func (key ECDSAKey) Bytes() ([]byte, error) {
 	return cbor.Marshal(raw)
 }
 
-func (key ECDSAKey) SKI() []byte {
+func (key *ECDSAKeyImpl) SKI() []byte {
 	raw, err := key.pub.MarshalBinary()
 	if err != nil {
 		return nil
@@ -75,38 +74,38 @@ func (key ECDSAKey) SKI() []byte {
 	return hash.Sum(nil)
 }
 
-func (key ECDSAKey) Private() bool {
+func (key *ECDSAKeyImpl) Private() bool {
 	return key.priv != nil
 }
 
-func (key ECDSAKey) PublicKey() comm_ecdsa.ECDSAKey {
+func (key *ECDSAKeyImpl) PublicKey() ECDSAKey {
 	return NewECDSAKey(nil, key.pub, key.group)
 }
 
-func (key ECDSAKey) Group() curve.Curve {
+func (key *ECDSAKeyImpl) Group() curve.Curve {
 	return key.group
 }
 
-func (key ECDSAKey) PublicKeyRaw() curve.Point {
+func (key *ECDSAKeyImpl) PublicKeyRaw() curve.Point {
 	return key.pub
 }
 
-func (key ECDSAKey) withZKSchnorr(zks *zksch.ZKSchnorr) ECDSAKey {
+func (key *ECDSAKeyImpl) withZKSchnorr(zks *zksch.ZKSchnorr) *ECDSAKeyImpl {
 	key.zks = zks
 	return key
 }
 
-func (key ECDSAKey) withVSSKeyMgr(vssmgr comm_vss.VssKeyManager) ECDSAKey {
+func (key *ECDSAKeyImpl) withVSSKeyMgr(vssmgr vss.VssKeyManager) *ECDSAKeyImpl {
 	key.vssmgr = vssmgr
 	return key
 }
 
-func fromBytes(data []byte) (ECDSAKey, error) {
-	key := ECDSAKey{}
+func fromBytes(data []byte) (*ECDSAKeyImpl, error) {
+	key := &ECDSAKeyImpl{}
 
 	raw := &rawECDSAKey{}
 	if err := cbor.Unmarshal(data, raw); err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 
 	var group curve.Curve
@@ -119,14 +118,14 @@ func fromBytes(data []byte) (ECDSAKey, error) {
 	if len(raw.Priv) > 0 {
 		priv := group.NewScalar()
 		if err := priv.UnmarshalBinary(raw.Priv); err != nil {
-			return ECDSAKey{}, err
+			return nil, err
 		}
 		key.priv = priv
 	}
 
 	pub := group.NewPoint()
 	if err := pub.UnmarshalBinary(raw.Pub); err != nil {
-		return ECDSAKey{}, err
+		return nil, err
 	}
 	key.pub = pub
 

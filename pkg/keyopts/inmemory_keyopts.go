@@ -172,7 +172,7 @@ func (kr *KeyOpts) DeleteAll(opts keyopts.Options) error {
 	defer kr.lock.Unlock()
 
 	// get KeyID from Options
-	ID, ok := opts.Get("ID")
+	ID, ok := opts.Get("id")
 	if !ok {
 		return ErrInvalidParamsKeyID
 	}

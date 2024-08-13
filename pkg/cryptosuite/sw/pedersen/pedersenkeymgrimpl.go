@@ -6,30 +6,31 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
-	comm_pedersen "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
-type PedersenKeyManager struct {
+type PedersenKeyManagerImpl struct {
 	ks keystore.Keystore
 }
 
-func NewPedersenKeymanager(ks keystore.Keystore) *PedersenKeyManager {
-	return &PedersenKeyManager{
+var _ PedersenKeyManager = (*PedersenKeyManagerImpl)(nil)
+
+func NewPedersenKeymanager(ks keystore.Keystore) *PedersenKeyManagerImpl {
+	return &PedersenKeyManagerImpl{
 		ks: ks,
 	}
 }
 
 // GenerateKey generates a new Pedersen key pair.
-func (mgr *PedersenKeyManager) GenerateKey(opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManagerImpl) GenerateKey(opts keyopts.Options) (PedersenKey, error) {
 	return nil, errors.New("not implemented")
 }
 
 // ImportKey imports a Pedersen key.
-func (mgr *PedersenKeyManager) ImportKey(raw interface{}, opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManagerImpl) ImportKey(raw interface{}, opts keyopts.Options) (PedersenKey, error) {
 	var err error
-	var key PedersenKey
+	key := &PedersenKeyImpl{}
 
 	switch raw := raw.(type) {
 	case []byte:
@@ -37,7 +38,7 @@ func (mgr *PedersenKeyManager) ImportKey(raw interface{}, opts keyopts.Options) 
 		if err != nil {
 			return nil, err
 		}
-	case PedersenKey:
+	case *PedersenKeyImpl:
 		key = raw
 	}
 
@@ -67,11 +68,11 @@ func (mgr *PedersenKeyManager) ImportKey(raw interface{}, opts keyopts.Options) 
 }
 
 // GetKey returns a Pedersen key by its SKI.
-func (mgr *PedersenKeyManager) GetKey(opts keyopts.Options) (comm_pedersen.PedersenKey, error) {
+func (mgr *PedersenKeyManagerImpl) GetKey(opts keyopts.Options) (PedersenKey, error) {
 	// retreive key from keystore
 	kb, err := mgr.ks.Get(opts)
 	if err != nil {
-		return PedersenKey{}, err
+		return nil, err
 	}
 
 	// decode key from binary
@@ -79,7 +80,7 @@ func (mgr *PedersenKeyManager) GetKey(opts keyopts.Options) (comm_pedersen.Peder
 }
 
 // Commit returns the commitment of the given value.
-func (mgr *PedersenKeyManager) Commit(x, y *saferith.Int, opts keyopts.Options) *saferith.Nat {
+func (mgr *PedersenKeyManagerImpl) Commit(x, y *saferith.Int, opts keyopts.Options) *saferith.Nat {
 	key, err := mgr.GetKey(opts)
 	if err != nil {
 		return nil
@@ -88,7 +89,7 @@ func (mgr *PedersenKeyManager) Commit(x, y *saferith.Int, opts keyopts.Options) 
 }
 
 // Verify returns true if the given commitment is valid.
-func (mgr *PedersenKeyManager) Verify(a, b, e *saferith.Int, S, T *saferith.Nat, opts keyopts.Options) bool {
+func (mgr *PedersenKeyManagerImpl) Verify(a, b, e *saferith.Int, S, T *saferith.Nat, opts keyopts.Options) bool {
 	key, err := mgr.GetKey(opts)
 	if err != nil {
 		return false

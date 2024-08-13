@@ -4,9 +4,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	comm_commitment "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_rid "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
@@ -38,9 +35,9 @@ type FROST struct {
 	eddsa_km     ed25519.Ed25519KeyManager
 	ed_vss_km    ed25519.Ed25519KeyManager
 	vss_mgr      vssed25519.VssKeyManager
-	chainKey_km  comm_rid.RIDManager
-	hash_mgr     comm_hash.HashManager
-	commit_mgr   comm_commitment.CommitmentManager
+	chainKey_km  rid.RIDManager
+	hash_mgr     hash.HashManager
+	commit_mgr   commitment.CommitmentManager
 
 	sigmgr     comm_result.EddsaSignatureManager
 	ec_sign_km ed25519.Ed25519KeyManager
@@ -93,7 +90,7 @@ func NewFROST(
 	chainKey_keyopts := krf.NewKeyOpts(nil)
 	chainKey_vault := vf.NewVault(nil)
 	chainKey_ks := ksf.NewKeystore(chainKey_vault, chainKey_keyopts, nil)
-	chainKey_km := rid.NewRIDManager(chainKey_ks)
+	chainKey_km := rid.NewRIDManagerImpl(chainKey_ks)
 
 	hahs_keyopts := krf.NewKeyOpts(nil)
 	hahs_vault := vf.NewVault(nil)
@@ -103,7 +100,7 @@ func NewFROST(
 	commit_keyopts := krf.NewKeyOpts(nil)
 	commit_vault := vf.NewVault(nil)
 	commit_ks := ksf.NewKeystore(commit_vault, commit_keyopts, nil)
-	commit_mgr := commitment.NewCommitmentManager(commit_ks)
+	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
 
 	signcfgmgr := mpc_config.NewSignConfigManager(signcfgstore)
 
@@ -194,14 +191,20 @@ func EmptyConfig() *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func (frost *FROST) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
+func (frost *FROST) Keygen(cfg comm_config.KeyConfig) protocol.StartFunc {
 	kg := frost.NewMPCKeygenManager()
+	return kg.Start(cfg)
+}
+
+func (frost *FROST) Refresh(keyID string) protocol.StartFunc {
+	kg := frost.NewMPCKeygenManager()
+	cfg := mpc_config.NewKeyConfig(keyID, nil, 0, "", nil)
 	return kg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (frost *FROST) Sign(cfg comm_config.SignConfig, pl *pool.Pool) protocol.StartFunc {
+func (frost *FROST) Sign(cfg comm_config.SignConfig) protocol.StartFunc {
 	sign := frost.NewMPCSignManager()
 	return sign.Start(cfg)
 }

@@ -5,6 +5,7 @@ type State struct {
 	lastRound int
 	aborted   bool
 	completed bool
+	refresh   bool
 }
 
 func NewState(id string) *State {
@@ -29,14 +30,22 @@ func (s *State) Aborted() bool {
 	return s.aborted
 }
 
-func (s *State) SetAborted() {
-	s.aborted = true
+func (s *State) SetAborted(aborted bool) {
+	s.aborted = aborted
 }
 
 func (s *State) Completed() bool {
 	return s.completed
 }
 
-func (s *State) SetCompleted() {
-	s.completed = true
+func (s *State) SetCompleted(completed bool) {
+	s.completed = completed
+}
+
+func (s *State) Refresh() bool {
+	return s.refresh
+}
+
+func (s *State) SetRefresh(refresh bool) {
+	s.refresh = refresh
 }

@@ -55,12 +55,12 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("invalid K, G")
 	}
 
-	k_pekj := pek.NewPaillierEncodedkey(nil, body.K, nil, r.Group())
+	k_pekj := pek.NewPaillierEncodedKeyImpl(nil, body.K, nil, r.Group())
 	if _, err := r.signK_pek.Import(k_pekj, soptsFrom); err != nil {
 		return err
 	}
 
-	gamma_pekj := pek.NewPaillierEncodedkey(nil, body.G, nil, r.Group())
+	gamma_pekj := pek.NewPaillierEncodedKeyImpl(nil, body.G, nil, r.Group())
 	if _, err := r.gamma_pek.Import(gamma_pekj, soptsFrom); err != nil {
 		return err
 	}

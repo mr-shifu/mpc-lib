@@ -4,15 +4,15 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
-	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
-func (k ECDSAKey) NewZKLogstarProof(
+func (k *ECDSAKeyImpl) NewZKLogstarProof(
 	h hash.Hash,
-	pek comm_pek.PaillierEncodedKey,
+	pek pek.PaillierEncodedKey,
 	C *core_paillier.Ciphertext,
 	X curve.Point,
 	G curve.Point,

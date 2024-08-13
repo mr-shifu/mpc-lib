@@ -11,7 +11,7 @@ import (
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	comm_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
@@ -266,7 +266,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Sum all VSS shares to generate MPC VSS Share
-	var vss_shares []comm_ecdsa.ECDSAKey
+	var vss_shares []ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
 		partyOpts := keyopts.Options{}
 		partyOpts.Set("id", r.ID, "partyid", string(j))

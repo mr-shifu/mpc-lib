@@ -1,17 +1,17 @@
 package keygen
 
 import (
-	"fmt"
-
+	"filippo.io/edwards25519"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -41,66 +41,100 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 
 // Finalize implements round.Round
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
+	// 1. check if key exists -> Refresh Key, otherwise generate new key
+	state, err := r.statemgr.Get(r.ID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "fromst.Keygen.Round1: failed to retreive key state")
+	}
+	refresh := state.Refresh()
+
 	// ToDo maybe we can include create options into helper
 	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to create options")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to create options")
+	}
+	refreshOpts, err := keyopts.NewOptions().Set("id", "refresh-"+r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to create options")
 	}
 
-	// 1, Generate a new EC Key Pair
-	_, err = r.ed_km.GenerateKey(opts)
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate EC key pair")
+	// 2. if not refreshing Generate a new Edd25519 key pair as the party share
+	if !refresh {
+		_, err = r.ed_km.GenerateKey(opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate EC key pair")
+		}
 	}
 
-	// ToDo maybe we'd better to return vss instance by Generate function
-	// 2. Generate a new VSS share with EC Private Key as polynomial constant
-	vss, err := r.ed_km.GenerateVss(r.Threshold(), opts)
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate VSS secrets")
+	// 3. Generate a new VSS share with EC Private Key as polynomial constant
+	var vss vssed25519.VssKey
+	if !refresh {
+		vss, err = r.ed_km.GenerateVss(r.Threshold(), opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate VSS secrets")
+		}
+	} else {
+		vss, err = r.vss_mgr.GenerateSecrets(edwards25519.NewScalar(), r.Threshold(), refreshOpts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate refreshing VSS secrets")
+		}
 	}
 	exp, err := vss.ExponentsRaw()
 	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to get VSS exponents")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to get VSS exponents")
 	}
 
-	// ToDo maybe we can combine commit and proof generation into a single function
-	// 3. Generate a Schnorr proof of knowledge for the EC Private Key
-	sch_proof, err := r.ed_km.NewSchnorrProof(r.Helper.HashForID(r.SelfID()), opts)
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate Schnorr commitment")
+	// 4. Generate a Schnorr proof of knowledge for the EC Private Key
+	var sch_proof *ed25519.Proof
+	if !refresh {
+		sch_proof, err = r.ed_km.NewSchnorrProof(r.Helper.HashForID(r.SelfID()), opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate Schnorr commitment")
+		}
 	}
 
-	// 4. Generate a new RID for the chaining key
-	chainKey, err := r.chainKey_km.GenerateKey(opts)
-	if err != nil {
-		return r, fmt.Errorf("frost.Keygen.Round1: failed to generate RID")
+	// 5. Generate a new RID for the chaining key
+	var chainKey rid.RID
+	if !refresh {
+		chainKey, err = r.chainKey_km.GenerateKey(opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate RID")
+		}
+	} else {
+		chainKey, err = r.chainKey_km.GenerateKey(refreshOpts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to generate RID")
+		}
 	}
 
 	// ToDo maybe we can commbine Commit generation into commit manager
-	// 5. Generate commitment from chainKey and import them to the commitment store
+	// 6. Generate commitment from chainKey and import them to the commitment store
 	cmt, dcmt, err := r.HashForID(r.SelfID()).Commit(chainKey.Raw())
 	if err != nil {
-		return r, fmt.Errorf("failed to commit to chain key")
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to commit to chain key")
 	}
 	commitment := r.commit_mgr.NewCommitment(cmt, dcmt)
 	if err := r.commit_mgr.Import(commitment, opts); err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to import commitment")
 	}
 
-	// 6. Broadcast public data
+	// 7. Broadcast public data
+	var sch_proof_bytes []byte
+	if sch_proof != nil {
+		sch_proof_bytes = sch_proof.Bytes()
+	}
 	err = r.BroadcastMessage(out, &broadcast2{
 		VSSPolynomial: exp,
-		SchnorrProof:  sch_proof.Bytes(),
+		SchnorrProof:  sch_proof_bytes,
 		Commitment:    cmt,
 	})
 	if err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to broadcast public data")
 	}
 
 	// update last round processed in StateManager
 	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
-		return r, err
+		return nil, errors.WithMessage(err, "frost.Keygen.Round1: failed to update last round processed")
 	}
 
 	return &round2{

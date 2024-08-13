@@ -3,7 +3,7 @@ package round
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/party"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 type Info struct {

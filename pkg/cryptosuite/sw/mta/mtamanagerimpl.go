@@ -3,22 +3,23 @@ package mta
 import (
 	"github.com/cronokirby/saferith"
 	"github.com/google/uuid"
-	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
-type MtAManager struct {
+type MtAManagerImpl struct {
 	store keystore.Keystore
 }
 
-func NewMtAManager(store keystore.Keystore) *MtAManager {
-	return &MtAManager{
+var _ MtAManager = (*MtAManagerImpl)(nil)
+
+func NewMtAManager(store keystore.Keystore) *MtAManagerImpl {
+	return &MtAManagerImpl{
 		store: store,
 	}
 }
 
-func (m *MtAManager) Get(opts keyopts.Options) (comm_mta.MtA, error) {
+func (m *MtAManagerImpl) Get(opts keyopts.Options) (MtA, error) {
 	b, err := m.store.Get(opts)
 	if err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func (m *MtAManager) Get(opts keyopts.Options) (comm_mta.MtA, error) {
 	return fromBytes(b)
 }
 
-func (m *MtAManager) Import(key comm_mta.MtA, opts keyopts.Options) error {
+func (m *MtAManagerImpl) Import(key MtA, opts keyopts.Options) error {
 	b, err := key.Bytes()
 	if err != nil {
 		return err
@@ -39,7 +40,7 @@ func (m *MtAManager) Import(key comm_mta.MtA, opts keyopts.Options) error {
 	return nil
 }
 
-func (m *MtAManager) SetAlpha(alpha *saferith.Int, opts keyopts.Options) error {
+func (m *MtAManagerImpl) SetAlpha(alpha *saferith.Int, opts keyopts.Options) error {
 	mta, err := m.Get(opts)
 	if err != nil || mta == nil {
 		mta = NewMtA(alpha, nil)
@@ -53,7 +54,7 @@ func (m *MtAManager) SetAlpha(alpha *saferith.Int, opts keyopts.Options) error {
 	return m.store.Update(mb, opts)
 }
 
-func (m *MtAManager) SetBeta(beta *saferith.Int, opts keyopts.Options) error {
+func (m *MtAManagerImpl) SetBeta(beta *saferith.Int, opts keyopts.Options) error {
 	mta, err := m.Get(opts)
 	if err != nil || mta == nil {
 		mta = NewMtA(beta, nil)

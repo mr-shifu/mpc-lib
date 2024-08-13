@@ -2,22 +2,23 @@ package paillierencodedkey
 
 import (
 	"github.com/google/uuid"
-	pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 
-type PaillierEncodedKeyManager struct {
+type PaillierEncodedKeyManagerImpl struct {
 	store keystore.Keystore
 }
 
-func NewPaillierEncodedKeyManager(store keystore.Keystore) *PaillierEncodedKeyManager {
-	return &PaillierEncodedKeyManager{
+var _ PaillierEncodedKeyManager = (*PaillierEncodedKeyManagerImpl)(nil)
+
+func NewPaillierEncodedKeyManager(store keystore.Keystore) *PaillierEncodedKeyManagerImpl {
+	return &PaillierEncodedKeyManagerImpl{
 		store: store,
 	}
 }
 
-func (k *PaillierEncodedKeyManager) Get(opts keyopts.Options) (pek.PaillierEncodedKey, error) {
+func (k *PaillierEncodedKeyManagerImpl) Get(opts keyopts.Options) (PaillierEncodedKey, error) {
 	b, err := k.store.Get(opts)
 	if err != nil {
 		return nil, err
@@ -25,20 +26,20 @@ func (k *PaillierEncodedKeyManager) Get(opts keyopts.Options) (pek.PaillierEncod
 	return fromBytes(b)
 }
 
-func (k *PaillierEncodedKeyManager) Import(raw interface{}, opts keyopts.Options) (pek.PaillierEncodedKey, error) {
+func (k *PaillierEncodedKeyManagerImpl) Import(raw interface{}, opts keyopts.Options) (PaillierEncodedKey, error) {
 	var err error
-	var key PaillierEncodedKey
+	key := &PaillierEncodedKeyImpl{}
 
 	switch raw := raw.(type) {
 	case []byte:
 		key, err = fromBytes(raw)
 		if err != nil {
-			return PaillierEncodedKey{}, err
+			return nil, err
 		}
-	case PaillierEncodedKey:
+	case PaillierEncodedKeyImpl:
+		key = &raw
+	case *PaillierEncodedKeyImpl:
 		key = raw
-	case *PaillierEncodedKey:
-		key = *raw
 	}
 
 	b, err := key.Bytes()

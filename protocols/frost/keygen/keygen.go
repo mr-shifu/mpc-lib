@@ -8,10 +8,10 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/commitment"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
@@ -85,25 +85,56 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 			FinalRoundNumber: Rounds,
 		}
 
-		if err := m.configmgr.ImportConfig(cfg); err != nil {
-			return nil, errors.WithMessage(err, "keygen: failed to import config")
+		// 1. if key state exists, check if it is completed, if so, we must refresh the key, 
+		// otherwise if key state does not exist generate new key
+		refresh := false
+		state, err := m.statemgr.Get(cfg.ID())
+		if err == nil {
+			if state.Completed() {
+				refresh = true
+			} else {
+				return nil, fmt.Errorf("frost.Keygen: key genereation is still running")
+			}
 		}
 
-		// instantiate a new hasher for new keygen session
-		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
-		if err != nil {
-			return nil, errors.WithMessage(err, "keygen: failed to set options")
+		// 2. if NOT Refreshing -> Import configs for new key
+		if !refresh {
+			if err := m.configmgr.ImportConfig(cfg); err != nil {
+				return nil, errors.WithMessage(err, "frost.Keygen: failed to import config")
+			}
 		}
+
+		// 3. conform new option based on keygen or key refreshing
+		var kid = cfg.ID()
+		if refresh {
+			kid = fmt.Sprintf("refresh-%s", cfg.ID())
+		}
+		opts, err := keyopts.NewOptions().Set("id", kid, "partyid", string(info.SelfID))
+		if err != nil {
+			return nil, errors.WithMessage(err, "frost.Keygen: failed to set options")
+		}
+
+		// 4. instantiate a new hasher for new keygen session
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
-		// generate new helper for new keygen session
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, m.pl, h)
+		// 5. generate new helper for new keygen session
+		helper, err := round.NewSession(kid, info, sessionID, m.pl, h)
 		if err != nil {
-			return nil, fmt.Errorf("keygen: %w", err)
+			return nil, fmt.Errorf("frost.Keygen: %w", err)
 		}
 
-		if err := m.statemgr.NewState(cfg.ID()); err != nil {
-			return nil, err
+		// 6. if keygen -> Import new state, otherwise, update state.refresh = true
+		if !refresh {
+			if err := m.statemgr.NewState(cfg.ID()); err != nil {
+				return nil, err
+			}
+		} else {
+			state.SetCompleted(false)
+			state.SetRefresh(true)
+			state.SetLastRound(0)
+			if err := m.statemgr.Import(state); err != nil {
+				return nil, fmt.Errorf("frost.Keygen: failed to update key state to refresh state")
+			}
 		}
 
 		return &round1{
@@ -124,7 +155,7 @@ func (m *FROSTKeygen) Start(configs any) protocol.StartFunc {
 func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 	cfg, err := m.configmgr.GetConfig(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get config")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get config")
 	}
 
 	info := round.Info{
@@ -143,12 +174,12 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 	// generate new helper for new keygen session
 	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
 	if err != nil {
-		return nil, fmt.Errorf("keygen: %w", err)
+		return nil, fmt.Errorf("frost.Keygen: %w", err)
 	}
 
 	state, err := m.statemgr.Get(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get state")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get state")
 	}
 	rn := state.LastRound()
 	switch rn {
@@ -192,18 +223,18 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 			commit_mgr:  m.commit_mgr,
 		}, nil
 	default:
-		return nil, errors.New("keygen: invalid round number")
+		return nil, errors.New("frost.Keygen: invalid round number")
 	}
 }
 
 func (m *FROSTKeygen) StoreBroadcastMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "keygen: failed to get round")
+		return errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	if err := r.StoreBroadcastMessage(msg); err != nil {
-		return errors.WithMessage(err, "keygen: failed to store message")
+		return errors.WithMessage(err, "frost.Keygen: failed to store message")
 	}
 
 	return nil
@@ -212,11 +243,11 @@ func (m *FROSTKeygen) StoreBroadcastMessage(keyID string, msg round.Message) err
 func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "keygen: failed to get round")
+		return errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	if err := r.StoreMessage(msg); err != nil {
-		return errors.WithMessage(err, "keygen: failed to store message")
+		return errors.WithMessage(err, "frost.Keygen: failed to store message")
 	}
 
 	return nil
@@ -225,7 +256,7 @@ func (m *FROSTKeygen) StoreMessage(keyID string, msg round.Message) error {
 func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "keygen: failed to get round")
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 
 	return r.Finalize(out)
@@ -234,7 +265,7 @@ func (m *FROSTKeygen) Finalize(out chan<- *round.Message, keyID string) (round.S
 func (m *FROSTKeygen) CanFinalize(keyID string) (bool, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return false, errors.WithMessage(err, "keygen: failed to get round")
+		return false, errors.WithMessage(err, "frost.Keygen: failed to get round")
 	}
 	return r.CanFinalize(), nil
 }

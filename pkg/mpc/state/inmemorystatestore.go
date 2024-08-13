@@ -24,12 +24,15 @@ func (s *InMemoryStateStore) Import(ID string, stat state.State) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.stats[ID] = &State{
-		id:        stat.ID(),
-		lastRound: stat.LastRound(),
-		aborted:   stat.Aborted(),
-		completed: stat.Completed(),
+	state, ok := s.stats[ID]
+	if !ok {
+		s.stats[ID] = &State{}
+		state = s.stats[ID]
 	}
+	state.id = stat.ID()
+	state.lastRound = stat.LastRound()
+	state.aborted = stat.Aborted()
+	state.completed = stat.Completed()
 
 	return nil
 }

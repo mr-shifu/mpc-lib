@@ -4,13 +4,13 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
-func (k PaillierKey) NewZKFACProof(hash hash.Hash, public zkfac.Public) *zkfac.Proof {
+func (k *PaillierKeyImpl) NewZKFACProof(hash hash.Hash, public zkfac.Public) *zkfac.Proof {
 	Nhat := public.Aux.NArith()
 
 	// Figure 28, point 1.
@@ -73,7 +73,7 @@ func (k PaillierKey) NewZKFACProof(hash hash.Hash, public zkfac.Public) *zkfac.P
 	}
 }
 
-func (k PaillierKey) VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash hash.Hash) bool {
+func (k *PaillierKeyImpl) VerifyZKFAC(p *zkfac.Proof, public zkfac.Public, hash hash.Hash) bool {
 	if p == nil {
 		return false
 	}

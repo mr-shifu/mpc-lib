@@ -67,32 +67,32 @@ func TestMtA(t *testing.T) {
 
 	pks := make(map[string]paillier.PaillierKey, 0)
 	peds := make(map[string]pedersen.PedersenKey, 0)
-	ks := make(map[string]ECDSAKey, 0)
-	gammas := make(map[string]ECDSAKey, 0)
-	Gs := make(map[string]*paillierencodedkey.PaillierEncodedKey, 0)
-	Ks := make(map[string]*paillierencodedkey.PaillierEncodedKey, 0)
+	ks := make(map[string]*ECDSAKeyImpl, 0)
+	gammas := make(map[string]*ECDSAKeyImpl, 0)
+	Gs := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
+	Ks := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
 
 	for _, party := range partyIDs {
 		pk, _ := paillier_km.GenerateKey(opts)
-		pks[party] = pk.(paillier.PaillierKey)
+		pks[party] = pk
 
 		ped, _ := pk.DerivePedersenKey()
-		peds[party] = ped.(pedersen.PedersenKey)
+		peds[party] = ped
 
 		opts := keyopts.Options{}
 		opts.Set("id", "123", "partyid", party)
 
 		gamma, _ := ec_km.GenerateKey(opts)
-		gammas[party] = gamma.(ECDSAKey)
+		gammas[party] = gamma.(*ECDSAKeyImpl)
 
 		G, _ := gamma.EncodeByPaillier(pk.PublicKey())
-		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKey)
+		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKeyImpl)
 
 		k, _ := ec_km.GenerateKey(opts)
-		ks[party] = k.(ECDSAKey)
+		ks[party] = k.(*ECDSAKeyImpl)
 
 		K, _ := k.EncodeByPaillier(pk.PublicKey())
-		Ks[party] = K.(*paillierencodedkey.PaillierEncodedKey)
+		Ks[party] = K.(*paillierencodedkey.PaillierEncodedKeyImpl)
 	}
 
 	mtaResults := make(map[string]map[string]MtAResult)
