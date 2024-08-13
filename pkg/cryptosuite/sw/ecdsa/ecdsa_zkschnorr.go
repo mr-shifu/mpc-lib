@@ -2,7 +2,7 @@ package ecdsa
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 func (key ECDSAKey) NewSchnorrCommitment() (curve.Point, error) {

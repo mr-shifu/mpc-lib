@@ -8,7 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"

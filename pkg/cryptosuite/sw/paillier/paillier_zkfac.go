@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 func (k *PaillierKeyImpl) NewZKFACProof(hash hash.Hash, public zkfac.Public) *zkfac.Proof {

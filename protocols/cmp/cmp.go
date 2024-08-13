@@ -6,13 +6,13 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
@@ -50,7 +50,7 @@ type MPC struct {
 	ec_vss     comm_ecdsa.ECDSAKeyManager
 	rid        rid.RIDManager
 	chainKey   rid.RIDManager
-	hash_mgr   comm_hash.HashManager
+	hash_mgr   hash.HashManager
 	commit_mgr commitment.CommitmentManager
 
 	vss_mgr vss.VssKeyManager

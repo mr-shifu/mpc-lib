@@ -6,12 +6,12 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/arith"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	"github.com/mr-shifu/mpc-lib/lib/params"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 func (k *PaillierKeyImpl) NewZKModProof(hash hash.Hash, pl *pool.Pool) *zkmod.Proof {

@@ -14,20 +14,21 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	core_hash "github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/params"
-	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	cs_encoding "github.com/mr-shifu/mpc-lib/pkg/common/encoding"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/zeebo/blake3"
 )
 
-type Hash struct {
+type HashImpl struct {
 	h     *blake3.Hasher
 	state []core_hash.BytesWithDomain
 	store keystore.KeyAccessor
 }
 
-func New(store keystore.KeyAccessor, initialData ...core_hash.WriterToWithDomain) comm_hash.Hash {
-	hash := &Hash{h: blake3.New(), store: store}
+var _ Hash = (*HashImpl)(nil)
+
+func New(store keystore.KeyAccessor, initialData ...core_hash.WriterToWithDomain) Hash {
+	hash := &HashImpl{h: blake3.New(), store: store}
 	_, _ = hash.h.WriteString("CMP-BLAKE")
 	for _, d := range initialData {
 		_ = hash.WriteAny(d)
@@ -35,8 +36,8 @@ func New(store keystore.KeyAccessor, initialData ...core_hash.WriterToWithDomain
 	return hash
 }
 
-func Restore(store keystore.KeyAccessor) (comm_hash.Hash, error) {
-	hash := &Hash{h: blake3.New(), store: store}
+func Restore(store keystore.KeyAccessor) (Hash, error) {
+	hash := &HashImpl{h: blake3.New(), store: store}
 
 	ss, err := hash.store.Get()
 	if err != nil {
@@ -53,11 +54,11 @@ func Restore(store keystore.KeyAccessor) (comm_hash.Hash, error) {
 	return hash, nil
 }
 
-func (hash *Hash) Digest() io.Reader {
+func (hash *HashImpl) Digest() io.Reader {
 	return hash.h.Digest()
 }
 
-func (hash *Hash) Sum() []byte {
+func (hash *HashImpl) Sum() []byte {
 	out := make([]byte, core_hash.DigestLengthBytes)
 	if _, err := io.ReadFull(hash.Digest(), out); err != nil {
 		panic(fmt.Sprintf("hash.ReadBytes: internal hash failure: %v", err))
@@ -65,7 +66,7 @@ func (hash *Hash) Sum() []byte {
 	return out
 }
 
-func (hash *Hash) WriteAny(data ...interface{}) error {
+func (hash *HashImpl) WriteAny(data ...interface{}) error {
 	var toBeWritten core_hash.BytesWithDomain
 	for _, d := range data {
 		switch t := d.(type) {
@@ -120,7 +121,7 @@ func (hash *Hash) WriteAny(data ...interface{}) error {
 	return nil
 }
 
-func (hash *Hash) writeBytesWithDomain(toBeWritten core_hash.BytesWithDomain) {
+func (hash *HashImpl) writeBytesWithDomain(toBeWritten core_hash.BytesWithDomain) {
 	var sizeBuf [8]byte
 
 	// Write out `(<domain_size><domain><data_size><data>)`, so that each domain separated piece of data
@@ -141,7 +142,7 @@ func (hash *Hash) writeBytesWithDomain(toBeWritten core_hash.BytesWithDomain) {
 	_, _ = hash.h.WriteString(")")
 }
 
-func (hash *Hash) updateState(toBeWritten core_hash.BytesWithDomain) error {
+func (hash *HashImpl) updateState(toBeWritten core_hash.BytesWithDomain) error {
 	hash.state = append(hash.state, toBeWritten)
 	ss, err := cbor.Marshal(hash.state)
 	if err != nil {
@@ -153,8 +154,8 @@ func (hash *Hash) updateState(toBeWritten core_hash.BytesWithDomain) error {
 	return nil
 }
 
-func (hash *Hash) Clone() comm_hash.Hash {
-	return &Hash{
+func (hash *HashImpl) Clone() Hash {
+	return &HashImpl{
 		h:     hash.h.Clone(),
 		state: hash.state,
 		store: nil,
@@ -163,7 +164,7 @@ func (hash *Hash) Clone() comm_hash.Hash {
 
 // Commit creates a commitment to data, and returns a commitment hash, and a decommitment string such that
 // commitment = h(data, decommitment).
-func (hash *Hash) Commit(data ...interface{}) (core_hash.Commitment, core_hash.Decommitment, error) {
+func (hash *HashImpl) Commit(data ...interface{}) (core_hash.Commitment, core_hash.Decommitment, error) {
 	var err error
 	decommitment := core_hash.Decommitment(make([]byte, params.SecBytes))
 
@@ -188,7 +189,7 @@ func (hash *Hash) Commit(data ...interface{}) (core_hash.Commitment, core_hash.D
 
 // Decommit verifies that the commitment corresponds to the data and decommitment such that
 // commitment = h(data, decommitment).
-func (hash *Hash) Decommit(c core_hash.Commitment, d core_hash.Decommitment, data ...interface{}) bool {
+func (hash *HashImpl) Decommit(c core_hash.Commitment, d core_hash.Decommitment, data ...interface{}) bool {
 	var err error
 	if err = c.Validate(); err != nil {
 		return false

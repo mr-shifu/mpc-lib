@@ -2,9 +2,9 @@ package ed25519
 
 import (
 	ed "filippo.io/edwards25519"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 )
 
 type Ed25519 interface {

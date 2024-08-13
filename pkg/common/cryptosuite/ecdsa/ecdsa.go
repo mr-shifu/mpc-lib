@@ -7,7 +7,7 @@ import (
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"

@@ -4,7 +4,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
@@ -37,7 +36,7 @@ type FROST struct {
 	ed_vss_km    ed25519.Ed25519KeyManager
 	vss_mgr      vssed25519.VssKeyManager
 	chainKey_km  rid.RIDManager
-	hash_mgr     comm_hash.HashManager
+	hash_mgr     hash.HashManager
 	commit_mgr   commitment.CommitmentManager
 
 	sigmgr     comm_result.EddsaSignatureManager

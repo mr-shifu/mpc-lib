@@ -12,7 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/params"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 // NewProof generates a proof that:

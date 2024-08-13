@@ -6,7 +6,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	"github.com/mr-shifu/mpc-lib/lib/mta"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )

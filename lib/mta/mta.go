@@ -10,7 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkaffp "github.com/mr-shifu/mpc-lib/core/zk/affp"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 // ProveAffG returns the necessary messages for the receiver of the
