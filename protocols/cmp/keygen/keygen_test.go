@@ -118,12 +118,12 @@ func newMPCKeygen() *MPCKeygen {
 	rid_keyopts := keyopts.NewInMemoryKeyOpts()
 	rid_vault := vault.NewInMemoryVault()
 	rid_ks := keystore.NewInMemoryKeystore(rid_vault, rid_keyopts)
-	rid_km := rid.NewRIDManager(rid_ks)
+	rid_km := rid.NewRIDManagerImpl(rid_ks)
 
 	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
 	chainKey_vault := vault.NewInMemoryVault()
 	chainKey_ks := keystore.NewInMemoryKeystore(chainKey_vault, chainKey_keyopts)
-	chainKey_km := rid.NewRIDManager(chainKey_ks)
+	chainKey_km := rid.NewRIDManagerImpl(chainKey_ks)
 
 	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
 	hahs_vault := vault.NewInMemoryVault()
@@ -133,7 +133,7 @@ func newMPCKeygen() *MPCKeygen {
 	commit_keyopts := keyopts.NewInMemoryKeyOpts()
 	commit_vault := vault.NewInMemoryVault()
 	commit_ks := keystore.NewInMemoryKeystore(commit_vault, commit_keyopts)
-	commit_mgr := commitment.NewCommitmentManager(commit_ks)
+	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
 
 	return NewMPCKeygen(
 		keycfgmr,

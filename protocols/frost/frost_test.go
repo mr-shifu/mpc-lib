@@ -37,7 +37,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl
 	frost := NewFROST(ksf, krf, vf, keycfgstore, signcfgstore, keystatestore, signstatestore, msgstore, bcststore, pl)
 
 	keycfg := config.NewKeyConfig(keyID, curve.Secp256k1{}, threshold, id, ids)
-	h, err := protocol.NewMultiHandler(frost.Keygen(keycfg, pl), nil)
+	h, err := protocol.NewMultiHandler(frost.Keygen(keycfg), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
 	r, err := h.Result()
@@ -47,8 +47,8 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl
 
 	signID := uuid.New().String()
 	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids, msg)
-	frost.Sign(signcfg, pl)
-	h, err = protocol.NewMultiHandler(frost.Sign(signcfg, pl), nil)
+	frost.Sign(signcfg)
+	h, err = protocol.NewMultiHandler(frost.Sign(signcfg), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 

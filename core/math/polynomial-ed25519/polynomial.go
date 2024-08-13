@@ -23,7 +23,7 @@ type Polynomial struct {
 // with coefficients in ℤₚ, and degree t.
 func GeneratePolynomial(degree int, constant *ed.Scalar) (*Polynomial, error) {
 	// throw erro if the constant is nil or Zero.
-	if constant == nil || constant.Equal(ed.NewScalar()) == 1 {
+	if constant == nil {
 		return nil, errors.New("polynomial: invalid constant")
 	}
 

@@ -64,7 +64,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 	// update state to Completed in StateManager
-	if err := r.statemanger.SetCompleted(r.ID); err != nil {
+	if err := r.statemanger.SetCompleted(r.ID, true); err != nil {
 		return err
 	}
 

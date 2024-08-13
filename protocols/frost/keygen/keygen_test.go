@@ -58,7 +58,7 @@ func newFROSTKeygen() *FROSTKeygen {
 	chainKey_keyopts := keyopts.NewInMemoryKeyOpts()
 	chainKey_vault := vault.NewInMemoryVault()
 	chainKey_ks := keystore.NewInMemoryKeystore(chainKey_vault, chainKey_keyopts)
-	chainKey_km := rid.NewRIDManager(chainKey_ks)
+	chainKey_km := rid.NewRIDManagerImpl(chainKey_ks)
 
 	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
 	hahs_vault := vault.NewInMemoryVault()
@@ -68,7 +68,7 @@ func newFROSTKeygen() *FROSTKeygen {
 	commit_keyopts := keyopts.NewInMemoryKeyOpts()
 	commit_vault := vault.NewInMemoryVault()
 	commit_ks := keystore.NewInMemoryKeystore(commit_vault, commit_keyopts)
-	commit_mgr := commitment.NewCommitmentManager(commit_ks)
+	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
 
 	return NewFROSTKeygen(
 		keycfgmr,
@@ -97,11 +97,33 @@ func TestKeygen(t *testing.T) {
 	partyIDs := test.PartyIDs(N)
 
 	kgs := make([]protocol.Processor, 0, N)
+	cfgs := make([]*config.KeyConfig, 0, N)
 	for _, partyID := range partyIDs {
 		cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
+		cfgs = append(cfgs, cfg)
 		mpckg := newFROSTKeygen()
 		kgs = append(kgs, mpckg)
 		_, err := mpckg.Start(cfg)(nil)
+		require.NoError(t, err, "round creation should not result in an error")
+	}
+
+	for {
+		rounds, done, err := test.FROSTRounds(kgs, keyID)
+		require.NoError(t, err, "failed to process round")
+		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(*Config)
+					fmt.Printf("Output: %x\n", res.PublicKey.Bytes())
+				}
+			}
+			break
+		}
+	}
+
+	for i, kg := range kgs {
+		_, err := kg.Start(cfgs[i])(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 	}
 

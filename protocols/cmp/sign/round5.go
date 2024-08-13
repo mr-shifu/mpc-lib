@@ -99,7 +99,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
 		// update state to Aborted in StateManager
-		if err := r.statemgr.SetAborted(r.ID); err != nil {
+		if err := r.statemgr.SetAborted(r.ID, true); err != nil {
 			return r, err
 		}
 		return r.AbortRound(errors.New("failed to validate signature")), nil
@@ -111,7 +111,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 	if !signature.Verify(ecKey.PublicKeyRaw(), r.cfg.Message()) {
 		// update state to Aborted in StateManager
-		if err := r.statemgr.SetAborted(r.ID); err != nil {
+		if err := r.statemgr.SetAborted(r.ID, true); err != nil {
 			return r, err
 		}
 		return r.AbortRound(errors.New("failed to validate signature")), nil
@@ -122,7 +122,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 	// update state to Completed in StateManager
-	if err := r.statemgr.SetCompleted(r.ID); err != nil {
+	if err := r.statemgr.SetCompleted(r.ID, true); err != nil {
 		return r, err
 	}
 

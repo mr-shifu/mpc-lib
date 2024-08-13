@@ -6,7 +6,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 )
@@ -150,7 +150,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
 
 	// δ = ∑ⱼ δⱼ
-	var deltaShares []comm_ecdsa.ECDSAKey
+	var deltaShares []ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
 		soptsj := keyopts.Options{}
 		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))

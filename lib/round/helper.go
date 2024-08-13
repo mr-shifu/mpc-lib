@@ -11,7 +11,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/types"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 // Helper implements Session without Round, and can therefore be embedded in the first round of a protocol

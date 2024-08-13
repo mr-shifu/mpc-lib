@@ -41,8 +41,14 @@ func (k *VssKeyImpl) FromBytes(data []byte) error {
 
 // SKI returns the serialized key identifier.
 func (k *VssKeyImpl) SKI() []byte {
-	pub := k.poly.Constant()
-	pub_bytes := pub.Bytes()
+	pub, err := k.Exponents()
+	if err != nil {
+		return nil
+	}
+	pub_bytes, err := pub.Bytes()
+	if err != nil {
+		return nil
+	}
 	hash := sha256.New()
 	hash.Write(pub_bytes)
 	return hash.Sum(nil)

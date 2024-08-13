@@ -29,7 +29,6 @@ func TestZKFAC(t *testing.T) {
 	h1 := mgr.NewHasher("key1", opts1)
 	h2 := mgr.NewHasher("key2", opts2)
 
-	
 	ks_vault := vault.NewInMemoryVault()
 	ks_kr := keyopts.NewInMemoryKeyOpts()
 	ks := keystore.NewInMemoryKeystore(ks_vault, ks_kr)

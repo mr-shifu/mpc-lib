@@ -12,12 +12,12 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/params"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 // NewProof generates a proof that:
 // s = t^lambda (mod N).
-func (k PedersenKey) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
+func (k *PedersenKeyImpl) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	n := k.public.NArith()
 	phi := n.ModulusPhi()
 
@@ -54,7 +54,7 @@ func (k PedersenKey) NewProof(hash hash.Hash, pl *pool.Pool) *zkprm.Proof {
 	}
 }
 
-func (k PedersenKey) VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
+func (k *PedersenKeyImpl) VerifyProof(hash hash.Hash, pl *pool.Pool, p *zkprm.Proof) bool {
 	if p == nil {
 		return false
 	}

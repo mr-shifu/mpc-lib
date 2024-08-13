@@ -2,9 +2,9 @@ package ed25519
 
 import (
 	ed "filippo.io/edwards25519"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	vssed25519 "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss-ed25519"
 )
 
 type Ed25519 interface {
@@ -47,6 +47,10 @@ type Ed25519KeyManager interface {
 
 	// GetKey returns a Ed25519 key by its SKI.
 	GetKey(opts keyopts.Options) (Ed25519, error)
+
+	DeleteKey(opts keyopts.Options) error
+
+	DeleteAllKeys(opts keyopts.Options) error
 
 	SumKeys(optsList ...keyopts.Options) (Ed25519, error) 
 

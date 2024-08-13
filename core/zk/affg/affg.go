@@ -9,7 +9,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 )
 
 type Public struct {
