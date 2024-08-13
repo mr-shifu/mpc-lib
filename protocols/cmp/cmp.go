@@ -7,7 +7,6 @@ import (
 
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	comm_hash "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_mta "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
@@ -15,6 +14,7 @@ import (
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
@@ -64,8 +64,8 @@ type MPC struct {
 	gamma_pek pek.PaillierEncodedKeyManager
 	signK_pek pek.PaillierEncodedKeyManager
 
-	delta_mta comm_mta.MtAManager
-	chi_mta   comm_mta.MtAManager
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 
 	sigma     comm_result.SigmaStore
 	signature comm_result.Signature
