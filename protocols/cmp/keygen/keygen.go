@@ -8,7 +8,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"

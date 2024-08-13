@@ -4,7 +4,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )

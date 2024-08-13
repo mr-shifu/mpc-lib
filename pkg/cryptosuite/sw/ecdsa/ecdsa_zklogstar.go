@@ -5,7 +5,7 @@ import (
 	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )

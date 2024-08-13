@@ -14,7 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/mta"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"

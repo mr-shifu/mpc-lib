@@ -2,7 +2,7 @@ package ecdsa
 
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 )

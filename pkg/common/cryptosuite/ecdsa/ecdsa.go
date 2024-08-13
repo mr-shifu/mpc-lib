@@ -8,11 +8,11 @@ import (
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
 	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 )
 
 type ECDSAKey interface {

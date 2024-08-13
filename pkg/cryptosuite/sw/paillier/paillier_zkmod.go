@@ -14,7 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/params"
 )
 
-func (k PaillierKey) NewZKModProof(hash hash.Hash, pl *pool.Pool) *zkmod.Proof {
+func (k *PaillierKeyImpl) NewZKModProof(hash hash.Hash, pl *pool.Pool) *zkmod.Proof {
 	n := k.publicKey.N()
 	p := k.secretKey.P()
 	q := k.secretKey.Q()
@@ -62,7 +62,7 @@ func (k PaillierKey) NewZKModProof(hash hash.Hash, pl *pool.Pool) *zkmod.Proof {
 	}
 }
 
-func (k PaillierKey) VerifyZKMod(p *zkmod.Proof, hash hash.Hash, pl *pool.Pool) bool {
+func (k *PaillierKeyImpl) VerifyZKMod(p *zkmod.Proof, hash hash.Hash, pl *pool.Pool) bool {
 	if p == nil {
 		return false
 	}

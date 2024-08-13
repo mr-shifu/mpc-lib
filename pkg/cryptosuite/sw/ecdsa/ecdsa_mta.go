@@ -7,15 +7,15 @@ import (
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_paillier "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillier"
+	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/pedersen"
 )
 
 func (k ECDSAKey) NewMtAAffgProof(
 	h hash.Hash,
 	encoded *paillier.Ciphertext,
-	selfPaillier comm_paillier.PaillierKey,
-	partyPaillier comm_paillier.PaillierKey,
+	selfPaillier cs_paillier.PaillierKey,
+	partyPaillier cs_paillier.PaillierKey,
 	ped pedersen.PedersenKey) (*saferith.Int, *paillier.Ciphertext, *paillier.Ciphertext, *zkaffg.Proof) {
 	if k.Private() {
 		return mta.ProveAffG(
