@@ -1,7 +1,7 @@
 package ecdsa
 
 import (
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 )
 

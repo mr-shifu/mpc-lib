@@ -6,18 +6,17 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 )
 
-type VssKeyManager struct {
+type VssKeyManagerImpl struct {
 	group curve.Curve
 	ks    keystore.Keystore
 }
 
-func NewVssKeyManager(store keystore.Keystore, g curve.Curve) *VssKeyManager {
-	return &VssKeyManager{
+func NewVssKeyManager(store keystore.Keystore, g curve.Curve) *VssKeyManagerImpl {
+	return &VssKeyManagerImpl{
 		group: g,
 		ks:    store,
 	}
@@ -25,7 +24,7 @@ func NewVssKeyManager(store keystore.Keystore, g curve.Curve) *VssKeyManager {
 
 // GenerateSecrets generates a Polynomail of a specified degree with secret as constant value
 // and stores coefficients and expponents of coefficients.
-func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int, opts keyopts.Options) (comm_vss.VssKey, error) {
+func (mgr *VssKeyManagerImpl) GenerateSecrets(secret curve.Scalar, degree int, opts keyopts.Options) (VssKey, error) {
 	// Generate a polynomial with secret as constant value
 	secrets := polynomial.NewPolynomial(mgr.group, degree, secret)
 	// Generate exponents of coefficients
@@ -60,7 +59,7 @@ func (mgr *VssKeyManager) GenerateSecrets(secret curve.Scalar, degree int, opts 
 }
 
 // ImportSecrets imports exponents of coefficients in []byte format and returns VssKey.
-func (mgr *VssKeyManager) ImportSecrets(key comm_vss.VssKey, opts keyopts.Options) (comm_vss.VssKey, error) {
+func (mgr *VssKeyManagerImpl) ImportSecrets(key VssKey, opts keyopts.Options) (VssKey, error) {
 	// if data == nil {
 	// 	return nil, errors.New("invalid exponents")
 	// }
@@ -100,7 +99,7 @@ func (mgr *VssKeyManager) ImportSecrets(key comm_vss.VssKey, opts keyopts.Option
 }
 
 // GetSecrets returns VssKey of coefficients.
-func (mgr *VssKeyManager) GetSecrets(opts keyopts.Options) (comm_vss.VssKey, error) {
+func (mgr *VssKeyManagerImpl) GetSecrets(opts keyopts.Options) (VssKey, error) {
 	// encode ski to hex string as keyID
 	// keyID := hex.EncodeToString(ski)
 
@@ -121,26 +120,26 @@ func (mgr *VssKeyManager) GetSecrets(opts keyopts.Options) (comm_vss.VssKey, err
 	// }
 	// vssKey.WithShareStore(sharestore)
 
-	return &vssKey, nil
+	return vssKey, nil
 }
 
-func (mgr *VssKeyManager) DeleteSecrets(opts keyopts.Options) error {
+func (mgr *VssKeyManagerImpl) DeleteSecrets(opts keyopts.Options) error {
 	return mgr.ks.Delete(opts)
 }
 
-func (mgr *VssKeyManager) DeleteAllSecrets(opts keyopts.Options) error {
+func (mgr *VssKeyManagerImpl) DeleteAllSecrets(opts keyopts.Options) error {
 	return mgr.ks.DeleteAll(opts)
 }
 
 // Evaluate evaluates polynomial at a scalar using coefficients.
-func (mgr *VssKeyManager) Evaluate(index curve.Scalar, opts keyopts.Options) (curve.Scalar, error) {
+func (mgr *VssKeyManagerImpl) Evaluate(index curve.Scalar, opts keyopts.Options) (curve.Scalar, error) {
 	// get coefficients from keystore
 	k, err := mgr.GetSecrets(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	key, ok := k.(*VssKey)
+	key, ok := k.(*VssKeyImpl)
 	if !ok {
 		return nil, errors.New("invalid key")
 	}
@@ -150,14 +149,14 @@ func (mgr *VssKeyManager) Evaluate(index curve.Scalar, opts keyopts.Options) (cu
 }
 
 // EvaluateByExponents evaluates polynomial using exponents of coefficients.
-func (mgr *VssKeyManager) EvaluateByExponents(index curve.Scalar, opts keyopts.Options) (curve.Point, error) {
+func (mgr *VssKeyManagerImpl) EvaluateByExponents(index curve.Scalar, opts keyopts.Options) (curve.Point, error) {
 	// get coefficients from keystore
 	k, err := mgr.GetSecrets(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	key, ok := k.(*VssKey)
+	key, ok := k.(*VssKeyImpl)
 	if !ok {
 		return nil, errors.New("invalid key")
 	}
@@ -166,7 +165,7 @@ func (mgr *VssKeyManager) EvaluateByExponents(index curve.Scalar, opts keyopts.O
 	return key.exponents.Evaluate(index), nil
 }
 
-func (mgr *VssKeyManager) SumExponents(optsList ...keyopts.Options) (comm_vss.VssKey, error) {
+func (mgr *VssKeyManagerImpl) SumExponents(optsList ...keyopts.Options) (VssKey, error) {
 	var allExponents []*polynomial.Exponent
 	for _, opts := range optsList {
 		vssKey, err := mgr.GetSecrets(opts)

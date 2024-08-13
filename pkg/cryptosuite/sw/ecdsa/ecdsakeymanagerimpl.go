@@ -7,9 +7,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
@@ -20,14 +20,14 @@ type Config struct {
 type ECDSAKeyManager struct {
 	keystore     keystore.Keystore
 	schnorrstore keystore.Keystore
-	vssmgr       comm_vss.VssKeyManager
+	vssmgr       vss.VssKeyManager
 	cfg          *Config
 }
 
 func NewECDSAKeyManager(
 	store keystore.Keystore,
 	schnorrstore keystore.Keystore,
-	vssmgr comm_vss.VssKeyManager,
+	vssmgr vss.VssKeyManager,
 	cfg *Config) *ECDSAKeyManager {
 	return &ECDSAKeyManager{
 		keystore:     store,
@@ -80,7 +80,7 @@ func (mgr *ECDSAKeyManager) ImportKey(raw interface{}, opts keyopts.Options) (co
 	case ECDSAKey:
 		key = raw
 	}
-	
+
 	// decode the key
 	kb, err := key.Bytes()
 	if err != nil {

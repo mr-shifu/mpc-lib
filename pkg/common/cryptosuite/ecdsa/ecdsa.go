@@ -8,11 +8,11 @@ import (
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
-	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 )
 
 type ECDSAKey interface {
@@ -66,13 +66,13 @@ type ECDSAKey interface {
 
 	VSS(opts keyopts.Options) (vss.VssKey, error)
 
-	EncodeByPaillier(pk paillier.PaillierKey) (comm_pek.PaillierEncodedKey, error)
+	EncodeByPaillier(pk paillier.PaillierKey) (pek.PaillierEncodedKey, error)
 
-	NewZKEncProof(h hash.Hash, pek comm_pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
+	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
 
 	NewZKLogstarProof(
 		h hash.Hash,
-		pek comm_pek.PaillierEncodedKey,
+		pek pek.PaillierEncodedKey,
 		C *paillier_core.Ciphertext,
 		X curve.Point,
 		G curve.Point,

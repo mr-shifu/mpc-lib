@@ -6,13 +6,13 @@ import (
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	comm_pek "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/paillierencodedkey"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 )
 
 func (k ECDSAKey) NewZKLogstarProof(
 	h hash.Hash,
-	pek comm_pek.PaillierEncodedKey,
+	pek pek.PaillierEncodedKey,
 	C *core_paillier.Ciphertext,
 	X curve.Point,
 	G curve.Point,

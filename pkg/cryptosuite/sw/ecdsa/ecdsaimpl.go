@@ -7,7 +7,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	comm_ecdsa "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
-	comm_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
@@ -27,7 +27,7 @@ type ECDSAKey struct {
 
 	zks *zksch.ZKSchnorr
 
-	vssmgr comm_vss.VssKeyManager
+	vssmgr vss.VssKeyManager
 }
 
 type rawECDSAKey struct {
@@ -96,7 +96,7 @@ func (key ECDSAKey) withZKSchnorr(zks *zksch.ZKSchnorr) ECDSAKey {
 	return key
 }
 
-func (key ECDSAKey) withVSSKeyMgr(vssmgr comm_vss.VssKeyManager) ECDSAKey {
+func (key ECDSAKey) withVSSKeyMgr(vssmgr vss.VssKeyManager) ECDSAKey {
 	key.vssmgr = vssmgr
 	return key
 }

@@ -7,10 +7,9 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
-	cs_vss "github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
 )
 
-type VssKey struct {
+type VssKeyImpl struct {
 	secrets   *polynomial.Polynomial
 	exponents *polynomial.Exponent
 }
@@ -21,15 +20,17 @@ type rawVssKey struct {
 	Exponents []byte
 }
 
-func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) cs_vss.VssKey {
-	return &VssKey{
+var _ VssKey = (*VssKeyImpl)(nil)
+
+func NewVssKey(secrets *polynomial.Polynomial, exponents *polynomial.Exponent) VssKey {
+	return &VssKeyImpl{
 		secrets:   secrets,
 		exponents: exponents,
 	}
 }
 
 // Bytes returns the byte representation of the vss coefficients.
-func (k *VssKey) Bytes() ([]byte, error) {
+func (k *VssKeyImpl) Bytes() ([]byte, error) {
 	raw := rawVssKey{}
 
 	if k.exponents != nil {
@@ -56,7 +57,7 @@ func (k *VssKey) Bytes() ([]byte, error) {
 }
 
 // SKI returns the serialized key identifier.
-func (k *VssKey) SKI() []byte {
+func (k *VssKeyImpl) SKI() []byte {
 	pub, err := k.Exponents()
 	if err != nil {
 		return nil
@@ -71,21 +72,21 @@ func (k *VssKey) SKI() []byte {
 }
 
 // Private returns true if the key is private.
-func (k *VssKey) Private() bool {
+func (k *VssKeyImpl) Private() bool {
 	return k.secrets != nil
 }
 
 // PublicKey returns the corresponding Exponents of coefficients.
-func (k *VssKey) Exponents() (cs_vss.VssKey, error) {
+func (k *VssKeyImpl) Exponents() (VssKey, error) {
 	if k.exponents == nil {
 		return nil, errors.New("no exponents")
 	}
-	return &VssKey{
+	return &VssKeyImpl{
 		exponents: k.exponents,
 	}, nil
 }
 
-func (k *VssKey) ExponentsRaw() (*polynomial.Exponent, error) {
+func (k *VssKeyImpl) ExponentsRaw() (*polynomial.Exponent, error) {
 	if k.exponents == nil {
 		return nil, errors.New("no exponents")
 	}
@@ -93,22 +94,22 @@ func (k *VssKey) ExponentsRaw() (*polynomial.Exponent, error) {
 }
 
 // Evaluate evaluates polynomial at a scalar using coefficients.
-func (k *VssKey) Evaluate(index curve.Scalar) (curve.Scalar, error) {
+func (k *VssKeyImpl) Evaluate(index curve.Scalar) (curve.Scalar, error) {
 	// evaluate polynomial at a scalar using coefficients
 	return k.secrets.Evaluate(index), nil
 }
 
 // EvaluateByExponents evaluates polynomial using exponents of coefficients.
-func (k *VssKey) EvaluateByExponents(index curve.Scalar) (curve.Point, error) {
+func (k *VssKeyImpl) EvaluateByExponents(index curve.Scalar) (curve.Point, error) {
 	// evaluate polynomial using exponents of coefficients
 	return k.exponents.Evaluate(index), nil
 }
 
-func fromBytes(data []byte) (VssKey, error) {
+func fromBytes(data []byte) (*VssKeyImpl, error) {
 	raw := &rawVssKey{}
 	err := cbor.Unmarshal(data, raw)
 	if err != nil {
-		return VssKey{}, err
+		return nil, err
 	}
 
 	var group curve.Curve
@@ -117,13 +118,13 @@ func fromBytes(data []byte) (VssKey, error) {
 		group = curve.Secp256k1{}
 	}
 
-	vss := VssKey{}
+	vss := &VssKeyImpl{}
 
 	if raw.Exponents != nil {
 		exponents := polynomial.EmptyExponent(group)
 		err = exponents.UnmarshalBinary(raw.Exponents)
 		if err != nil {
-			return VssKey{}, err
+			return nil, err
 		}
 		vss.exponents = exponents
 	}
@@ -132,7 +133,7 @@ func fromBytes(data []byte) (VssKey, error) {
 		secrets := &polynomial.Polynomial{}
 		err = secrets.UnmarshalBinary(raw.Secrets)
 		if err != nil {
-			return VssKey{}, err
+			return nil, err
 		}
 		vss.secrets = secrets
 	}

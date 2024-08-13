@@ -11,7 +11,7 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/common/cryptosuite/vss"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
