@@ -18,6 +18,7 @@ import (
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 const Rounds round.Number = 5
@@ -86,8 +87,11 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.Star
 		}
 
 		// m.keys[keyID] = info
-		opts := keyopts.Options{}
-		opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
+		if err != nil {
+			return nil, errors.WithMessage(err, "cmp.Keygen.Start: failed to create options")
+		}
+
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h)

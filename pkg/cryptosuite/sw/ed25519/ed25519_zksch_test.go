@@ -16,8 +16,8 @@ func TestGenerateSchnorrProof(t *testing.T) {
 	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
 	hash_mgr := hash.NewHashManager(hash_ks)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 	h := hash_mgr.NewHasher("test", opts)
 
 	k, err := GenerateKey()
@@ -37,8 +37,8 @@ func TestSerializeDeserializeProof(t *testing.T) {
 	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
 	hash_mgr := hash.NewHashManager(hash_ks)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 	h := hash_mgr.NewHasher("test", opts)
 
 	k, err := GenerateKey()

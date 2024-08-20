@@ -1,12 +1,11 @@
 package keygen
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round5)(nil)
@@ -33,9 +32,11 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
-
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round5.StoreBroadcastMessage: failed to create options")
+	}
+	
 	// TODO implement SchnorrResponse validation
 	// if !body.SchnorrResponse.IsValid() {
 	// 	return round.ErrNilFields

@@ -4,6 +4,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round2)(nil)
@@ -29,8 +30,10 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(msg.From))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round2.StoreBroadcastMessage: failed to create options")
+	}
 
 	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
 	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
@@ -62,9 +65,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
-
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round2.Finalize: failed to create options")
+	}
+	
 	// TODO need keyID to get the key
 	elgamalKey, err := r.elgamal_km.GetKey(opts)
 	if err != nil {

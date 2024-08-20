@@ -14,6 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -75,16 +76,20 @@ func (round1) StoreMessage(round.Message) error { return nil }
 // In two rounds, we compare the hashes received and if they are different then we abort.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Retreive Paillier Key to encode K and Gamma
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+	}
 
 	paillierKey, err := r.paillier_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+	}
 
 	// Generate Gamma ECDSA key to mask K and store its SKI to Gamma keyrpository
 	gamma, err := r.gamma.GenerateKey(sopts)
@@ -124,8 +129,10 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	errors := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		partyKopts := keyopts.Options{}
-		partyKopts.Set("id", r.cfg.KeyID(), "partyid", string(j))
+		partyKopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(j))
+		if err != nil {
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+		}
 
 		pedj, err := r.pedersen_km.GetKey(partyKopts)
 		if err != nil {

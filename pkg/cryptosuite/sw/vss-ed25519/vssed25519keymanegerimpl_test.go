@@ -28,8 +28,8 @@ func TestVssEd25519VssKeyManager(t *testing.T) {
 	degree := 5
 
 	// Test Case 1: GenerateSecrets
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 	vss1, err := mgr1.GenerateSecrets(constant, degree, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, vss1)
@@ -62,8 +62,8 @@ func TestVssEd25519VssKeyManager_Evaluate(t *testing.T) {
 
 	degree := 5
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 	vss1, err := mgr1.GenerateSecrets(constant, degree, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, vss1)
@@ -109,18 +109,18 @@ func TestVssEd25519VssKeyManager_SumExponents(t *testing.T) {
 	degree := 5
 
 	// generate Vss for secrets
-	opts1 := keyopts.Options{}
-	opts1.Set("id", "1", "partyid", "a")
+	opts1, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 	vss1, err := mgr1.GenerateSecrets(s1, degree, opts1)
 	assert.NoError(t, err)
 
-	opts2 := keyopts.Options{}
-	opts2.Set("id", "1", "partyid", "b")
+	opts2, err := keyopts.NewOptions().Set("id", "1", "partyid", "b")
+	assert.NoError(t, err)
 	vss2, err := mgr1.GenerateSecrets(s2, degree, opts2)
 	assert.NoError(t, err)
 
-	opts3 := keyopts.Options{}
-	opts3.Set("id", "1", "partyid", "c")
+	opts3, err := keyopts.NewOptions().Set("id", "1", "partyid", "c")
+	assert.NoError(t, err)
 	vss3, err := mgr1.GenerateSecrets(s3, degree, opts3)
 	assert.NoError(t, err)
 

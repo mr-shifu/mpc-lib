@@ -1,12 +1,11 @@
 package sign
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/ecdsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round5)(nil)
@@ -33,8 +32,10 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
 	// r.SigmaShares[msg.From] = body.SigmaShare
 	if err := r.sigma.ImportSigma(body.SigmaShare, soptsFrom); err != nil {
@@ -67,17 +68,23 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsRoot := keyopts.Options{}
-	koptsRoot.Set("id", r.cfg.KeyID(), "partyid", string("ROOT"))
+	koptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string("ROOT"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
 	// compute σ = ∑ⱼ σⱼ
 	Sigma := r.Group().NewScalar()
 	for _, j := range r.PartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+		}
 		sigmaShare, err := r.sigma.GetSigma(soptsj)
 		if err != nil {
 			return nil, err

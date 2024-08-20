@@ -33,8 +33,8 @@ func TestMtA(t *testing.T) {
 
 	partyIDs := []string{"a", "b", "c"}
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "a")
+	assert.NoError(t, err)
 
 	hash_vault := vault.NewInMemoryVault()
 	hash_kr := keyopts.NewInMemoryKeyOpts()
@@ -79,8 +79,8 @@ func TestMtA(t *testing.T) {
 		ped, _ := pk.DerivePedersenKey()
 		peds[party] = ped
 
-		opts := keyopts.Options{}
-		opts.Set("id", "123", "partyid", party)
+		opts, err := keyopts.NewOptions().Set("id", "123", "partyid", party)
+		assert.NoError(t, err)
 
 		gamma, _ := ec_km.GenerateKey(opts)
 		gammas[party] = gamma.(*ECDSAKeyImpl)

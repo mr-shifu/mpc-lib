@@ -38,8 +38,8 @@ func newEcdsakeyManager() *ECDSAKeyManagerImpl {
 func TestGenerateKey(t *testing.T) {
 	mgr := newEcdsakeyManager()
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "1")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 
 	// Must Generate a new key successfully
 	key, err := mgr.GenerateKey(opts)
@@ -68,8 +68,8 @@ func TestImportPrivateKey(t *testing.T) {
 	kb, err := key.Bytes()
 	assert.NoError(t, err)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "1")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 
 	_, err = mgr.ImportKey(key, opts)
 	assert.NoError(t, err)
@@ -91,8 +91,8 @@ func TestImportPublicKey(t *testing.T) {
 	kb, err := key.Bytes()
 	assert.NoError(t, err)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "1")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 
 	_, err = mgr.ImportKey(key, opts)
 	assert.NoError(t, err)
@@ -115,8 +115,8 @@ func TestSchnorr(t *testing.T) {
 	
 	hs := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
 	hash_mgr := hash.NewHashManager(hs)
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "1")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 	h := hash_mgr.NewHasher("test", opts)
 
 	// 1. Generate a new key by mgr1
@@ -152,8 +152,8 @@ func TestImportVSS(t *testing.T) {
 	mgr1 := newEcdsakeyManager()
 	mgr2 := newEcdsakeyManager()
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "1")
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 
 	// 1. Generate a new key by mgr
 	key1, err := mgr1.GenerateKey(opts)

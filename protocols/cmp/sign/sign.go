@@ -2,7 +2,6 @@ package sign
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
@@ -10,9 +9,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/pkg/errors"
 
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
@@ -124,8 +123,10 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 		}
 		group := info.Group
 
-		opts := keyopts.Options{}
-		opts.Set("id", cfg.ID(), "partyid", info.SelfID)
+		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", info.SelfID)
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+		}
 
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
@@ -148,32 +149,40 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 		lagrange := polynomial.Lagrange(group, cfg.PartyIDs())
 		clonedPubKey := info.Group.NewPoint()
 		for _, j := range helper.PartyIDs() {
-			vssOpts := keyopts.Options{}
-			vssOpts.Set("id", cfg.KeyID(), "partyid", "ROOT")
+			vssOpts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", "ROOT")
+			if err != nil {
+				return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+			}
 			vss, err := m.vss_mgr.GetSecrets(vssOpts)
 			if err != nil {
 				return nil, err
 			}
 
-			partyVSSOpts := keyopts.Options{}
-			partyVSSOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+			partyVSSOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(j))
+			if err != nil {
+				return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+			}
 
 			vssShareKey, err := m.ec_vss.GetKey(partyVSSOpts)
 			if err != nil {
 				return nil, err
 			}
 
-			partyOpts := keyopts.Options{}
-			partyOpts.Set("id", cfg.ID(), "partyid", string(j))
+			partyOpts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(j))
+			if err != nil {
+				return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+			}
 			clonedj := vssShareKey.CloneByMultiplier(lagrange[j])
 			if _, err := m.ec.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
 			}
 			clonedPubKey = clonedPubKey.Add(clonedj.PublicKeyRaw())
 		}
-		rootECOpts := keyopts.Options{}
-		rootECOpts.Set("id", cfg.ID(), "partyid", "ROOT")
-		cloned := sw_ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
+		rootECOpts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", "ROOT")
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+		}
+		cloned := ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
 		if _, err := m.ec.ImportKey(cloned, rootECOpts); err != nil {
 			return nil, err
 		}

@@ -1,14 +1,12 @@
 package sign
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round4)(nil)
@@ -41,8 +39,10 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	bigDeltaShareFrom := body.BigDeltaShare
 	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
@@ -76,17 +76,25 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	koptsFrom := keyopts.Options{}
-	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+	koptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsTo := keyopts.Options{}
-	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+	koptsTo, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(to))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	kFromPek, err := r.signK_pek.Get(soptsFrom)
 	if err != nil {
@@ -143,17 +151,23 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	// δ = ∑ⱼ δⱼ
-	var deltaShares []ecdsa.ECDSAKey
+	var deltaShares []sw_ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+		}
 		delta, err := r.delta.GetKey(soptsj)
 		if err != nil {
 			return nil, err
@@ -169,8 +183,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Δ = ∑ⱼ Δⱼ
 	BigDelta := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+		}
 		bigDeltaj, err := r.bigDelta.GetKey(soptsj)
 		if err != nil {
 			return nil, err

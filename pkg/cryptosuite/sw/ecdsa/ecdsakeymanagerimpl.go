@@ -76,8 +76,8 @@ func (mgr *ECDSAKeyManagerImpl) ImportKey(raw interface{}, opts keyopts.Options)
 		if err != nil {
 			return nil, err
 		}
-	case ECDSAKeyImpl:
-		key = &raw
+	case *ECDSAKeyImpl:
+		key = raw
 	}
 
 	// decode the key

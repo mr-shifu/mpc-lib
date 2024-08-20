@@ -1,8 +1,6 @@
 package keygen
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
@@ -11,6 +9,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round3)(nil)
@@ -88,8 +87,10 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// 	return errors.New("vss polynomial has incorrect degree")
 	// }
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round3.StoreBroadcastMessage: failed to create options")
+	}
 
 	ridFrom, err := r.rid_km.ImportKey(body.RID, fromOpts)
 	if err != nil {
@@ -200,19 +201,25 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+	}
 
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
-
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+	}
+	
 	// c = ⊕ⱼ cⱼ
 	chainKey := r.PreviousChainKey
 	if chainKey == nil {
 		chainKey = types.EmptyRID()
 		for _, j := range r.PartyIDs() {
-			partyOpts := keyopts.Options{}
-			partyOpts.Set("id", r.ID, "partyid", string(j))
+			partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+			if err != nil {
+				return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+			}
 			ck, err := r.chainKey_km.GetKey(partyOpts)
 			if err != nil {
 				return nil, err
@@ -227,8 +234,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// RID = ⊕ⱼ RIDⱼ
 	rid := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+		}
 		rj, err := r.rid_km.GetKey(partyOpts)
 		if err != nil {
 			return nil, err
@@ -271,9 +280,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// create P2P messages with encrypted shares and zkfac proof
 	for _, j := range r.OtherPartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
-
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+		}
 		pedj, err := r.pedersen_km.GetKey(partyOpts)
 		if err != nil {
 			return nil, err
