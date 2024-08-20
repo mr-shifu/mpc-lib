@@ -36,16 +36,12 @@ func NewECDSAKeyManager(
 	}
 }
 
-func (mgr *ECDSAKeyManagerImpl) NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey {
-	return NewECDSAKey(priv, pub, group)
-}
-
 func (mgr *ECDSAKeyManagerImpl) GenerateKey(opts keyopts.Options) (ECDSAKey, error) {
 	// Generate a new ECDSA key pair
 	sk, pk := sample.ScalarPointPair(rand.Reader, mgr.cfg.Group)
 
 	// serialize key to store to the keystore
-	key := NewECDSAKey(sk, pk, mgr.cfg.Group)
+	key := NewKey(sk, pk, mgr.cfg.Group)
 	decoded, err := key.Bytes()
 	if err != nil {
 		return nil, err

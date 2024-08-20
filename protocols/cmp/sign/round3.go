@@ -8,7 +8,7 @@ import (
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/pkg/errors"
 )
@@ -51,7 +51,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
 	}
 
-	// gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
+	// gamma := ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
 	if _, err := r.gamma.ImportKey(body.BigGammaShare, soptsFrom); err != nil {
 		return err
 	}
@@ -251,7 +251,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
 	}
-	gammaRoot := sw_ecdsa.NewECDSAKey(nil, Gamma, Gamma.Curve())
+	gammaRoot := ecdsa.NewKey(nil, Gamma, Gamma.Curve())
 	if _, err := r.gamma.ImportKey(gammaRoot, soptsRoot); err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	bigDeltaShare := KShare.Act(Gamma, false)
-	bigDelta := sw_ecdsa.NewECDSAKey(nil, bigDeltaShare, bigDeltaShare.Curve())
+	bigDelta := ecdsa.NewKey(nil, bigDeltaShare, bigDeltaShare.Curve())
 	if _, err := r.bigDelta.ImportKey(bigDelta, sopts); err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
-	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
+	deltaShare := ecdsa.NewKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
 	if _, err := r.delta.ImportKey(deltaShare, sopts); err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	ChiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
-	chiShare := sw_ecdsa.NewECDSAKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
+	chiShare := ecdsa.NewKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
 	if _, err := r.chi.ImportKey(chiShare, sopts); err != nil {
 		return nil, err
 	}

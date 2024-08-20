@@ -64,7 +64,7 @@ func TestImportPrivateKey(t *testing.T) {
 	mgr := newEcdsakeyManager()
 
 	sk, pk := sample.ScalarPointPair(rand.Reader, curve.Secp256k1{})
-	key := NewECDSAKey(sk, pk, curve.Secp256k1{})
+	key := NewKey(sk, pk, curve.Secp256k1{})
 	kb, err := key.Bytes()
 	assert.NoError(t, err)
 
@@ -87,7 +87,7 @@ func TestImportPublicKey(t *testing.T) {
 	mgr := newEcdsakeyManager()
 
 	_, pk := sample.ScalarPointPair(rand.Reader, curve.Secp256k1{})
-	key := NewECDSAKey(nil, pk, curve.Secp256k1{})
+	key := NewKey(nil, pk, curve.Secp256k1{})
 	kb, err := key.Bytes()
 	assert.NoError(t, err)
 
@@ -124,7 +124,7 @@ func TestSchnorr(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 2. Import the key by mgr2
-	k := NewECDSAKey(nil, key.PublicKeyRaw(), curve.Secp256k1{})
+	k := NewKey(nil, key.PublicKeyRaw(), curve.Secp256k1{})
 	_, err = mgr2.ImportKey(k, opts)
 	assert.NoError(t, err)
 
@@ -160,7 +160,7 @@ func TestImportVSS(t *testing.T) {
 	assert.NoError(t, err)
 
 	// 2. Import the key by mgr2
-	key := NewECDSAKey(nil, key1.PublicKeyRaw(), curve.Secp256k1{})
+	key := NewKey(nil, key1.PublicKeyRaw(), curve.Secp256k1{})
 	_, err = mgr2.ImportKey(key, opts)
 	assert.NoError(t, err)
 

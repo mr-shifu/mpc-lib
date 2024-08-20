@@ -35,7 +35,7 @@ type rawECDSAKey struct {
 	Pub   []byte
 }
 
-func NewECDSAKey(priv curve.Scalar, pub curve.Point, group curve.Curve) *ECDSAKeyImpl {
+func NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) *ECDSAKeyImpl {
 	return &ECDSAKeyImpl{
 		priv:  priv,
 		pub:   pub,
@@ -79,7 +79,7 @@ func (key *ECDSAKeyImpl) Private() bool {
 }
 
 func (key *ECDSAKeyImpl) PublicKey() ECDSAKey {
-	return NewECDSAKey(nil, key.pub, key.group)
+	return NewKey(nil, key.pub, key.group)
 }
 
 func (key *ECDSAKeyImpl) Group() curve.Curve {

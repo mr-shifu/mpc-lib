@@ -12,7 +12,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/pkg/errors"
@@ -182,7 +181,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	if err != nil {
 		return errors.WithMessage(err, "keygen.round4.StoreMessage: failed to create options")
 	}
-	vssShareKey := sw_ecdsa.NewECDSAKey(Share, PublicShare, r.Group())
+	vssShareKey := ecdsa.NewKey(Share, PublicShare, r.Group())
 	if _, err := r.ec_vss_km.ImportKey(vssShareKey, vssShareOpts); err != nil {
 		return err
 	}
@@ -241,7 +240,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
 	}
-	k := r.ecdsa_km.NewKey(nil, mpcPublicKey, r.Group())
+	k := ecdsa.NewKey(nil, mpcPublicKey, r.Group())
 	if _, err := r.ecdsa_km.ImportKey(k, rootOpts); err != nil {
 		return nil, err
 	}
@@ -279,7 +278,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return nil, err
 		}
-		vssKeyShare := sw_ecdsa.NewECDSAKey(nil, vssPub, r.Group())
+		vssKeyShare := ecdsa.NewKey(nil, vssPub, r.Group())
 		if _, err := r.ec_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
 			return nil, err
 		}
@@ -322,7 +321,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
 	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
-	vssShareKey := sw_ecdsa.NewECDSAKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
+	vssShareKey := ecdsa.NewKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
 	rootVssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", "ROOT")
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")

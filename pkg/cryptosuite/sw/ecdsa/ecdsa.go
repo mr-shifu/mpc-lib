@@ -89,8 +89,6 @@ type ECDSAKey interface {
 }
 
 type ECDSAKeyManager interface {
-	NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey
-
 	// GenerateKey generates a new ECDSA key pair.
 	GenerateKey(opts keyopts.Options) (ECDSAKey, error)
 

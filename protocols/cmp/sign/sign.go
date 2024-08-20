@@ -182,7 +182,7 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 		if err != nil {
 			return nil, errors.WithMessage(err, "sign.Create: failed to create options")
 		}
-		cloned := ecdsa.NewECDSAKey(nil, clonedPubKey, info.Group)
+		cloned := ecdsa.NewKey(nil, clonedPubKey, info.Group)
 		if _, err := m.ec.ImportKey(cloned, rootECOpts); err != nil {
 			return nil, err
 		}

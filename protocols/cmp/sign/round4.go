@@ -4,7 +4,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/pkg/errors"
 )
@@ -45,13 +45,13 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	bigDeltaShareFrom := body.BigDeltaShare
-	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
+	bigDeltaFrom := ecdsa.NewKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
 	if _, err := r.bigDelta.ImportKey(bigDeltaFrom, soptsFrom); err != nil {
 		return err
 	}
 
 	deltaShareFrom := body.DeltaShare
-	deltaFrom := sw_ecdsa.NewECDSAKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
+	deltaFrom := ecdsa.NewKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
 	if _, err := r.delta.ImportKey(deltaFrom, soptsFrom); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// δ = ∑ⱼ δⱼ
-	var deltaShares []sw_ecdsa.ECDSAKey
+	var deltaShares []ecdsa.ECDSAKey
 	for _, j := range r.OtherPartyIDs() {
 		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
 		if err != nil {

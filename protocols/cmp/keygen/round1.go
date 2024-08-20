@@ -118,12 +118,11 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	sharePublic := share.ActOnBase()
-	shareKey := r.ecdsa_km.NewKey(share, sharePublic, r.Group())
+	shareKey := ecdsa.NewKey(share, sharePublic, r.Group())
 	vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
 	if err != nil {
 		return nil, errors.WithMessage(err, "cmp.Keygen.Round1: failed to create options")
 	}
-	
 	if _, err := r.ec_vss_km.ImportKey(shareKey, vssOpts); err != nil {
 		return nil, err
 	}
