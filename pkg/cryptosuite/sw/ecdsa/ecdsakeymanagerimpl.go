@@ -10,6 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
+	"github.com/pkg/errors"
 )
 
 type Config struct {
@@ -117,4 +118,36 @@ func (mgr *ECDSAKeyManagerImpl) GetKey(opts keyopts.Options) (ECDSAKey, error) {
 	return k.
 		withZKSchnorr(zksch.NewZKSchnorr(mgr.schnorrstore.KeyAccessor(keyID, opts))).
 		withVSSKeyMgr(mgr.vssmgr), nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) SumKeys(optsList ...keyopts.Options) (ECDSAKey, error) {
+	group := curve.Secp256k1{}
+	priv := group.NewScalar()
+	pub := group.NewPoint()
+
+	for i := 0; i < len(optsList); i++ {
+		opts := optsList[i]
+		k, err := mgr.GetKey(opts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		}
+
+		key, ok := k.(*ECDSAKeyImpl)
+		if !ok {
+			return nil, errors.New("ed25519: invalid key type")
+		}
+
+		if i == 0 {
+			priv = key.priv
+			pub = key.pub
+			continue
+		}
+
+		priv = priv.Add(key.priv)
+		pub = pub.Add(key.pub)
+	}
+
+	priv = group.NewScalar().SetNat(curve.MakeInt(priv).Mod(group.Order()))
+
+	return NewKey(priv, pub, group), nil
 }

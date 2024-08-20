@@ -7,10 +7,10 @@ import (
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 )
@@ -97,4 +97,6 @@ type ECDSAKeyManager interface {
 
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(opts keyopts.Options) (ECDSAKey, error)
+
+	SumKeys(optsList ...keyopts.Options) (ECDSAKey, error)
 }

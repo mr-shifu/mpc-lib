@@ -285,7 +285,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Sum all VSS shares to generate MPC VSS Share
-	var vss_shares []ecdsa.ECDSAKey
+	vssOptsList = make([]comm_keyopts.Options, 0)
 	for _, j := range r.OtherPartyIDs() {
 		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
 		if err != nil {
@@ -301,11 +301,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
 		}
-		vss_share, err := r.ec_vss_km.GetKey(vssOpts)
-		if err != nil {
-			return nil, err
-		}
-		vss_shares = append(vss_shares, vss_share)
+		vssOptsList = append(vssOptsList, vssOpts)
 	}
 	vss, err := r.vss_mgr.GetSecrets(opts)
 	if err != nil {
@@ -315,13 +311,11 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
 	}
-	selfVSSShare, err := r.ec_vss_km.GetKey(vssOpts)
+	vssOptsList = append(vssOptsList, vssOpts)
+	vssShareKey, err := r.ec_vss_km.SumKeys(vssOptsList...)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to sum vss keys")
 	}
-	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
-	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
-	vssShareKey := ecdsa.NewKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
 	rootVssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", "ROOT")
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
@@ -392,7 +386,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		ECDSA:     vssSharePrivateKey,
+		// ECDSA:     vssSharePrivateKey,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
 		RID:      rid.Raw(),
