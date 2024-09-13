@@ -399,18 +399,13 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	h := r.Hash().Clone()
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
-	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
-	ecKey, err := r.ecdsa_km.GetKey(opts)
-	if err != nil {
-		return nil, err
-	}
-	proof, err := ecKey.GenerateSchnorrProof(h)
+	proof, err := r.ecdsa_km.GenerateSchnorrResponse(h, opts)
 	if err != nil {
 		return r, err
 	}
 
 	// send to all
-	err = r.BroadcastMessage(out, &broadcast5{SchnorrResponse: proof})
+	err = r.BroadcastMessage(out, &broadcast5{SchnorrResponse: proof.Response().Z})
 	if err != nil {
 		return r, err
 	}

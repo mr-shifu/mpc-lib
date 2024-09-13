@@ -36,7 +36,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return errors.WithMessage(err, "keygen.round5.StoreBroadcastMessage: failed to create options")
 	}
-	
+
 	// TODO implement SchnorrResponse validation
 	// if !body.SchnorrResponse.IsValid() {
 	// 	return round.ErrNilFields
@@ -47,12 +47,12 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// 	r.SchnorrCommitments[from], nil) {
 	// 	return errors.New("failed to validate schnorr proof for received share")
 	// }
-	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
-	if err != nil {
-		return err
-	}
 
-	verified, err := ecKey.VerifySchnorrProof(r.HashForID(from), body.SchnorrResponse)
+	zb, _ := body.SchnorrResponse.MarshalBinary()
+	if err := r.ecdsa_km.ImportSchnorrProofResponse(zb, fromOpts); err != nil {
+		return errors.WithMessage(err, "failed to import schnorr proof response")
+	}
+	verified, err := r.ecdsa_km.VerifySchnorrProof(r.HashForID(from), fromOpts)
 	if err != nil {
 		return err
 	}

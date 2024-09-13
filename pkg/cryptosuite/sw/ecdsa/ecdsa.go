@@ -48,18 +48,6 @@ type ECDSAKey interface {
 
 	CommitByKey(km ECDSAKey, c curve.Scalar) curve.Scalar
 
-	NewSchnorrCommitment() (curve.Point, error)
-
-	ImportSchnorrCommitment(commitment curve.Point) error
-
-	GenerateSchnorrProof(h hash.Hash) (curve.Scalar, error)
-
-	VerifySchnorrProof(h hash.Hash, proof curve.Scalar) (bool, error)
-
-	SchnorrCommitment() (curve.Point, error)
-
-	SchnorrProof() (curve.Scalar, error)
-
 	GenerateVSSSecrets(degree int, opts keyopts.Options) error
 
 	// ImportVSSSecrets(k vss.VssKey, opts keyopts.Options) error
@@ -99,4 +87,11 @@ type ECDSAKeyManager interface {
 	GetKey(opts keyopts.Options) (ECDSAKey, error)
 
 	SumKeys(optsList ...keyopts.Options) (ECDSAKey, error)
+
+	GenerateSchnorrCommitment(h hash.Hash, opts keyopts.Options) (*Proof, error)
+	GenerateSchnorrResponse(h hash.Hash, opts keyopts.Options) (*Proof, error)
+	VerifySchnorrProof(h hash.Hash, opts keyopts.Options) (bool, error)
+	ImportSchnorrCommitment(cmt_byte []byte, opts keyopts.Options) error
+	ImportSchnorrProofResponse(zb []byte, opts keyopts.Options) error
+	GetSchnorrProof(opts keyopts.Options) (*Proof, error)
 }

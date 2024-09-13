@@ -27,7 +27,7 @@ type broadcast3 struct {
 	// VSSPolynomial = Fᵢ(X) VSSPolynomial
 	VSSPolynomial []byte
 	// SchnorrCommitments = Aᵢ Schnorr commitment for the final confirmation
-	SchnorrCommitments curve.Point
+	SchnorrCommitments []byte
 	// ElGamalPublic      []byte // curve.Point
 	// // N Paillier and Pedersen N = p•q, p ≡ q ≡ 3 mod 4
 	// N *saferith.Modulus
@@ -125,7 +125,11 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
+	if err := r.ecdsa_km.ImportSchnorrCommitment(body.SchnorrCommitments, fromOpts); err != nil {
+		return err
+	}
+	schproof, err := r.ecdsa_km.GetSchnorrProof(fromOpts)
+	if err != nil {
 		return err
 	}
 
@@ -165,7 +169,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		pedersenFrom.PublicKeyRaw().N(),
 		pedersenFrom.PublicKeyRaw().S(),
 		pedersenFrom.PublicKeyRaw().T(),
-		body.SchnorrCommitments,
+		schproof.Commitment(),
 	) {
 		return errors.New("failed to decommit")
 	}
@@ -210,7 +214,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
 	}
-	
+
 	// c = ⊕ⱼ cⱼ
 	chainKey := r.PreviousChainKey
 	if chainKey == nil {
@@ -350,7 +354,7 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
 		// VSSPolynomial:      polynomial.EmptyExponent(r.Group()),
-		SchnorrCommitments: r.Group().NewPoint(), //zksch.EmptyCommitment(r.Group()),
+		// SchnorrCommitments: r.Group().NewPoint(), //zksch.EmptyCommitment(r.Group()),
 		// ElGamalPublic:      r.Group().NewPoint(),
 	}
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/sample"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
@@ -106,47 +105,69 @@ func TestImportPublicKey(t *testing.T) {
 	assert.Equal(t, kb, newkb)
 }
 
-func TestSchnorr(t *testing.T) {
-	mgr1 := newEcdsakeyManager()
-	mgr2 := newEcdsakeyManager()
+// func TestGenerateSchnorrProof(t *testing.T) {
+// 	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
+// 	hahs_vault := vault.NewInMemoryVault()
+// 	hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
+// 	hash_mgr := hash.NewHashManager(hash_ks)
 
-	sch_vault := vault.NewInMemoryVault()
-	sch_kr := keyopts.NewInMemoryKeyOpts()
-	
-	hs := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
-	hash_mgr := hash.NewHashManager(hs)
-	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
-	assert.NoError(t, err)
-	h := hash_mgr.NewHasher("test", opts)
+// 	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+// 	assert.NoError(t, err)
+// 	h := hash_mgr.NewHasher("test", opts)
 
-	// 1. Generate a new key by mgr1
-	key, err := mgr1.GenerateKey(opts)
-	assert.NoError(t, err)
+// 	group := curve.Secp256k1{}
+// 	k, err := GenerateKey(group)
+// 	assert.NoError(t, err)
 
-	// 2. Import the key by mgr2
-	k := NewKey(nil, key.PublicKeyRaw(), curve.Secp256k1{})
-	_, err = mgr2.ImportKey(k, opts)
-	assert.NoError(t, err)
+// 	proof, err := k.NewScnorrProof(h.Clone())
+// 	assert.NoError(t, err)
 
-	// 3. Generate Schnorr commitment by mgr1
-	commitment, err := key.NewSchnorrCommitment()
-	assert.NoError(t, err)
+// 	v, err := k.VerifySchnorrProof(h.Clone(), proof)
+// 	assert.NoError(t, err)
+// 	assert.True(t, v)
+// }
 
-	// 4. Import Schnorr commitment by mgr2
-	newKey, err := mgr2.GetKey(opts)
-	assert.NoError(t, err)
-	err = newKey.ImportSchnorrCommitment(commitment)
-	assert.NoError(t, err)
+// func TestSchnorr(t *testing.T) {
+// 	mgr1 := newEcdsakeyManager()
+// 	mgr2 := newEcdsakeyManager()
 
-	// 5. Generate Schnorr proof by mgr1
-	proof, err := key.GenerateSchnorrProof(h.Clone())
-	assert.NoError(t, err)
+// 	sch_vault := vault.NewInMemoryVault()
+// 	sch_kr := keyopts.NewInMemoryKeyOpts()
 
-	// 6. Verify Schnorr proof by mgr2
-	verified, err := newKey.VerifySchnorrProof(h.Clone(), proof)
-	assert.NoError(t, err)
-	assert.True(t, verified)
-}
+// 	hs := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
+// 	hash_mgr := hash.NewHashManager(hs)
+// 	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+// 	assert.NoError(t, err)
+// 	h := hash_mgr.NewHasher("test", opts)
+
+// 	// 1. Generate a new key by mgr1
+// 	key, err := mgr1.GenerateKey(opts)
+// 	assert.NoError(t, err)
+
+// 	// 2. Import the key by mgr2
+// 	k := NewKey(nil, key.PublicKeyRaw(), curve.Secp256k1{})
+// 	_, err = mgr2.ImportKey(k, opts)
+// 	assert.NoError(t, err)
+
+// 	// 3. Generate Schnorr commitment by mgr1
+// 	commitment, err := key.New
+// 	assert.NoError(t, err)
+
+// 	// 4. Import Schnorr commitment by mgr2
+// 	newKey, err := mgr2.GetKey(opts)
+// 	assert.NoError(t, err)
+// 	err = newKey.ImportSchnorrCommitment(commitment)
+// 	assert.NoError(t, err)
+
+// 	// 5. Generate Schnorr proof by mgr1
+// 	proof, err := key.GenerateSchnorrProof(h.Clone())
+// 	assert.NoError(t, err)
+
+// 	// 6. Verify Schnorr proof by mgr2
+// 	verified, err := newKey.VerifySchnorrProof(h.Clone(), proof)
+// 	assert.NoError(t, err)
+// 	assert.True(t, verified)
+// }
 
 func TestImportVSS(t *testing.T) {
 	mgr1 := newEcdsakeyManager()

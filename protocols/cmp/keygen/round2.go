@@ -69,7 +69,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "keygen.round2.Finalize: failed to create options")
 	}
-	
+
 	// TODO need keyID to get the key
 	elgamalKey, err := r.elgamal_km.GetKey(opts)
 	if err != nil {
@@ -90,10 +90,15 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	schnorrCommitment, err := ecKey.SchnorrCommitment()
+	schnorrProof, err := r.ecdsa_km.GetSchnorrProof(opts)
 	if err != nil {
 		return nil, err
 	}
+	sch_byte, err := schnorrProof.Commitment().Bytes()
+	if err != nil {
+		return nil, err
+	}
+
 	vssKey, err := ecKey.VSS(opts)
 	if err != nil {
 		return nil, err
@@ -146,7 +151,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		C:                  chainKey.Raw(),
 		EcdsaKey:           ec_bytes,
 		VSSPolynomial:      exponents_bytes,
-		SchnorrCommitments: schnorrCommitment,
+		SchnorrCommitments: sch_byte,
 		PaillierKey:        paillier_bytes,
 		ElgamalKey:         elgamal_bytes,
 		PedersenKey:        ped_bytes,

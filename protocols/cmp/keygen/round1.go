@@ -128,7 +128,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// generate Schnorr randomness
-	schnorrCommitment, err := key.NewSchnorrCommitment()
+	schProof, err := r.ecdsa_km.GenerateSchnorrCommitment(r.HashForID(r.SelfID()), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		pedersenKey.PublicKeyRaw().N(),
 		pedersenKey.PublicKeyRaw().S(),
 		pedersenKey.PublicKeyRaw().T(),
-		schnorrCommitment,
+		schProof.Commitment(),
 	)
 	if err != nil {
 		return r, errors.New("failed to commit")

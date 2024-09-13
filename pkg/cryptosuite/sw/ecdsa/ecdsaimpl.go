@@ -1,13 +1,14 @@
 package ecdsa
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"errors"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	"github.com/mr-shifu/mpc-lib/core/math/sample"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	zksch "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/zk-schnorr"
 )
 
 var (
@@ -24,8 +25,6 @@ type ECDSAKeyImpl struct {
 	// group
 	group curve.Curve
 
-	zks *zksch.ZKSchnorr
-
 	vssmgr vss.VssKeyManager
 }
 
@@ -33,6 +32,17 @@ type rawECDSAKey struct {
 	Group string
 	Priv  []byte
 	Pub   []byte
+}
+
+// GenerateKey creates a new Ed25519 key pair.
+func GenerateKey(group curve.Curve) (*ECDSAKeyImpl, error) {
+	// Generate a new ECDSA key pair
+	sk, pk := sample.ScalarPointPair(rand.Reader, group)
+
+	// serialize key to store to the keystore
+	k := NewKey(sk, pk, group)
+
+	return k, nil
 }
 
 func NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) *ECDSAKeyImpl {
@@ -88,11 +98,6 @@ func (key *ECDSAKeyImpl) Group() curve.Curve {
 
 func (key *ECDSAKeyImpl) PublicKeyRaw() curve.Point {
 	return key.pub
-}
-
-func (key *ECDSAKeyImpl) withZKSchnorr(zks *zksch.ZKSchnorr) *ECDSAKeyImpl {
-	key.zks = zks
-	return key
 }
 
 func (key *ECDSAKeyImpl) withVSSKeyMgr(vssmgr vss.VssKeyManager) *ECDSAKeyImpl {
