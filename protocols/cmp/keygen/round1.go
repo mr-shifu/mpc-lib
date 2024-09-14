@@ -103,11 +103,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// save our own share already so we are consistent with what we receive from others
-	key, err := r.ecdsa_km.GetKey(opts)
-	if err != nil {
-		return nil, err
-	}
-	vssKey, err := key.VSS(opts)
+	vssKey, err := r.ecdsa_km.GetVss(opts)
 	if err != nil {
 		return nil, err
 	}

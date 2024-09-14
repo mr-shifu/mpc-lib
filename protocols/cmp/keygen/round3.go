@@ -111,8 +111,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	fromKey, err := r.ecdsa_km.ImportKey(body.EcdsaKey, fromOpts)
-	if err != nil {
+	if _, err := r.ecdsa_km.ImportKey(body.EcdsaKey, fromOpts); err != nil {
 		return err
 	}
 
@@ -133,7 +132,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	vssKeyFrom, err := fromKey.VSS(fromOpts)
+	vssKeyFrom, err := r.ecdsa_km.GetVss(fromOpts)
 	if err != nil {
 		return err
 	}

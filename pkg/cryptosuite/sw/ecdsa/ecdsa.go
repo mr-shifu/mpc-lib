@@ -48,12 +48,6 @@ type ECDSAKey interface {
 	Commit(m curve.Scalar, c curve.Scalar) curve.Scalar
 
 	CommitByKey(km ECDSAKey, c curve.Scalar) curve.Scalar
-
-	GenerateVSSSecrets(degree int, opts keyopts.Options) error
-
-	// ImportVSSSecrets(k vss.VssKey, opts keyopts.Options) error
-
-	VSS(opts keyopts.Options) (vss.VssKey, error)
 }
 
 type ECDSAKeyManager interface {
@@ -96,4 +90,8 @@ type ECDSAKeyManager interface {
 		opts keyopts.Options) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof, error)
 
 	EncodeByPaillier(pk paillier.PaillierKey, opts keyopts.Options) (paillierencodedkey.PaillierEncodedKey, error)
+
+	GenerateVss(degree int, opts keyopts.Options) (vss.VssKey, error)
+	ImportVss(key interface{}, opts keyopts.Options) error
+	GetVss(opts keyopts.Options) (vss.VssKey, error)
 }

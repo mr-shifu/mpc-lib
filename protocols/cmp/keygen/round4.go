@@ -159,11 +159,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// verify share with VSS
-	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
-	if err != nil {
-		return err
-	}
-	vssKey, err := ecKey.VSS(fromOpts)
+	vssKey, err := r.ecdsa_km.GetVss(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -325,11 +321,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// compute the new public key share Xⱼ = F(j) (+X'ⱼ if doing a refresh)
-	mpcKey, err := r.ecdsa_km.GetKey(rootOpts)
-	if err != nil {
-		return nil, err
-	}
-	mpcVSSKey, err := mpcKey.VSS(rootOpts)
+	mpcVSSKey, err := r.ecdsa_km.GetVss(rootOpts)
 	if err != nil {
 		return nil, err
 	}

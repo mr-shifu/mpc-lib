@@ -128,12 +128,12 @@ func (mgr *ECDSAKeyManagerImpl) SumKeys(optsList ...keyopts.Options) (ECDSAKey, 
 		opts := optsList[i]
 		k, err := mgr.GetKey(opts)
 		if err != nil {
-			return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+			return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 		}
 
 		key, ok := k.(*ECDSAKeyImpl)
 		if !ok {
-			return nil, errors.New("ed25519: invalid key type")
+			return nil, errors.New("ecdsa: invalid key type")
 		}
 
 		if i == 0 {
@@ -154,22 +154,22 @@ func (mgr *ECDSAKeyManagerImpl) SumKeys(optsList ...keyopts.Options) (ECDSAKey, 
 func (mgr *ECDSAKeyManagerImpl) GenerateSchnorrCommitment(h hash.Hash, opts keyopts.Options) (*Proof, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	p := new(Proof)
 	_, err = p.GenerateCommitment(h)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to generate schnorr commitment")
+		return nil, errors.WithMessage(err, "ecdsa: failed to generate schnorr commitment")
 	}
 	pb, err := p.Bytes()
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to marshal schnorr commitment")
+		return nil, errors.WithMessage(err, "ecdsa: failed to marshal schnorr commitment")
 	}
 
 	ski := hex.EncodeToString(k.SKI())
 	if err := mgr.schstore.Import(ski, pb, opts); err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to import schnorr proof to keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to import schnorr proof to keystore")
 	}
 
 	return p, nil
@@ -178,22 +178,22 @@ func (mgr *ECDSAKeyManagerImpl) GenerateSchnorrCommitment(h hash.Hash, opts keyo
 func (mgr *ECDSAKeyManagerImpl) GenerateSchnorrResponse(h hash.Hash, opts keyopts.Options) (*Proof, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	key, ok := k.(*ECDSAKeyImpl)
 	if !ok {
-		return nil, errors.New("ed25519: invalid key type")
+		return nil, errors.New("ecdsa: invalid key type")
 	}
 
 	p, err := mgr.GetSchnorrProof(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get schnorr proof from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get schnorr proof from keystore")
 	}
 
 	_, err = p.GenerateResponse(h, key.priv)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to generate schnorr response")
+		return nil, errors.WithMessage(err, "ecdsa: failed to generate schnorr response")
 	}
 
 	return p, nil
@@ -202,17 +202,17 @@ func (mgr *ECDSAKeyManagerImpl) GenerateSchnorrResponse(h hash.Hash, opts keyopt
 func (mgr *ECDSAKeyManagerImpl) VerifySchnorrProof(h hash.Hash, opts keyopts.Options) (bool, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return false, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return false, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	pb, err := mgr.schstore.Get(opts)
 	if err != nil {
-		return false, errors.WithMessage(err, "ed25519: failed to get schnorr proof from keystore")
+		return false, errors.WithMessage(err, "ecdsa: failed to get schnorr proof from keystore")
 	}
 
 	p := new(Proof)
 	if err := p.FromBytes(pb); err != nil {
-		return false, errors.WithMessage(err, "ed25519: failed to import schnorr proof")
+		return false, errors.WithMessage(err, "ecdsa: failed to import schnorr proof")
 	}
 
 	return verifySchnorrProof(h, p, k.PublicKeyRaw())
@@ -221,24 +221,24 @@ func (mgr *ECDSAKeyManagerImpl) VerifySchnorrProof(h hash.Hash, opts keyopts.Opt
 func (mgr *ECDSAKeyManagerImpl) ImportSchnorrCommitment(cmt_byte []byte, opts keyopts.Options) error {
 	cmt := new(Commitment)
 	if err := cmt.FromBytes(cmt_byte); err != nil {
-		return errors.WithMessage(err, "ed25519: failed to import schnorr commitment")
+		return errors.WithMessage(err, "ecdsa: failed to import schnorr commitment")
 	}
 
 	p := NewProof(cmt, nil)
 	pb, err := p.Bytes()
 	if err != nil {
-		return errors.WithMessage(err, "ed25519: failed to marshal schnorr commitment")
+		return errors.WithMessage(err, "ecdsa: failed to marshal schnorr commitment")
 	}
 
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	ski := hex.EncodeToString(k.SKI())
 
 	if err := mgr.schstore.Import(ski, pb, opts); err != nil {
-		return errors.WithMessage(err, "ed25519: failed to import schnorr proof to keystore")
+		return errors.WithMessage(err, "ecdsa: failed to import schnorr proof to keystore")
 	}
 
 	return nil
@@ -247,29 +247,29 @@ func (mgr *ECDSAKeyManagerImpl) ImportSchnorrCommitment(cmt_byte []byte, opts ke
 func (mgr *ECDSAKeyManagerImpl) ImportSchnorrProofResponse(zb []byte, opts keyopts.Options) error {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	p, err := mgr.GetSchnorrProof(opts)
 	if err != nil {
-		return errors.WithMessage(err, "ed25519: failed to import schnorr proof")
+		return errors.WithMessage(err, "ecdsa: failed to import schnorr proof")
 	}
 
 	rsp := new(Response)
 	if err := rsp.FromBytes(zb); err != nil {
-		return errors.WithMessage(err, "ed25519: failed to import schnorr response")
+		return errors.WithMessage(err, "ecdsa: failed to import schnorr response")
 	}
 
 	p.SetResponse(rsp)
 
 	pb, err := p.Bytes()
 	if err != nil {
-		return errors.WithMessage(err, "ed25519: failed to marshal schnorr proof")
+		return errors.WithMessage(err, "ecdsa: failed to marshal schnorr proof")
 	}
 
 	ski := hex.EncodeToString(k.SKI())
 	if err := mgr.schstore.Import(ski, pb, opts); err != nil {
-		return errors.WithMessage(err, "ed25519: failed to import schnorr proof to keystore")
+		return errors.WithMessage(err, "ecdsa: failed to import schnorr proof to keystore")
 	}
 
 	return nil
@@ -278,12 +278,12 @@ func (mgr *ECDSAKeyManagerImpl) ImportSchnorrProofResponse(zb []byte, opts keyop
 func (mgr *ECDSAKeyManagerImpl) GetSchnorrProof(opts keyopts.Options) (*Proof, error) {
 	pb, err := mgr.schstore.Get(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get schnorr proof from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get schnorr proof from keystore")
 	}
 
 	proof := new(Proof)
 	if err := proof.FromBytes(pb); err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to import schnorr proof")
+		return nil, errors.WithMessage(err, "ecdsa: failed to import schnorr proof")
 	}
 
 	return proof, nil
@@ -297,11 +297,11 @@ func (mgr *ECDSAKeyManagerImpl) NewZKEncProof(
 	opts keyopts.Options) (*zkenc.Proof, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 	key, ok := k.(*ECDSAKeyImpl)
 	if !ok {
-		return nil, errors.New("ed25519: invalid key type")
+		return nil, errors.New("ecdsa: invalid key type")
 	}
 
 	proof := zkenc.NewProof(
@@ -331,7 +331,7 @@ func (mgr *ECDSAKeyManagerImpl) NewZKLogstarProof(
 	opts keyopts.Options) (*zklogstar.Proof, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	key, ok := k.(*ECDSAKeyImpl)
@@ -366,12 +366,12 @@ func (mgr *ECDSAKeyManagerImpl) NewMtAAffgProof(
 	opts keyopts.Options) (*saferith.Int, *core_paillier.Ciphertext, *core_paillier.Ciphertext, *zkaffg.Proof, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, nil, nil, nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, nil, nil, nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	key, ok := k.(*ECDSAKeyImpl)
 	if !ok {
-		return nil, nil, nil, nil, errors.New("ed25519: invalid key type")
+		return nil, nil, nil, nil, errors.New("ecdsa: invalid key type")
 	}
 	if k.Private() {
 		beta, D, F, proof := mta.ProveAffG(
@@ -386,18 +386,18 @@ func (mgr *ECDSAKeyManagerImpl) NewMtAAffgProof(
 		)
 		return beta, D, F, proof, nil
 	}
-	return nil, nil, nil, nil, errors.WithMessage(err, "ed25519: key must be private")
+	return nil, nil, nil, nil, errors.WithMessage(err, "ecdsa: key must be private")
 }
 
 func (mgr *ECDSAKeyManagerImpl) EncodeByPaillier(pk paillier.PaillierKey, opts keyopts.Options) (paillierencodedkey.PaillierEncodedKey, error) {
 	k, err := mgr.GetKey(opts)
 	if err != nil {
-		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
 	}
 
 	key, ok := k.(*ECDSAKeyImpl)
 	if !ok {
-		return nil, errors.New("ed25519: invalid key type")
+		return nil, errors.New("ecdsa: invalid key type")
 	}
 
 	if key.Private() {
@@ -406,4 +406,63 @@ func (mgr *ECDSAKeyManagerImpl) EncodeByPaillier(pk paillier.PaillierKey, opts k
 		return pek, nil
 	}
 	return nil, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) GenerateVss(degree int, opts keyopts.Options) (vss.VssKey, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+	vss, err := mgr.vssmgr.GenerateSecrets(key.priv, degree, opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to generate vss secrets")
+	}
+
+	return vss, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) ImportVss(key interface{}, opts keyopts.Options) error {
+	_, err := mgr.GetKey(opts)
+	if err != nil {
+		return errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	switch kt := key.(type) {
+	case []byte:
+		if _, err := mgr.vssmgr.ImportSecrets(kt, opts); err != nil {
+			return errors.WithMessage(err, "ed25519: failed to import vss secrets")
+		}
+	case vss.VssKey:
+		kb, err := kt.Bytes()
+		if err != nil {
+			return errors.WithMessage(err, "ed25519: failed to serialize vss key")
+		}
+
+		if _, err := mgr.vssmgr.ImportSecrets(kb, opts); err != nil {
+			return errors.WithMessage(err, "ed25519: failed to import vss secrets")
+		}
+	default:
+		return errors.New("ed25519: invalid key type")
+	}
+
+	return nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) GetVss(opts keyopts.Options) (vss.VssKey, error) {
+	_, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	vss, err := mgr.vssmgr.GetSecrets(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get vss secrets")
+	}
+
+	return vss, nil
 }

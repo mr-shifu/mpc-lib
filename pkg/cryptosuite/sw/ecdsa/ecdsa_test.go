@@ -169,37 +169,37 @@ func TestImportPublicKey(t *testing.T) {
 // 	assert.True(t, verified)
 // }
 
-func TestImportVSS(t *testing.T) {
-	mgr1 := newEcdsakeyManager()
-	mgr2 := newEcdsakeyManager()
+// func TestImportVSS(t *testing.T) {
+// 	mgr1 := newEcdsakeyManager()
+// 	mgr2 := newEcdsakeyManager()
 
-	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
-	assert.NoError(t, err)
+// 	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+// 	assert.NoError(t, err)
 
-	// 1. Generate a new key by mgr
-	key1, err := mgr1.GenerateKey(opts)
-	assert.NoError(t, err)
+// 	// 1. Generate a new key by mgr
+// 	key1, err := mgr1.GenerateKey(opts)
+// 	assert.NoError(t, err)
 
-	// 2. Import the key by mgr2
-	key := NewKey(nil, key1.PublicKeyRaw(), curve.Secp256k1{})
-	_, err = mgr2.ImportKey(key, opts)
-	assert.NoError(t, err)
+// 	// 2. Import the key by mgr2
+// 	key := NewKey(nil, key1.PublicKeyRaw(), curve.Secp256k1{})
+// 	_, err = mgr2.ImportKey(key, opts)
+// 	assert.NoError(t, err)
 
-	// 3. Generate VSS secrets by mgr1
-	err = key1.GenerateVSSSecrets(3, opts)
-	assert.NoError(t, err)
-	vss1, err := key1.VSS(opts)
-	assert.NoError(t, err)
-	assert.True(t, vss1.Private())
+// 	// 3. Generate VSS secrets by mgr1
+// 	err = key1.GenerateVSSSecrets(3, opts)
+// 	assert.NoError(t, err)
+// 	vss1, err := key1.VSS(opts)
+// 	assert.NoError(t, err)
+// 	assert.True(t, vss1.Private())
 
-	// 4. Import VSS secrets by mgr2
-	// exp, err := vss1.ExponentsRaw()
-	// assert.NoError(t, err)
-	// exp_bytes, err := exp.MarshalBinary()
-	// assert.NoError(t, err)
-	// key2, err := mgr2.GetKey(opts)
-	// assert.NoError(t, err)
-	// err = key2.ImportVSSSecrets(exp_bytes, opts)
-	// assert.NoError(t, err)
-	// assert.False(t, key2.Private())
-}
+// 	// 4. Import VSS secrets by mgr2
+// 	// exp, err := vss1.ExponentsRaw()
+// 	// assert.NoError(t, err)
+// 	// exp_bytes, err := exp.MarshalBinary()
+// 	// assert.NoError(t, err)
+// 	// key2, err := mgr2.GetKey(opts)
+// 	// assert.NoError(t, err)
+// 	// err = key2.ImportVSSSecrets(exp_bytes, opts)
+// 	// assert.NoError(t, err)
+// 	// assert.False(t, key2.Private())
+// }

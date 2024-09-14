@@ -99,7 +99,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	vssKey, err := ecKey.VSS(opts)
+	vssKey, err := r.ecdsa_km.GetVss(opts)
 	if err != nil {
 		return nil, err
 	}

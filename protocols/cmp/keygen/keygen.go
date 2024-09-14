@@ -100,11 +100,10 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.Star
 		}
 
 		// sample fᵢ(X) deg(fᵢ) = t, fᵢ(0) = secretᵢ
-		key, err := m.ecdsa_km.GenerateKey(opts)
-		if err != nil {
+		if _, err = m.ecdsa_km.GenerateKey(opts); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
-		if err := key.GenerateVSSSecrets(helper.Threshold(), opts); err != nil {
+		if _, err := m.ecdsa_km.GenerateVss(helper.Threshold(), opts); err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}
 
