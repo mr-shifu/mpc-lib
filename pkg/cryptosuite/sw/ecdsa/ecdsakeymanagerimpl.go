@@ -7,6 +7,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
+	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
@@ -283,6 +284,37 @@ func (mgr *ECDSAKeyManagerImpl) GetSchnorrProof(opts keyopts.Options) (*Proof, e
 	if err := proof.FromBytes(pb); err != nil {
 		return nil, errors.WithMessage(err, "ed25519: failed to import schnorr proof")
 	}
+
+	return proof, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) NewZKEncProof(
+	h hash.Hash,
+	pek pek.PaillierEncodedKey,
+	pk paillier.PaillierKey,
+	ped pedersen.PedersenKey,
+	opts keyopts.Options) (*zkenc.Proof, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ed25519: invalid key type")
+	}
+
+	proof := zkenc.NewProof(
+		k.Group(),
+		h,
+		zkenc.Public{
+			K:      pek.Encoded(),
+			Prover: pk.PublicKeyRaw(),
+			Aux:    ped.PublicKeyRaw(),
+		}, zkenc.Private{
+			K:   curve.MakeInt(key.priv),
+			Rho: pek.Nonce(),
+		},
+	)
 
 	return proof, nil
 }

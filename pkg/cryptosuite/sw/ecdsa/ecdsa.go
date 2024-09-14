@@ -55,8 +55,6 @@ type ECDSAKey interface {
 	VSS(opts keyopts.Options) (vss.VssKey, error)
 
 	EncodeByPaillier(pk paillier.PaillierKey) (pek.PaillierEncodedKey, error)
-
-	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
 }
 
 type ECDSAKeyManager interface {
@@ -77,6 +75,8 @@ type ECDSAKeyManager interface {
 	ImportSchnorrCommitment(cmt_byte []byte, opts keyopts.Options) error
 	ImportSchnorrProofResponse(zb []byte, opts keyopts.Options) error
 	GetSchnorrProof(opts keyopts.Options) (*Proof, error)
+
+	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey, opts keyopts.Options) (*zkenc.Proof, error)
 
 	NewZKLogstarProof(
 		h hash.Hash,

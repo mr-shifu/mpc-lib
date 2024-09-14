@@ -138,7 +138,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return err
 		}
-		proof, err := KShare.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey())
+		proof, err := r.signK.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey(), sopts)
 		if err != nil {
 			return err
 		}
