@@ -261,7 +261,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	bigDeltaShare := KShare.Act(Gamma, false)
+	bigDeltaShare, err := r.signK.Act(Gamma, false, sopts)
+	if err != nil {
+		return nil, err
+	}
 	bigDelta := ecdsa.NewKey(nil, bigDeltaShare, bigDeltaShare.Curve())
 	if _, err := r.bigDelta.ImportKey(bigDelta, sopts); err != nil {
 		return nil, err
@@ -283,11 +286,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		deltaSum = deltaSum.Add(deltaSum, deltaj.Beta(), -1)
 	}
 	deltaSumScalar := r.Group().NewScalar().SetNat(deltaSum.Mod(r.Group().Order()))
-	gamma, err := r.gamma.GetKey(sopts)
+	DeltaShareScalar, err := r.gamma.CommitByKey(KShare, deltaSumScalar, sopts)
 	if err != nil {
 		return nil, err
 	}
-	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
 	deltaShare := ecdsa.NewKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
 	if _, err := r.delta.ImportKey(deltaShare, sopts); err != nil {
 		return nil, err
@@ -308,11 +310,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		chiSum = chiSum.Add(chiSum, chij.Beta(), -1)
 	}
 	chiSumScalar := r.Group().NewScalar().SetNat(chiSum.Mod(r.Group().Order()))
-	eckey, err := r.ec.GetKey(sopts)
+	ChiShareScalar, err := r.ec.CommitByKey(KShare, chiSumScalar, sopts)
 	if err != nil {
 		return nil, err
 	}
-	ChiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
 	chiShare := ecdsa.NewKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
 	if _, err := r.chi.ImportKey(chiShare, sopts); err != nil {
 		return nil, err

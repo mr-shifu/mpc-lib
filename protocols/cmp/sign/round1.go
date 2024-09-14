@@ -91,12 +91,22 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
 	}
 
+	// Generate Gamma ECDSA key to mask K and store its SKI to Gamma keyrpository
+	if _, err := r.gamma.GenerateKey(sopts); err != nil {
+		return r, err
+	}
+
 	// Encode Gamma using Paillier Key
 	gammaPEK, err := r.gamma.EncodeByPaillier(paillierKey.PublicKey(), sopts)
 	if err != nil {
 		return r, err
 	}
 	if _, err := r.gamma_pek.Import(gammaPEK, sopts); err != nil {
+		return r, err
+	}
+
+	// Generate K Scalar using ecdsa keymanager and store its SKI to K keyrepository
+	if _, err := r.signK.GenerateKey(sopts); err != nil {
 		return r, err
 	}
 

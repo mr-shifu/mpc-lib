@@ -163,16 +163,14 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 				return nil, errors.WithMessage(err, "sign.Create: failed to create options")
 			}
 
-			vssShareKey, err := m.ec_vss.GetKey(partyVSSOpts)
-			if err != nil {
-				return nil, err
-			}
-
 			partyOpts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(j))
 			if err != nil {
 				return nil, errors.WithMessage(err, "sign.Create: failed to create options")
 			}
-			clonedj := vssShareKey.CloneByMultiplier(lagrange[j])
+			clonedj, err := m.ec_vss.CloneByMultiplier(lagrange[j], partyVSSOpts)
+			if err != nil {
+				return nil, err
+			}
 			if _, err := m.ec.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
 			}

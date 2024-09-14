@@ -4,6 +4,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/pkg/errors"
@@ -162,23 +163,18 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// δ = ∑ⱼ δⱼ
-	var deltaShares []ecdsa.ECDSAKey
+	deltaSharesOpts := make([]com_keyopts.Options, 0)
 	for _, j := range r.OtherPartyIDs() {
 		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
 		if err != nil {
 			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
 		}
-		delta, err := r.delta.GetKey(soptsj)
-		if err != nil {
-			return nil, err
-		}
-		deltaShares = append(deltaShares, delta)
+		deltaSharesOpts = append(deltaSharesOpts, soptsj)
 	}
-	selfdeltaShare, err := r.delta.GetKey(sopts)
+	Delta, err := r.delta.SumKeys(deltaSharesOpts...)
 	if err != nil {
 		return nil, err
 	}
-	Delta := selfdeltaShare.AddKeys(deltaShares...)
 
 	// Δ = ∑ⱼ Δⱼ
 	BigDelta := r.Group().NewPoint()
@@ -195,8 +191,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Δ == [δ]G
-	deltaComputed := Delta.ActOnBase()
-	if !deltaComputed.Equal(BigDelta) {
+	if !BigDelta.Equal(Delta.PublicKeyRaw()) {
 		return r.AbortRound(errors.New("computed Δ is inconsistent with [δ]G")), nil
 	}
 
@@ -205,25 +200,22 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	deltaInv := r.Group().NewScalar().Set(Delta).Invert() // δ⁻¹
-	BigR := deltaInv.Act(gamma.PublicKeyRaw())            // R = [δ⁻¹] Γ
-	R := BigR.XScalar()                                   // r = R|ₓ
+	BigR := Delta.Act(gamma.PublicKeyRaw(), true) // δ⁻¹
+	R := BigR.XScalar()                           // r = R|ₓ
 
 	// rχᵢ
-	chiShare, err := r.chi.GetKey(sopts)
+	RChi, err := r.chi.Mul(R, sopts)
 	if err != nil {
 		return nil, err
 	}
-	RChi := chiShare.Mul(R)
 
 	// km = Hash(m)⋅kᵢ
 	// σᵢ = rχᵢ + kᵢm
 	m := curve.FromHash(r.Group(), r.cfg.Message())
-	selfKShare, err := r.signK.GetKey(sopts)
+	SigmaShare, err := r.signK.Commit(m, RChi, sopts)
 	if err != nil {
 		return nil, err
 	}
-	SigmaShare := selfKShare.Commit(m, RChi)
 	if err := r.sigma.ImportSigma(SigmaShare, sopts); err != nil {
 		return nil, err
 	}

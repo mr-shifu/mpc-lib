@@ -119,6 +119,87 @@ func (mgr *ECDSAKeyManagerImpl) GetKey(opts keyopts.Options) (ECDSAKey, error) {
 	return k.withVSSKeyMgr(mgr.vssmgr), nil
 }
 
+func (mgr *ECDSAKeyManagerImpl) CloneByMultiplier(c curve.Scalar, opts keyopts.Options) (ECDSAKey, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	group := key.group
+	cloned := ECDSAKeyImpl{
+		group: group,
+	}
+	if key.Private() {
+		cloned.priv = group.NewScalar().Set(c).Mul(key.priv)
+	}
+	cloned.pub = c.Act(key.pub)
+	return &cloned, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) CloneByKeyMultiplier(multiplierKey ECDSAKey, c curve.Scalar, opts keyopts.Options) (ECDSAKey, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	group := key.group
+	mk, ok := multiplierKey.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+	cloned := ECDSAKeyImpl{
+		group: group,
+	}
+	if key.Private() {
+		cloned.priv = group.NewScalar().Set(key.priv).Mul(mk.priv).Add(c)
+	}
+	cloned.pub = c.Act(key.pub)
+
+	return &cloned, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) Act(g curve.Point, inv bool, opts keyopts.Options) (curve.Point, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	priv := key.priv
+	if inv {
+		return priv.Invert().Act(g), nil
+	}
+	return priv.Act(g), nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) Mul(c curve.Scalar, opts keyopts.Options) (curve.Scalar, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	return key.group.NewScalar().Set(c).Mul(key.priv), nil
+}
+
 func (mgr *ECDSAKeyManagerImpl) SumKeys(optsList ...keyopts.Options) (ECDSAKey, error) {
 	group := curve.Secp256k1{}
 	priv := group.NewScalar()
@@ -149,6 +230,44 @@ func (mgr *ECDSAKeyManagerImpl) SumKeys(optsList ...keyopts.Options) (ECDSAKey, 
 	priv = group.NewScalar().SetNat(curve.MakeInt(priv).Mod(group.Order()))
 
 	return NewKey(priv, pub, group), nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) Commit(m curve.Scalar, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	g := key.group
+	cmt := new(saferith.Int).Mul(curve.MakeInt(key.priv), curve.MakeInt(m), -1)
+	cmt = cmt.Add(cmt, curve.MakeInt(c), -1)
+	return g.NewScalar().SetNat(cmt.Mod(g.Order())), nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) CommitByKey(multiplierKey ECDSAKey, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ecdsa: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+
+	g := key.group
+	mk, ok := multiplierKey.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ecdsa: invalid key type")
+	}
+	cmt := new(saferith.Int).Mul(curve.MakeInt(key.priv), curve.MakeInt(mk.priv), -1)
+	cmt = cmt.Add(cmt, curve.MakeInt(c), -1)
+	return g.NewScalar().SetNat(cmt.Mod(g.Order())), nil
 }
 
 func (mgr *ECDSAKeyManagerImpl) GenerateSchnorrCommitment(h hash.Hash, opts keyopts.Options) (*Proof, error) {

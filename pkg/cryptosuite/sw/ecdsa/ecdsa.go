@@ -36,18 +36,6 @@ type ECDSAKey interface {
 	PublicKeyRaw() curve.Point
 
 	Act(g curve.Point, inv bool) curve.Point
-
-	Mul(c curve.Scalar) curve.Scalar
-
-	AddKeys(keys ...ECDSAKey) curve.Scalar
-
-	CloneByMultiplier(c curve.Scalar) ECDSAKey
-
-	CloneByKeyMultiplier(km ECDSAKey, c curve.Scalar) ECDSAKey
-
-	Commit(m curve.Scalar, c curve.Scalar) curve.Scalar
-
-	CommitByKey(km ECDSAKey, c curve.Scalar) curve.Scalar
 }
 
 type ECDSAKeyManager interface {
@@ -60,7 +48,19 @@ type ECDSAKeyManager interface {
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(opts keyopts.Options) (ECDSAKey, error)
 
+	CloneByMultiplier(c curve.Scalar, opts keyopts.Options) (ECDSAKey, error)
+
+	CloneByKeyMultiplier(km ECDSAKey, c curve.Scalar, opts keyopts.Options) (ECDSAKey, error)
+
+	Act(g curve.Point, inv bool, opts keyopts.Options) (curve.Point, error)
+
+	Mul(c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
+
 	SumKeys(optsList ...keyopts.Options) (ECDSAKey, error)
+
+	Commit(m curve.Scalar, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
+
+	CommitByKey(km ECDSAKey, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
 
 	GenerateSchnorrCommitment(h hash.Hash, opts keyopts.Options) (*Proof, error)
 	GenerateSchnorrResponse(h hash.Hash, opts keyopts.Options) (*Proof, error)
