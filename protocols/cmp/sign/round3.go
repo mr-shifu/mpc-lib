@@ -350,7 +350,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return err
 		}
 
-		proofLog, err := KShare.NewZKLogstarProof(
+		proofLog, err := r.signK.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
 			KSharePEK,           // PEK
 			KSharePEK.Encoded(), // C
@@ -358,6 +358,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 			Gamma,               // G
 			paillier.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
 		if err != nil {
 			return err

@@ -4,9 +4,14 @@ import (
 	"encoding/hex"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
+	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/pkg/errors"
 )
@@ -274,6 +279,43 @@ func (mgr *ECDSAKeyManagerImpl) GetSchnorrProof(opts keyopts.Options) (*Proof, e
 	if err := proof.FromBytes(pb); err != nil {
 		return nil, errors.WithMessage(err, "ed25519: failed to import schnorr proof")
 	}
+
+	return proof, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) NewZKLogstarProof(
+	h hash.Hash,
+	pek pek.PaillierEncodedKey,
+	C *core_paillier.Ciphertext,
+	X curve.Point,
+	G curve.Point,
+	prover paillier.PaillierKey,
+	ped pedersen.PedersenKey,
+	opts keyopts.Options) (*zklogstar.Proof, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ed25519: invalid key type")
+	}
+
+	proof := zklogstar.NewProof(
+		k.Group(),
+		h,
+		zklogstar.Public{
+			C:      C,
+			X:      X,
+			G:      G,
+			Prover: prover.PublicKeyRaw(),
+			Aux:    ped.PublicKeyRaw(),
+		}, zklogstar.Private{
+			X:   curve.MakeInt(key.priv),
+			Rho: pek.Nonce(),
+		},
+	)
 
 	return proof, nil
 }

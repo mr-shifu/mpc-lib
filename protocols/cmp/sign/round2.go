@@ -236,7 +236,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return err
 		}
-		proof, err := gamma.NewZKLogstarProof(
+		proof, err := r.gamma.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
 			gammaPEK,
 			gammaPEK.Encoded(),
@@ -244,6 +244,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			nil,
 			paillierKey.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
 		if err != nil {
 			return err

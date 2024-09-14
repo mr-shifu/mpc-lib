@@ -58,15 +58,6 @@ type ECDSAKey interface {
 
 	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
 
-	NewZKLogstarProof(
-		h hash.Hash,
-		pek pek.PaillierEncodedKey,
-		C *paillier_core.Ciphertext,
-		X curve.Point,
-		G curve.Point,
-		prover paillier.PaillierKey,
-		ped pedersen.PedersenKey) (*zklogstar.Proof, error)
-
 	NewMtAAffgProof(
 		h hash.Hash,
 		encoded *paillier_core.Ciphertext,
@@ -94,4 +85,14 @@ type ECDSAKeyManager interface {
 	ImportSchnorrCommitment(cmt_byte []byte, opts keyopts.Options) error
 	ImportSchnorrProofResponse(zb []byte, opts keyopts.Options) error
 	GetSchnorrProof(opts keyopts.Options) (*Proof, error)
+
+	NewZKLogstarProof(
+		h hash.Hash,
+		pek pek.PaillierEncodedKey,
+		C *paillier_core.Ciphertext,
+		X curve.Point,
+		G curve.Point,
+		prover paillier.PaillierKey,
+		ped pedersen.PedersenKey,
+		opts keyopts.Options) (*zklogstar.Proof, error)
 }
