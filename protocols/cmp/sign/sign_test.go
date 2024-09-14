@@ -194,6 +194,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		chi_mta_km,
 		sigma,
 		signature,
+		pl,
 	)
 
 	return mpc_keygen, mpc_sign

@@ -3,14 +3,36 @@ package keygen
 import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
-	*round1
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type broadcast2 struct {
@@ -167,7 +189,19 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round3{
-		round2: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}, nil
 }
 
@@ -185,7 +219,7 @@ func (r *round2) CanFinalize() bool {
 }
 
 // PreviousRound implements round.Round.
-func (r *round2) PreviousRound() round.Round { return r.round1 }
+// func (r *round2) PreviousRound() round.Round { return r.round1 }
 
 // MessageContent implements round.Round.
 func (round2) MessageContent() round.Content { return nil }

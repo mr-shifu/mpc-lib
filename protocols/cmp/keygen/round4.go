@@ -4,15 +4,23 @@ import (
 	"encoding/hex"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/paillier"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	comm_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/pkg/errors"
 )
@@ -20,12 +28,25 @@ import (
 var _ round.Round = (*round4)(nil)
 
 type round4 struct {
-	*round3
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type message4 struct {
 	// Share = Encᵢ(x) is the encryption of the receivers share
-	Share *paillier.Ciphertext
+	Share *core_paillier.Ciphertext
 	Fac   *zkfac.Proof
 }
 
@@ -410,7 +431,19 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		round4:        r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 		UpdatedConfig: UpdatedConfig,
 	}, nil
 }

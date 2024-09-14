@@ -158,7 +158,27 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round2{
-		round1: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigma:       r.sigma,
+		signature:   r.signature,
 	}, nil
 }
 

@@ -3,10 +3,7 @@ package keygen
 import (
 	"encoding/hex"
 
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/pkg/errors"
 
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
@@ -43,17 +40,17 @@ type round1 struct {
 	// Contains the previous secret ECDSA key share which is being refreshed
 	// Keygen:  sk'ᵢ = nil
 	// Refresh: sk'ᵢ = sk'ᵢ
-	PreviousSecretECDSA curve.Scalar
+	// PreviousSecretECDSA curve.Scalar
 
-	// PreviousPublicSharesECDSA[j] = pk'ⱼ
-	// Keygen:  pk'ⱼ = nil
-	// Refresh: pk'ⱼ = pk'ⱼ
-	PreviousPublicSharesECDSA map[party.ID]curve.Point
+	// // PreviousPublicSharesECDSA[j] = pk'ⱼ
+	// // Keygen:  pk'ⱼ = nil
+	// // Refresh: pk'ⱼ = pk'ⱼ
+	// PreviousPublicSharesECDSA map[party.ID]curve.Point
 
-	// PreviousChainKey contains the chain key, if we're refreshing
-	//
-	// In that case, we will simply use the previous chain key at the very end.
-	PreviousChainKey types.RID
+	// // PreviousChainKey contains the chain key, if we're refreshing
+	// //
+	// // In that case, we will simply use the previous chain key at the very end.
+	// PreviousChainKey types.RID
 }
 
 // VerifyMessage implements round.Round.
@@ -177,7 +174,19 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	nextRound := &round2{
-		round1: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}
 	return nextRound, nil
 }

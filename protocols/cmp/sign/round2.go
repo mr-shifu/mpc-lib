@@ -2,27 +2,65 @@ package sign
 
 import (
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/paillier"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
-	*round1
+	*round.Helper
+
+	cfg       config.SignConfig
+	statemgr  state.MPCStateManager
+	signature result.Signature
+	msgmgr    message.MessageManager
+	bcstmgr   message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
+
+	sigma result.SigmaStore
 }
 
 type broadcast2 struct {
 	round.ReliableBroadcastContent
 	// K = Kᵢ
-	K *paillier.Ciphertext
+	K *core_paillier.Ciphertext
 	// G = Gᵢ
-	G *paillier.Ciphertext
+	G *core_paillier.Ciphertext
 }
 
 type message2 struct {
@@ -298,7 +336,27 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round3{
-		round2: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigma:       r.sigma,
+		signature:   r.signature,
 	}, nil
 }
 

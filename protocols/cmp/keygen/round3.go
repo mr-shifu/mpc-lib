@@ -7,15 +7,36 @@ import (
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round3)(nil)
 
 type round3 struct {
-	*round2
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type broadcast3 struct {
@@ -215,24 +236,24 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// c = ⊕ⱼ cⱼ
-	chainKey := r.PreviousChainKey
-	if chainKey == nil {
-		chainKey = types.EmptyRID()
-		for _, j := range r.PartyIDs() {
-			partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
-			if err != nil {
-				return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
-			}
-			ck, err := r.chainKey_km.GetKey(partyOpts)
-			if err != nil {
-				return nil, err
-			}
-			chainKey.XOR(ck.Raw())
+	// chainKey := r.PreviousChainKey
+	// if chainKey == nil {
+	chainKey := types.EmptyRID()
+	for _, j := range r.PartyIDs() {
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
 		}
-		if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		ck, err := r.chainKey_km.GetKey(partyOpts)
+		if err != nil {
 			return nil, err
 		}
+		chainKey.XOR(ck.Raw())
 	}
+	if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		return nil, err
+	}
+	// }
 
 	// RID = ⊕ⱼ RIDⱼ
 	rid := types.EmptyRID()
@@ -326,7 +347,19 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Write rid to the hash state
 	r.UpdateHashState(rid)
 	return &round4{
-		round3: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}, nil
 }
 

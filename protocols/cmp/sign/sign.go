@@ -61,6 +61,8 @@ type MPCSign struct {
 
 	sigma     result.SigmaStore
 	signature result.Signature
+
+	pl *pool.Pool
 }
 
 func NewMPCSign(
@@ -85,6 +87,7 @@ func NewMPCSign(
 	chi_mta mta.MtAManager,
 	sigma result.SigmaStore,
 	signature result.Signature,
+	pl *pool.Pool,
 ) *MPCSign {
 	return &MPCSign{
 		signcfgmgr:  signcfgmgr,
@@ -108,6 +111,7 @@ func NewMPCSign(
 		chi_mta:     chi_mta,
 		sigma:       sigma,
 		signature:   signature,
+		pl:          pl,
 	}
 }
 
@@ -217,4 +221,205 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 			signature:   m.signature,
 		}, nil
 	}
+}
+
+func (m *MPCSign) GetRound(signID string) (round.Session, error) {
+	cfg, err := m.signcfgmgr.GetConfig(signID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get config")
+	}
+
+	info := round.Info{
+		ProtocolID:       "cmp/sign",
+		SelfID:           cfg.SelfID(),
+		PartyIDs:         cfg.PartyIDs(),
+		Threshold:        cfg.Threshold(),
+		Group:            cfg.Group(),
+		FinalRoundNumber: 5,
+	}
+	// instantiate a new hasher for new sign session
+	opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	if err != nil {
+		return nil, errors.New("frost_sign: failed to set options")
+	}
+	h := m.hash_mgr.NewHasher(cfg.ID(), opts)
+
+	// generate new helper for new sign session
+	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
+	if err != nil {
+		return nil, fmt.Errorf("frost_sign: %w", err)
+	}
+
+	state, err := m.statmgr.Get(signID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get state")
+	}
+	rn := state.LastRound()
+	switch rn {
+	case 0:
+		return &round1{
+			Helper:      helper,
+			cfg:         cfg,
+			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			hash_mgr:    m.hash_mgr,
+			paillier_km: m.paillier_km,
+			pedersen_km: m.pedersen_km,
+			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
+			gamma:       m.gamma,
+			signK:       m.signK,
+			delta:       m.delta,
+			chi:         m.chi,
+			bigDelta:    m.bigDelta,
+			gamma_pek:   m.gamma_pek,
+			signK_pek:   m.signK_pek,
+			delta_mta:   m.delta_mta,
+			chi_mta:     m.chi_mta,
+			sigma:       m.sigma,
+			signature:   m.signature,
+		}, nil
+	case 1:
+		return &round2{
+			Helper:      helper,
+			cfg:         cfg,
+			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			hash_mgr:    m.hash_mgr,
+			paillier_km: m.paillier_km,
+			pedersen_km: m.pedersen_km,
+			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
+			gamma:       m.gamma,
+			signK:       m.signK,
+			delta:       m.delta,
+			chi:         m.chi,
+			bigDelta:    m.bigDelta,
+			gamma_pek:   m.gamma_pek,
+			signK_pek:   m.signK_pek,
+			delta_mta:   m.delta_mta,
+			chi_mta:     m.chi_mta,
+			sigma:       m.sigma,
+			signature:   m.signature,
+		}, nil
+	case 2:
+		return &round3{
+			Helper:      helper,
+			cfg:         cfg,
+			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			hash_mgr:    m.hash_mgr,
+			paillier_km: m.paillier_km,
+			pedersen_km: m.pedersen_km,
+			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
+			gamma:       m.gamma,
+			signK:       m.signK,
+			delta:       m.delta,
+			chi:         m.chi,
+			bigDelta:    m.bigDelta,
+			gamma_pek:   m.gamma_pek,
+			signK_pek:   m.signK_pek,
+			delta_mta:   m.delta_mta,
+			chi_mta:     m.chi_mta,
+			sigma:       m.sigma,
+			signature:   m.signature,
+		}, nil
+	case 3:
+		return &round4{
+			Helper:      helper,
+			cfg:         cfg,
+			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			hash_mgr:    m.hash_mgr,
+			paillier_km: m.paillier_km,
+			pedersen_km: m.pedersen_km,
+			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
+			gamma:       m.gamma,
+			signK:       m.signK,
+			delta:       m.delta,
+			chi:         m.chi,
+			bigDelta:    m.bigDelta,
+			gamma_pek:   m.gamma_pek,
+			signK_pek:   m.signK_pek,
+			delta_mta:   m.delta_mta,
+			chi_mta:     m.chi_mta,
+			sigma:       m.sigma,
+			signature:   m.signature,
+		}, nil
+	case 4:
+		return &round5{
+			Helper:      helper,
+			cfg:         cfg,
+			statemgr:    m.statmgr,
+			msgmgr:      m.msgmgr,
+			bcstmgr:     m.bcstmgr,
+			hash_mgr:    m.hash_mgr,
+			paillier_km: m.paillier_km,
+			pedersen_km: m.pedersen_km,
+			ec:          m.ec,
+			vss_mgr:     m.vss_mgr,
+			gamma:       m.gamma,
+			signK:       m.signK,
+			delta:       m.delta,
+			chi:         m.chi,
+			bigDelta:    m.bigDelta,
+			gamma_pek:   m.gamma_pek,
+			signK_pek:   m.signK_pek,
+			delta_mta:   m.delta_mta,
+			chi_mta:     m.chi_mta,
+			sigma:       m.sigma,
+			signature:   m.signature,
+		}, nil
+	default:
+		return nil, errors.New("frost_sign: invalid round number")
+	}
+}
+
+func (m *MPCSign) StoreBroadcastMessage(signID string, msg round.Message) error {
+	r, err := m.GetRound(signID)
+	if err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+
+	if err := r.StoreBroadcastMessage(msg); err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to store message")
+	}
+
+	return nil
+}
+
+func (f *MPCSign) StoreMessage(signID string, msg round.Message) error {
+	r, err := f.GetRound(signID)
+	if err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+
+	if err := r.StoreMessage(msg); err != nil {
+		return errors.WithMessage(err, "frost_sign: failed to store message")
+	}
+
+	return nil
+}
+
+func (f *MPCSign) Finalize(out chan<- *round.Message, signID string) (round.Session, error) {
+	r, err := f.GetRound(signID)
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+
+	return r.Finalize(out)
+}
+
+func (m *MPCSign) CanFinalize(signID string) (bool, error) {
+	r, err := m.GetRound(signID)
+	if err != nil {
+		return false, errors.WithMessage(err, "frost_sign: failed to get round")
+	}
+	return r.CanFinalize(), nil
 }

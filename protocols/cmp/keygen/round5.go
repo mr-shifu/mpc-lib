@@ -3,7 +3,16 @@ package keygen
 import (
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/pkg/errors"
 )
@@ -11,7 +20,20 @@ import (
 var _ round.Round = (*round5)(nil)
 
 type round5 struct {
-	*round4
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 
 	UpdatedConfig *config.Config
 }

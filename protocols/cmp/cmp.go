@@ -5,11 +5,11 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
@@ -268,6 +268,7 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 		mpc.chi_mta,
 		mpc.sigma,
 		mpc.signature,
+		mpc.pl,
 	)
 }
 

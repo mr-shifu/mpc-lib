@@ -6,14 +6,52 @@ import (
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round4)(nil)
 
 type round4 struct {
-	*round3
+	*round.Helper
+
+	cfg       config.SignConfig
+	statemgr  state.MPCStateManager
+	signature result.Signature
+	msgmgr    message.MessageManager
+	bcstmgr   message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
+
+	sigma result.SigmaStore
 }
 
 type message4 struct {
@@ -233,7 +271,27 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		round4: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigma:       r.sigma,
+		signature:   r.signature,
 	}, nil
 }
 

@@ -1,17 +1,56 @@
 package sign
 
 import (
-	"github.com/mr-shifu/mpc-lib/core/ecdsa"
+	core_ecdsa "github.com/mr-shifu/mpc-lib/core/ecdsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round5)(nil)
 
 type round5 struct {
-	*round4
+	*round.Helper
+
+	cfg       config.SignConfig
+	statemgr  state.MPCStateManager
+	signature result.Signature
+	msgmgr    message.MessageManager
+	bcstmgr   message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
+
+	sigma result.SigmaStore
 }
 
 type broadcast5 struct {
@@ -95,7 +134,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	r.signature.ImportSignSigma(r.cfg.ID(), Sigma)
 	signR := r.signature.SignR(r.cfg.ID())
 
-	signature := &ecdsa.Signature{
+	signature := &core_ecdsa.Signature{
 		R: signR,
 		S: Sigma,
 	}
