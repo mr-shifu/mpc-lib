@@ -15,6 +15,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
@@ -386,4 +387,23 @@ func (mgr *ECDSAKeyManagerImpl) NewMtAAffgProof(
 		return beta, D, F, proof, nil
 	}
 	return nil, nil, nil, nil, errors.WithMessage(err, "ed25519: key must be private")
+}
+
+func (mgr *ECDSAKeyManagerImpl) EncodeByPaillier(pk paillier.PaillierKey, opts keyopts.Options) (paillierencodedkey.PaillierEncodedKey, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, errors.New("ed25519: invalid key type")
+	}
+
+	if key.Private() {
+		encoded, nonce := pk.Encode(curve.MakeInt(key.priv))
+		pek := paillierencodedkey.NewPaillierEncodedKeyImpl(nil, encoded, nonce, key.group)
+		return pek, nil
+	}
+	return nil, nil
 }

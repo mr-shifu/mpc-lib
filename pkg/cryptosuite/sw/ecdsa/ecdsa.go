@@ -10,6 +10,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
@@ -53,8 +54,6 @@ type ECDSAKey interface {
 	// ImportVSSSecrets(k vss.VssKey, opts keyopts.Options) error
 
 	VSS(opts keyopts.Options) (vss.VssKey, error)
-
-	EncodeByPaillier(pk paillier.PaillierKey) (pek.PaillierEncodedKey, error)
 }
 
 type ECDSAKeyManager interface {
@@ -95,4 +94,6 @@ type ECDSAKeyManager interface {
 		partyPaillier paillier.PaillierKey,
 		ped pedersen.PedersenKey,
 		opts keyopts.Options) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof, error)
+
+	EncodeByPaillier(pk paillier.PaillierKey, opts keyopts.Options) (paillierencodedkey.PaillierEncodedKey, error)
 }
