@@ -195,10 +195,6 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return err
 		}
-		eckey, err := r.ec.GetKey(sopts)
-		if err != nil {
-			return err
-		}
 		paillierKey, err := r.paillier_km.GetKey(kopts)
 		if err != nil {
 			return err
@@ -216,21 +212,29 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return err
 		}
 
-		DeltaBeta, DeltaD, DeltaF, DeltaProof := gamma.NewMtAAffgProof(
+		DeltaBeta, DeltaD, DeltaF, DeltaProof, err := r.gamma.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
 			paillierj.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
+		if err != nil {
+			return err
+		}
 
-		ChiBeta, ChiD, ChiF, ChiProof := eckey.NewMtAAffgProof(
+		ChiBeta, ChiD, ChiF, ChiProof, err := r.ec.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
 			paillierj.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
+		if err != nil {
+			return err
+		}
 
 		gammaPEK, err := r.gamma_pek.Get(sopts)
 		if err != nil {

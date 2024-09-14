@@ -3,13 +3,17 @@ package ecdsa
 import (
 	"encoding/hex"
 
+	"github.com/cronokirby/saferith"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
+	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
+	"github.com/mr-shifu/mpc-lib/lib/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	cs_paillier "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
@@ -318,4 +322,36 @@ func (mgr *ECDSAKeyManagerImpl) NewZKLogstarProof(
 	)
 
 	return proof, nil
+}
+
+func (mgr *ECDSAKeyManagerImpl) NewMtAAffgProof(
+	h hash.Hash,
+	encoded *core_paillier.Ciphertext,
+	selfPaillier cs_paillier.PaillierKey,
+	partyPaillier cs_paillier.PaillierKey,
+	ped pedersen.PedersenKey,
+	opts keyopts.Options) (*saferith.Int, *core_paillier.Ciphertext, *core_paillier.Ciphertext, *zkaffg.Proof, error) {
+	k, err := mgr.GetKey(opts)
+	if err != nil {
+		return nil, nil, nil, nil, errors.WithMessage(err, "ed25519: failed to get key from keystore")
+	}
+
+	key, ok := k.(*ECDSAKeyImpl)
+	if !ok {
+		return nil, nil, nil, nil, errors.New("ed25519: invalid key type")
+	}
+	if k.Private() {
+		beta, D, F, proof := mta.ProveAffG(
+			k.Group(),
+			h,
+			curve.MakeInt(key.priv),
+			k.PublicKeyRaw(),
+			encoded,
+			selfPaillier.PublicKeyRaw(),
+			partyPaillier.PublicKeyRaw(),
+			ped.PublicKeyRaw(),
+		)
+		return beta, D, F, proof, nil
+	}
+	return nil, nil, nil, nil, errors.WithMessage(err, "ed25519: key must be private")
 }

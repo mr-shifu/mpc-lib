@@ -57,14 +57,6 @@ type ECDSAKey interface {
 	EncodeByPaillier(pk paillier.PaillierKey) (pek.PaillierEncodedKey, error)
 
 	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
-
-	NewMtAAffgProof(
-		h hash.Hash,
-		encoded *paillier_core.Ciphertext,
-		selfPaillier paillier.PaillierKey,
-		partyPaillier paillier.PaillierKey,
-		ped pedersen.PedersenKey,
-	) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof)
 }
 
 type ECDSAKeyManager interface {
@@ -95,4 +87,12 @@ type ECDSAKeyManager interface {
 		prover paillier.PaillierKey,
 		ped pedersen.PedersenKey,
 		opts keyopts.Options) (*zklogstar.Proof, error)
+
+	NewMtAAffgProof(
+		h hash.Hash,
+		encoded *paillier_core.Ciphertext,
+		selfPaillier paillier.PaillierKey,
+		partyPaillier paillier.PaillierKey,
+		ped pedersen.PedersenKey,
+		opts keyopts.Options) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof, error)
 }
