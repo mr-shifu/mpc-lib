@@ -24,11 +24,11 @@ var _ round.Round = (*round5)(nil)
 type round5 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -49,8 +49,6 @@ type round5 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 type broadcast5 struct {
@@ -77,7 +75,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// r.SigmaShares[msg.From] = body.SigmaShare
-	if err := r.sigma.ImportSigma(body.SigmaShare, soptsFrom); err != nil {
+	if err := r.sigmgr.SetSigma(body.SigmaShare, soptsFrom); err != nil {
 		return err
 	}
 
@@ -124,19 +122,24 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		if err != nil {
 			return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
 		}
-		sigmaShare, err := r.sigma.GetSigma(soptsj)
+		sig, err := r.sigmgr.Get(soptsj)
 		if err != nil {
 			return nil, err
 		}
-		Sigma = Sigma.Add(sigmaShare)
+		Sigma = Sigma.Add(sig.SignSigma())
 	}
 
-	r.signature.ImportSignSigma(r.cfg.ID(), Sigma)
-	signR := r.signature.SignR(r.cfg.ID())
+	if err := r.sigmgr.SetSigma(Sigma, soptsRoot); err != nil {
+		return nil, err
+	}
+	sig, err := r.sigmgr.Get(soptsRoot)
+	if err != nil {
+		return nil, err
+	}
 
 	signature := &core_ecdsa.Signature{
-		R: signR,
-		S: Sigma,
+		R: sig.SignR(),
+		S: sig.SignSigma(),
 	}
 
 	ecKey, err := r.ec.GetKey(soptsRoot)

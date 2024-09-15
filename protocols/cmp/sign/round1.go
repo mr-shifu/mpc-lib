@@ -22,11 +22,11 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -47,8 +47,6 @@ type round1 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 // StoreBroadcastMessage implements round.Round.
@@ -177,8 +175,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		signK_pek:   r.signK_pek,
 		delta_mta:   r.delta_mta,
 		chi_mta:     r.chi_mta,
-		sigma:       r.sigma,
-		signature:   r.signature,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

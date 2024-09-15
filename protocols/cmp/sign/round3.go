@@ -28,11 +28,11 @@ var _ round.Round = (*round3)(nil)
 type round3 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -53,8 +53,6 @@ type round3 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 type message3 struct {
@@ -439,8 +437,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		signK_pek:   r.signK_pek,
 		delta_mta:   r.delta_mta,
 		chi_mta:     r.chi_mta,
-		sigma:       r.sigma,
-		signature:   r.signature,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

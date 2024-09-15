@@ -25,11 +25,11 @@ var _ round.Round = (*round4)(nil)
 type round4 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -50,8 +50,6 @@ type round4 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 type message4 struct {
@@ -240,6 +238,9 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 	BigR := Delta.Act(gamma.PublicKeyRaw(), true) // δ⁻¹
 	R := BigR.XScalar()                           // r = R|ₓ
+	if err := r.sigmgr.SetR(BigR, soptsRoot); err != nil {
+		return nil, err
+	}
 
 	// rχᵢ
 	RChi, err := r.chi.Mul(R, sopts)
@@ -254,10 +255,9 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := r.sigma.ImportSigma(SigmaShare, sopts); err != nil {
+	if err := r.sigmgr.SetSigma(SigmaShare, sopts); err != nil {
 		return nil, err
 	}
-	r.signature.ImportSignR(r.cfg.ID(), BigR)
 
 	// Send to all
 	err = r.BroadcastMessage(out, &broadcast5{SigmaShare: SigmaShare})
@@ -290,8 +290,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		signK_pek:   r.signK_pek,
 		delta_mta:   r.delta_mta,
 		chi_mta:     r.chi_mta,
-		sigma:       r.sigma,
-		signature:   r.signature,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

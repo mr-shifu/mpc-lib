@@ -2,8 +2,8 @@ package sign
 
 import (
 	"github.com/cronokirby/saferith"
-	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
+	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
@@ -26,11 +26,11 @@ var _ round.Round = (*round2)(nil)
 type round2 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -51,8 +51,6 @@ type round2 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 type broadcast2 struct {
@@ -355,8 +353,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		signK_pek:   r.signK_pek,
 		delta_mta:   r.delta_mta,
 		chi_mta:     r.chi_mta,
-		sigma:       r.sigma,
-		signature:   r.signature,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

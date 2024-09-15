@@ -29,12 +29,17 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
+	ecsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/ecdsa"
+
 )
 
 func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 	pl := pool.NewPool(0)
+
+	ecsig_keyopts := keyopts.NewInMemoryKeyOpts()
+	ecsigstore := ecsig.NewInMemoryEcdsaSignature(ecsig_keyopts)
+	ecsigmgr := ecsig.NewEcdsaSignatureManager(ecsigstore)
 
 	ksf := keystore.InmemoryKeystoreFactory{}
 	krf := keyopts.InMemoryKeyOptsFactory{}
@@ -125,13 +130,6 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		pl,
 	)
 
-	signature := mpc_result.NewSignStore()
-
-	sigma_kr := krf.NewKeyOpts(nil)
-	sigma_vault := vf.NewVault(nil)
-	sigma_ks := ksf.NewKeystore(sigma_vault, sigma_kr, nil)
-	sigma := mpc_result.NewSigmaStore(sigma_ks)
-
 	gamma_kr := krf.NewKeyOpts(nil)
 	gamma_ks := ksf.NewKeystore(ec_vault, gamma_kr, nil)
 	gamma_km := ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
@@ -192,8 +190,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		signK_pek_mgr,
 		delta_mta_km,
 		chi_mta_km,
-		sigma,
-		signature,
+		ecsigmgr,
 		pl,
 	)
 

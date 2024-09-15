@@ -59,8 +59,7 @@ type MPCSign struct {
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
 
-	sigma     result.SigmaStore
-	signature result.Signature
+	sigmgr result.EcdsaSignatureManager
 
 	pl *pool.Pool
 }
@@ -85,8 +84,7 @@ func NewMPCSign(
 	signK_pek pek.PaillierEncodedKeyManager,
 	delta_mta mta.MtAManager,
 	chi_mta mta.MtAManager,
-	sigma result.SigmaStore,
-	signature result.Signature,
+	sigmgr result.EcdsaSignatureManager,
 	pl *pool.Pool,
 ) *MPCSign {
 	return &MPCSign{
@@ -109,8 +107,7 @@ func NewMPCSign(
 		signK_pek:   signK_pek,
 		delta_mta:   delta_mta,
 		chi_mta:     chi_mta,
-		sigma:       sigma,
-		signature:   signature,
+		sigmgr:      sigmgr,
 		pl:          pl,
 	}
 }
@@ -217,8 +214,7 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	}
 }
@@ -277,8 +273,7 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	case 1:
 		return &round2{
@@ -301,8 +296,7 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	case 2:
 		return &round3{
@@ -325,8 +319,7 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	case 3:
 		return &round4{
@@ -349,8 +342,7 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	case 4:
 		return &round5{
@@ -373,8 +365,7 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			signK_pek:   m.signK_pek,
 			delta_mta:   m.delta_mta,
 			chi_mta:     m.chi_mta,
-			sigma:       m.sigma,
-			signature:   m.signature,
+			sigmgr:      m.sigmgr,
 		}, nil
 	default:
 		return nil, errors.New("frost_sign: invalid round number")
