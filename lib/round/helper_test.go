@@ -12,6 +12,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSession(t *testing.T) {
@@ -111,8 +112,8 @@ func TestNewSession(t *testing.T) {
 			hash_ks := keystore.NewInMemoryKeystore(hahs_vault, hahs_keyopts)
 			hash_mgr := hash.NewHashManager(hash_ks)
 
-			opts := keyopts.Options{}
-			opts.Set("id", keyID, "partyid", "a")
+			opts, err := keyopts.NewOptions().Set("id", keyID, "partyid", "a")
+			assert.NoError(t, err)
 			h := hash_mgr.NewHasher("test", opts)
 
 			info := round.Info{
@@ -123,7 +124,7 @@ func TestNewSession(t *testing.T) {
 				Threshold:        tt.threshold,
 				Group:            tt.group,
 			}
-			_, err := round.NewSession(keyID, info, nil, nil, h)
+			_, err = round.NewSession(keyID, info, nil, nil, h)
 			if tt.wantErr == (err == nil) {
 				t.Error(err)
 			}

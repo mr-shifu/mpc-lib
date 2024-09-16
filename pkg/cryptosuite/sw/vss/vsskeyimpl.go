@@ -105,11 +105,11 @@ func (k *VssKeyImpl) EvaluateByExponents(index curve.Scalar) (curve.Point, error
 	return k.exponents.Evaluate(index), nil
 }
 
-func fromBytes(data []byte) (*VssKeyImpl, error) {
+func (k *VssKeyImpl) FromBytes(data []byte) error {
 	raw := &rawVssKey{}
 	err := cbor.Unmarshal(data, raw)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var group curve.Curve
@@ -118,25 +118,23 @@ func fromBytes(data []byte) (*VssKeyImpl, error) {
 		group = curve.Secp256k1{}
 	}
 
-	vss := &VssKeyImpl{}
-
 	if raw.Exponents != nil {
 		exponents := polynomial.EmptyExponent(group)
 		err = exponents.UnmarshalBinary(raw.Exponents)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		vss.exponents = exponents
+		k.exponents = exponents
 	}
 
 	if raw.Secrets != nil {
 		secrets := &polynomial.Polynomial{}
 		err = secrets.UnmarshalBinary(raw.Secrets)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		vss.secrets = secrets
+		k.secrets = secrets
 	}
 
-	return vss, nil
+	return nil
 }

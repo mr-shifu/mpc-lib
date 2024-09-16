@@ -1,18 +1,39 @@
 package keygen
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round5)(nil)
 
 type round5 struct {
-	*round4
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 
 	UpdatedConfig *config.Config
 }
@@ -33,8 +54,10 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round5.StoreBroadcastMessage: failed to create options")
+	}
 
 	// TODO implement SchnorrResponse validation
 	// if !body.SchnorrResponse.IsValid() {
@@ -46,12 +69,12 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	// 	r.SchnorrCommitments[from], nil) {
 	// 	return errors.New("failed to validate schnorr proof for received share")
 	// }
-	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
-	if err != nil {
-		return err
-	}
 
-	verified, err := ecKey.VerifySchnorrProof(r.HashForID(from), body.SchnorrResponse)
+	zb, _ := body.SchnorrResponse.MarshalBinary()
+	if err := r.ecdsa_km.ImportSchnorrProofResponse(zb, fromOpts); err != nil {
+		return errors.WithMessage(err, "failed to import schnorr proof response")
+	}
+	verified, err := r.ecdsa_km.VerifySchnorrProof(r.HashForID(from), fromOpts)
 	if err != nil {
 		return err
 	}

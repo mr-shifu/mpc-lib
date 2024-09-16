@@ -41,7 +41,7 @@ type VssKeyManager interface {
 	GenerateSecrets(secret curve.Scalar, degree int, opts keyopts.Options) (VssKey, error)
 
 	// ImportSecrets imports exponents of coefficients and returns VssKey.
-	ImportSecrets(key VssKey, opts keyopts.Options) (VssKey, error)
+	ImportSecrets(key any, opts keyopts.Options) (VssKey, error)
 
 	// GetSecrets returns VssKey of coefficients.
 	GetSecrets(opts keyopts.Options) (VssKey, error)

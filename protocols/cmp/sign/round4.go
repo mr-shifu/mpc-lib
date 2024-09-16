@@ -1,20 +1,55 @@
 package sign
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	com_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round4)(nil)
 
 type round4 struct {
-	*round3
+	*round.Helper
+
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 }
 
 type message4 struct {
@@ -41,17 +76,19 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	bigDeltaShareFrom := body.BigDeltaShare
-	bigDeltaFrom := sw_ecdsa.NewECDSAKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
+	bigDeltaFrom := ecdsa.NewKey(nil, bigDeltaShareFrom, bigDeltaShareFrom.Curve())
 	if _, err := r.bigDelta.ImportKey(bigDeltaFrom, soptsFrom); err != nil {
 		return err
 	}
 
 	deltaShareFrom := body.DeltaShare
-	deltaFrom := sw_ecdsa.NewECDSAKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
+	deltaFrom := ecdsa.NewKey(deltaShareFrom, deltaShareFrom.Act(deltaShareFrom.Curve().NewBasePoint()), deltaShareFrom.Curve())
 	if _, err := r.delta.ImportKey(deltaFrom, soptsFrom); err != nil {
 		return err
 	}
@@ -76,17 +113,25 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	koptsFrom := keyopts.Options{}
-	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+	koptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsTo := keyopts.Options{}
-	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+	koptsTo, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(to))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	kFromPek, err := r.signK_pek.Get(soptsFrom)
 	if err != nil {
@@ -143,34 +188,37 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+	}
 
 	// δ = ∑ⱼ δⱼ
-	var deltaShares []ecdsa.ECDSAKey
+	deltaSharesOpts := make([]com_keyopts.Options, 0)
 	for _, j := range r.OtherPartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
-		delta, err := r.delta.GetKey(soptsj)
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
 		if err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
 		}
-		deltaShares = append(deltaShares, delta)
+		deltaSharesOpts = append(deltaSharesOpts, soptsj)
 	}
-	selfdeltaShare, err := r.delta.GetKey(sopts)
+	Delta, err := r.delta.SumKeys(deltaSharesOpts...)
 	if err != nil {
 		return nil, err
 	}
-	Delta := selfdeltaShare.AddKeys(deltaShares...)
 
 	// Δ = ∑ⱼ Δⱼ
 	BigDelta := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
+		}
 		bigDeltaj, err := r.bigDelta.GetKey(soptsj)
 		if err != nil {
 			return nil, err
@@ -179,8 +227,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Δ == [δ]G
-	deltaComputed := Delta.ActOnBase()
-	if !deltaComputed.Equal(BigDelta) {
+	if !BigDelta.Equal(Delta.PublicKeyRaw()) {
 		return r.AbortRound(errors.New("computed Δ is inconsistent with [δ]G")), nil
 	}
 
@@ -189,29 +236,28 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	deltaInv := r.Group().NewScalar().Set(Delta).Invert() // δ⁻¹
-	BigR := deltaInv.Act(gamma.PublicKeyRaw())            // R = [δ⁻¹] Γ
-	R := BigR.XScalar()                                   // r = R|ₓ
+	BigR := Delta.Act(gamma.PublicKeyRaw(), true) // δ⁻¹
+	R := BigR.XScalar()                           // r = R|ₓ
+	if err := r.sigmgr.SetR(BigR, soptsRoot); err != nil {
+		return nil, err
+	}
 
 	// rχᵢ
-	chiShare, err := r.chi.GetKey(sopts)
+	RChi, err := r.chi.Mul(R, sopts)
 	if err != nil {
 		return nil, err
 	}
-	RChi := chiShare.Mul(R)
 
 	// km = Hash(m)⋅kᵢ
 	// σᵢ = rχᵢ + kᵢm
 	m := curve.FromHash(r.Group(), r.cfg.Message())
-	selfKShare, err := r.signK.GetKey(sopts)
+	SigmaShare, err := r.signK.Commit(m, RChi, sopts)
 	if err != nil {
 		return nil, err
 	}
-	SigmaShare := selfKShare.Commit(m, RChi)
-	if err := r.sigma.ImportSigma(SigmaShare, sopts); err != nil {
+	if err := r.sigmgr.SetSigma(SigmaShare, sopts); err != nil {
 		return nil, err
 	}
-	r.signature.ImportSignR(r.cfg.ID(), BigR)
 
 	// Send to all
 	err = r.BroadcastMessage(out, &broadcast5{SigmaShare: SigmaShare})
@@ -225,7 +271,26 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		round4: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

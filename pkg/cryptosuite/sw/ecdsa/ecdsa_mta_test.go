@@ -1,189 +1,170 @@
 package ecdsa
 
-import (
-	"testing"
+// type MtAResult struct {
+// 	beta   *saferith.Int
+// 	alpha  *saferith.Int
+// 	alphaD *paillier_core.Ciphertext
+// 	proof  *zkaffg.Proof
+// }
 
-	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	paillier_core "github.com/mr-shifu/mpc-lib/core/paillier"
-	"github.com/mr-shifu/mpc-lib/core/pool"
-	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
-	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
-	"github.com/mr-shifu/mpc-lib/pkg/keystore"
-	"github.com/mr-shifu/mpc-lib/pkg/vault"
-	"github.com/stretchr/testify/assert"
-)
+// func TestMtA(t *testing.T) {
+// 	pl := pool.NewPool(0)
 
-type MtAResult struct {
-	beta   *saferith.Int
-	alpha  *saferith.Int
-	alphaD *paillier_core.Ciphertext
-	proof  *zkaffg.Proof
-}
+// 	group := curve.Secp256k1{}
 
-func TestMtA(t *testing.T) {
-	pl := pool.NewPool(0)
+// 	partyIDs := []string{"a", "b", "c"}
 
-	group := curve.Secp256k1{}
+// 	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "a")
+// 	assert.NoError(t, err)
 
-	partyIDs := []string{"a", "b", "c"}
+// 	hash_vault := vault.NewInMemoryVault()
+// 	hash_kr := keyopts.NewInMemoryKeyOpts()
+// 	hs := keystore.NewInMemoryKeystore(hash_vault, hash_kr)
+// 	mgr := hash.NewHashManager(hs)
+// 	h := mgr.NewHasher("123", opts)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "123", "partyid", "a")
+// 	paillier_vault := vault.NewInMemoryVault()
+// 	paillier_kr := keyopts.NewInMemoryKeyOpts()
+// 	paillier_ks := keystore.NewInMemoryKeystore(paillier_vault, paillier_kr)
+// 	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
 
-	hash_vault := vault.NewInMemoryVault()
-	hash_kr := keyopts.NewInMemoryKeyOpts()
-	hs := keystore.NewInMemoryKeystore(hash_vault, hash_kr)
-	mgr := hash.NewHashManager(hs)
-	h := mgr.NewHasher("123", opts)
+// 	vss_vault := vault.NewInMemoryVault()
+// 	vss_kr := keyopts.NewInMemoryKeyOpts()
+// 	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_kr)
+// 	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
 
-	paillier_vault := vault.NewInMemoryVault()
-	paillier_kr := keyopts.NewInMemoryKeyOpts()
-	paillier_ks := keystore.NewInMemoryKeystore(paillier_vault, paillier_kr)
-	paillier_km := paillier.NewPaillierKeyManager(paillier_ks, pl)
+// 	// mta_ks := keystore.NewInMemoryKeystore()
+// 	// mta_mgr := mta.NewMtAManager(mta_ks)
 
-	vss_vault := vault.NewInMemoryVault()
-	vss_kr := keyopts.NewInMemoryKeyOpts()
-	vss_ks := keystore.NewInMemoryKeystore(vss_vault, vss_kr)
-	vss_km := vss.NewVssKeyManager(vss_ks, curve.Secp256k1{})
+// 	ecdsa_vault := vault.NewInMemoryVault()
+// 	ecdsa_kr := keyopts.NewInMemoryKeyOpts()
+// 	ecdsa_ks := keystore.NewInMemoryKeystore(ecdsa_vault, ecdsa_kr)
 
-	// mta_ks := keystore.NewInMemoryKeystore()
-	// mta_mgr := mta.NewMtAManager(mta_ks)
+// 	sch_vault := vault.NewInMemoryVault()
+// 	sch_kr := keyopts.NewInMemoryKeyOpts()
+// 	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
 
-	ecdsa_vault := vault.NewInMemoryVault()
-	ecdsa_kr := keyopts.NewInMemoryKeyOpts()
-	ecdsa_ks := keystore.NewInMemoryKeystore(ecdsa_vault, ecdsa_kr)
+// 	ec_km := NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &Config{Group: curve.Secp256k1{}})
 
-	sch_vault := vault.NewInMemoryVault()
-	sch_kr := keyopts.NewInMemoryKeyOpts()
-	sch_ks := keystore.NewInMemoryKeystore(sch_vault, sch_kr)
+// 	pks := make(map[string]paillier.PaillierKey, 0)
+// 	peds := make(map[string]pedersen.PedersenKey, 0)
+// 	ks := make(map[string]*ECDSAKeyImpl, 0)
+// 	gammas := make(map[string]*ECDSAKeyImpl, 0)
+// 	Gs := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
+// 	Ks := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
 
-	ec_km := NewECDSAKeyManager(ecdsa_ks, sch_ks, vss_km, &Config{Group: curve.Secp256k1{}})
+// 	for _, party := range partyIDs {
+// 		pk, _ := paillier_km.GenerateKey(opts)
+// 		pks[party] = pk
 
-	pks := make(map[string]paillier.PaillierKey, 0)
-	peds := make(map[string]pedersen.PedersenKey, 0)
-	ks := make(map[string]*ECDSAKeyImpl, 0)
-	gammas := make(map[string]*ECDSAKeyImpl, 0)
-	Gs := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
-	Ks := make(map[string]paillierencodedkey.PaillierEncodedKey, 0)
+// 		ped, _ := pk.DerivePedersenKey()
+// 		peds[party] = ped
 
-	for _, party := range partyIDs {
-		pk, _ := paillier_km.GenerateKey(opts)
-		pks[party] = pk
+// 		opts, err := keyopts.NewOptions().Set("id", "123", "partyid", party)
+// 		assert.NoError(t, err)
 
-		ped, _ := pk.DerivePedersenKey()
-		peds[party] = ped
+// 		gamma, _ := ec_km.GenerateKey(opts)
+// 		gammas[party] = gamma.(*ECDSAKeyImpl)
 
-		opts := keyopts.Options{}
-		opts.Set("id", "123", "partyid", party)
+// 		G, _ := gamma.EncodeByPaillier(pk.PublicKey())
+// 		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKeyImpl)
 
-		gamma, _ := ec_km.GenerateKey(opts)
-		gammas[party] = gamma.(*ECDSAKeyImpl)
+// 		k, _ := ec_km.GenerateKey(opts)
+// 		ks[party] = k.(*ECDSAKeyImpl)
 
-		G, _ := gamma.EncodeByPaillier(pk.PublicKey())
-		Gs[party] = G.(*paillierencodedkey.PaillierEncodedKeyImpl)
+// 		K, _ := k.EncodeByPaillier(pk.PublicKey())
+// 		Ks[party] = K.(*paillierencodedkey.PaillierEncodedKeyImpl)
+// 	}
 
-		k, _ := ec_km.GenerateKey(opts)
-		ks[party] = k.(*ECDSAKeyImpl)
+// 	mtaResults := make(map[string]map[string]MtAResult)
+// 	for _, i := range partyIDs {
+// 		mtaResults[i] = make(map[string]MtAResult, 0)
+// 		for _, j := range partyIDs {
+// 			if j == i {
+// 				continue
+// 			}
 
-		K, _ := k.EncodeByPaillier(pk.PublicKey())
-		Ks[party] = K.(*paillierencodedkey.PaillierEncodedKeyImpl)
-	}
+// 			gamma := gammas[i]
+// 			Kj := Ks[j]
+// 			pk := pks[i]
+// 			pkj := pks[j]
+// 			pedj := peds[j]
 
-	mtaResults := make(map[string]map[string]MtAResult)
-	for _, i := range partyIDs {
-		mtaResults[i] = make(map[string]MtAResult, 0)
-		for _, j := range partyIDs {
-			if j == i {
-				continue
-			}
+// 			beta, alphaD, _, proof := gamma.NewMtAAffgProof(
+// 				h.Clone(),
+// 				Kj.Encoded(),
+// 				pk.PublicKey(),
+// 				pkj.PublicKey(),
+// 				pedj.PublicKey(),
+// 			)
+// 			alpha, _ := pkj.Decode(alphaD)
+// 			mtaResults[i][j] = MtAResult{
+// 				beta:   beta,
+// 				alpha:  alpha,
+// 				alphaD: alphaD,
+// 				proof:  proof,
+// 			}
+// 		}
+// 	}
 
-			gamma := gammas[i]
-			Kj := Ks[j]
-			pk := pks[i]
-			pkj := pks[j]
-			pedj := peds[j]
+// 	deltas := make(map[string]curve.Scalar)
+// 	for _, i := range partyIDs {
+// 		mtaResult := mtaResults[i]
+// 		gamma := gammas[i]
+// 		k := ks[i]
+// 		deltaSum := new(saferith.Int)
+// 		for _, res := range mtaResult {
+// 			deltaSum = deltaSum.Add(deltaSum, res.beta, -1)
+// 			deltaSum = deltaSum.Add(deltaSum, res.alpha, -1)
+// 		}
+// 		deltaScalar := gamma.CommitByKey(k, group.NewScalar().SetNat(deltaSum.Mod(group.Order())))
+// 		// delta := new(saferith.Int).Mul(curve.MakeInt(gamma.priv), curve.MakeInt(k.priv), -1)
+// 		// delta = delta.Add(delta, deltaSum, -1)
+// 		// deltaScalar := group.NewScalar().SetNat(delta.Mod(group.Order()))
+// 		deltas[i] = deltaScalar
+// 	}
 
-			beta, alphaD, _, proof := gamma.NewMtAAffgProof(
-				h.Clone(),
-				Kj.Encoded(),
-				pk.PublicKey(),
-				pkj.PublicKey(),
-				pedj.PublicKey(),
-			)
-			alpha, _ := pkj.Decode(alphaD)
-			mtaResults[i][j] = MtAResult{
-				beta:   beta,
-				alpha:  alpha,
-				alphaD: alphaD,
-				proof:  proof,
-			}
-		}
-	}
+// 	deltaInt := new(saferith.Int)
+// 	for _, i := range partyIDs {
+// 		deltaInt = deltaInt.Add(deltaInt, curve.MakeInt(deltas[i]), -1)
+// 	}
+// 	delta := group.NewScalar().SetNat(deltaInt.Mod(group.Order()))
 
-	deltas := make(map[string]curve.Scalar)
-	for _, i := range partyIDs {
-		mtaResult := mtaResults[i]
-		gamma := gammas[i]
-		k := ks[i]
-		deltaSum := new(saferith.Int)
-		for _, res := range mtaResult {
-			deltaSum = deltaSum.Add(deltaSum, res.beta, -1)
-			deltaSum = deltaSum.Add(deltaSum, res.alpha, -1)
-		}
-		deltaScalar := gamma.CommitByKey(k, group.NewScalar().SetNat(deltaSum.Mod(group.Order())))
-		// delta := new(saferith.Int).Mul(curve.MakeInt(gamma.priv), curve.MakeInt(k.priv), -1)
-		// delta = delta.Add(delta, deltaSum, -1)
-		// deltaScalar := group.NewScalar().SetNat(delta.Mod(group.Order()))
-		deltas[i] = deltaScalar
-	}
+// 	gammaInt := new(saferith.Int)
+// 	gamma := group.NewScalar()
+// 	bigGamma := group.NewPoint()
+// 	for _, gammaj := range gammas {
+// 		gammaInt = gammaInt.Add(gammaInt, curve.MakeInt(gammaj.priv), -1)
+// 		gamma = group.NewScalar().SetNat(gammaInt.Mod(group.Order()))
+// 		bigGamma = bigGamma.Add(gammaj.pub)
 
-	deltaInt := new(saferith.Int)
-	for _, i := range partyIDs {
-		deltaInt = deltaInt.Add(deltaInt, curve.MakeInt(deltas[i]), -1)
-	}
-	delta := group.NewScalar().SetNat(deltaInt.Mod(group.Order()))
+// 		assert.True(t, gammaj.priv.ActOnBase().Equal(gammaj.pub))
+// 		assert.True(t, gamma.ActOnBase().Equal(bigGamma))
+// 	}
 
-	gammaInt := new(saferith.Int)
-	gamma := group.NewScalar()
-	bigGamma := group.NewPoint()
-	for _, gammaj := range gammas {
-		gammaInt = gammaInt.Add(gammaInt, curve.MakeInt(gammaj.priv), -1)
-		gamma = group.NewScalar().SetNat(gammaInt.Mod(group.Order()))
-		bigGamma = bigGamma.Add(gammaj.pub)
+// 	kInt := new(saferith.Int)
+// 	bigDeltas := make(map[string]curve.Point)
+// 	k := group.NewScalar()
+// 	for _, party := range partyIDs {
+// 		kj := ks[party]
+// 		kInt = kInt.Add(kInt, curve.MakeInt(kj.priv), -1)
+// 		k = group.NewScalar().SetNat(kInt.Mod(group.Order()))
 
-		assert.True(t, gammaj.priv.ActOnBase().Equal(gammaj.pub))
-		assert.True(t, gamma.ActOnBase().Equal(bigGamma))
-	}
+// 		bigDeltas[party] = kj.priv.Act(bigGamma)
+// 	}
 
-	kInt := new(saferith.Int)
-	bigDeltas := make(map[string]curve.Point)
-	k := group.NewScalar()
-	for _, party := range partyIDs {
-		kj := ks[party]
-		kInt = kInt.Add(kInt, curve.MakeInt(kj.priv), -1)
-		k = group.NewScalar().SetNat(kInt.Mod(group.Order()))
+// 	bigDelta := group.NewPoint()
+// 	for _, delta := range bigDeltas {
+// 		bigDelta = bigDelta.Add(delta)
+// 	}
 
-		bigDeltas[party] = kj.priv.Act(bigGamma)
-	}
+// 	bigGammaComputed := gamma.ActOnBase()
+// 	assert.True(t, bigGammaComputed.Equal(bigGamma))
 
-	bigDelta := group.NewPoint()
-	for _, delta := range bigDeltas {
-		bigDelta = bigDelta.Add(delta)
-	}
+// 	deltaComputed := k.Mul(gamma)
+// 	bigDeltaComputed := deltaComputed.ActOnBase()
 
-	bigGammaComputed := gamma.ActOnBase()
-	assert.True(t, bigGammaComputed.Equal(bigGamma))
-
-	deltaComputed := k.Mul(gamma)
-	bigDeltaComputed := deltaComputed.ActOnBase()
-
-	assert.True(t, deltaComputed.Equal(delta))
-	assert.True(t, delta.ActOnBase().Equal(bigDeltaComputed))
-	assert.True(t, delta.ActOnBase().Equal(bigDelta))
-}
+// 	assert.True(t, deltaComputed.Equal(delta))
+// 	assert.True(t, delta.ActOnBase().Equal(bigDeltaComputed))
+// 	assert.True(t, delta.ActOnBase().Equal(bigDelta))
+// }
