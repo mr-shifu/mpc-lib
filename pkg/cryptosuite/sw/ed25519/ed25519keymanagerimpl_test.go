@@ -25,8 +25,9 @@ func getKeyManager() *Ed25519KeyManagerImpl {
 func TestEd25519KeyManagerImpl_GenerateKey(t *testing.T) {
 	mgr := getKeyManager()
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
+
 	k, err := mgr.GenerateKey(opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, k)
@@ -46,8 +47,9 @@ func TestEd25519KeyManagerImpl_ImportKey(t *testing.T) {
 	k, err := GenerateKey()
 	assert.NoError(t, err)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
+
 	_, err = mgr.ImportKey(k, opts)
 	assert.NoError(t, err)
 
@@ -67,8 +69,9 @@ func TestEd25519KeyManagerImpl_ImportKeyBytes(t *testing.T) {
 	kb, err := k.Bytes()
 	assert.NoError(t, err)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
+
 	_, err = mgr.ImportKey(kb, opts)
 	assert.NoError(t, err)
 
@@ -91,8 +94,9 @@ func TestEd25519KeyManagerImpl_ImportPublicKey(t *testing.T) {
 	kb, err := pk.Bytes()
 	assert.NoError(t, err)
 
-	opts := keyopts.Options{}
-	opts.Set("id", "1", "partyid", "a")
+	opts, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
+
 	_, err = mgr.ImportKey(kb, opts)
 	assert.NoError(t, err)
 
@@ -104,8 +108,8 @@ func TestEd25519KeyManagerImpl_ImportPublicKey(t *testing.T) {
 }
 
 func TestEd25519KeyManager_SchnorrProof(t *testing.T) {
-	opts1 := keyopts.Options{}
-	opts1.Set("id", "1", "partyid", "a")
+	opts1, err := keyopts.NewOptions().Set("id", "1", "partyid", "a")
+	assert.NoError(t, err)
 
 	hahs_keyopts := keyopts.NewInMemoryKeyOpts()
 	hahs_vault := vault.NewInMemoryVault()
@@ -132,14 +136,12 @@ func TestEd25519KeyManager_SchnorrProof(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, v1)
 
-
 	k2, err = mgr2.GetKey(opts1)
 	assert.NoError(t, err)
 
 	v2, err := k2.VerifySchnorrProof(h.Clone(), proof)
 	assert.NoError(t, err)
 	assert.True(t, v2)
-	
 
 	proofBytes := proof.Bytes()
 	assert.Equal(t, SchnorrProofSizeNoC, len(proofBytes))

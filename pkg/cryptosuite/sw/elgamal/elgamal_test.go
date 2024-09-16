@@ -23,8 +23,8 @@ func TestElgamal(t *testing.T) {
 	mgr := NewElgamalKeyManager(ks, &Config{Group: curve.Secp256k1{}})
 
 	// generate a new ElGamal key pair
-	opts := keyopts.Options{}
-	opts.Set("ID", 123, "partyID", 1)
+	opts, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
+	assert.NoError(t, err)
 	key, err := mgr.GenerateKey(opts)
 	assert.NoError(t, err)
 	keyBytes, err := key.Bytes()

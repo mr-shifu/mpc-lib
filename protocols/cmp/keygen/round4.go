@@ -2,31 +2,51 @@ package keygen
 
 import (
 	"encoding/hex"
-	"errors"
 
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/paillier"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	"github.com/mr-shifu/mpc-lib/core/party"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	zkmod "github.com/mr-shifu/mpc-lib/core/zk/mod"
 	zkprm "github.com/mr-shifu/mpc-lib/core/zk/prm"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	comm_keyopts "github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round4)(nil)
 
 type round4 struct {
-	*round3
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type message4 struct {
 	// Share = Encᵢ(x) is the encryption of the receivers share
-	Share *paillier.Ciphertext
+	Share *core_paillier.Ciphertext
 	Fac   *zkfac.Proof
 }
 
@@ -46,9 +66,10 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
-
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreBroadcastMessage: failed to create options")
+	}
 	// verify zkmod
 	ped, err := r.pedersen_km.GetKey(fromOpts)
 	if err != nil {
@@ -87,11 +108,15 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	selfOpts := keyopts.Options{}
-	selfOpts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	selfOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.VerifyMessage: failed to create options")
+	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.VerifyMessage: failed to create options")
+	}
 
 	paillierKey, err := r.paillier_km.GetKey(selfOpts)
 	if err != nil {
@@ -130,11 +155,15 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 func (r *round4) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message4)
 
-	selfOpts := keyopts.Options{}
-	selfOpts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	selfOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreMessage: failed to create options")
+	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreMessage: failed to create options")
+	}
 
 	// decrypt share
 	paillierKey, err := r.paillier_km.GetKey(selfOpts)
@@ -151,11 +180,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	// verify share with VSS
-	ecKey, err := r.ecdsa_km.GetKey(fromOpts)
-	if err != nil {
-		return err
-	}
-	vssKey, err := ecKey.VSS(fromOpts)
+	vssKey, err := r.ecdsa_km.GetVss(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -169,9 +194,11 @@ func (r *round4) StoreMessage(msg round.Message) error {
 		return errors.New("failed to validate VSS share")
 	}
 
-	vssShareOpts := keyopts.Options{}
-	vssShareOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
-	vssShareKey := sw_ecdsa.NewECDSAKey(Share, PublicShare, r.Group())
+	vssShareOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreMessage: failed to create options")
+	}
+	vssShareKey := ecdsa.NewKey(Share, PublicShare, r.Group())
 	if _, err := r.ec_vss_km.ImportKey(vssShareKey, vssShareOpts); err != nil {
 		return err
 	}
@@ -200,14 +227,18 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+	}
 
 	// Calculate MPC public Key
 	mpcPublicKey := r.Group().NewPoint()
 	for _, partyID := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(partyID))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+		}
 
 		vssKey, err := r.vss_mgr.GetSecrets(partyOpts)
 		if err != nil {
@@ -222,9 +253,11 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Import MPC public Key
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
-	k := r.ecdsa_km.NewKey(nil, mpcPublicKey, r.Group())
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+	}
+	k := ecdsa.NewKey(nil, mpcPublicKey, r.Group())
 	if _, err := r.ecdsa_km.ImportKey(k, rootOpts); err != nil {
 		return nil, err
 	}
@@ -233,8 +266,10 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// var allExponents []*polynomial.Exponent
 	vssOptsList := make([]comm_keyopts.Options, 0)
 	for _, partyID := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(partyID))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(partyID))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+		}
 		vssOptsList = append(vssOptsList, partyOpts)
 	}
 	rootVss, err := r.vss_mgr.SumExponents(vssOptsList...)
@@ -251,71 +286,72 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	for _, j := range r.PartyIDs() {
-		vssPartyOpts := keyopts.Options{}
-
-		vssPartyOpts.Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+		vssPartyOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssPoly.SKI()), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+		}
 
 		vssPub, err := vssPoly.EvaluateByExponents(j.Scalar(r.Group()))
 		if err != nil {
 			return nil, err
 		}
-		vssKeyShare := sw_ecdsa.NewECDSAKey(nil, vssPub, r.Group())
+		vssKeyShare := ecdsa.NewKey(nil, vssPub, r.Group())
 		if _, err := r.ec_vss_km.ImportKey(vssKeyShare, vssPartyOpts); err != nil {
 			return nil, err
 		}
 	}
 
 	// Sum all VSS shares to generate MPC VSS Share
-	var vss_shares []ecdsa.ECDSAKey
+	vssOptsList = make([]comm_keyopts.Options, 0)
 	for _, j := range r.OtherPartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+		}
 
 		vss, err := r.vss_mgr.GetSecrets(partyOpts)
 		if err != nil {
 			return nil, err
 		}
 
-		vssOpts := keyopts.Options{}
-		vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-		vss_share, err := r.ec_vss_km.GetKey(vssOpts)
+		vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
 		if err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
 		}
-		vss_shares = append(vss_shares, vss_share)
+		vssOptsList = append(vssOptsList, vssOpts)
 	}
 	vss, err := r.vss_mgr.GetSecrets(opts)
 	if err != nil {
 		return nil, err
 	}
-	vssOpts := keyopts.Options{}
-	vssOpts.Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
-	selfVSSShare, err := r.ec_vss_km.GetKey(vssOpts)
+	vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vss.SKI()), "partyid", string(r.SelfID()))
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
 	}
-	vssSharePrivateKey := selfVSSShare.AddKeys(vss_shares...)
-	vssSharePublicKey := vssSharePrivateKey.ActOnBase()
-	vssShareKey := sw_ecdsa.NewECDSAKey(vssSharePrivateKey, vssSharePublicKey, r.Group())
-	rootVssOpts := keyopts.Options{}
-	rootVssOpts.Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", "ROOT")
+	vssOptsList = append(vssOptsList, vssOpts)
+	vssShareKey, err := r.ec_vss_km.SumKeys(vssOptsList...)
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to sum vss keys")
+	}
+	rootVssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(rootVss.SKI()), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+	}
 	if _, err := r.ec_vss_km.ImportKey(vssShareKey, rootVssOpts); err != nil {
 		return nil, err
 	}
 
 	// compute the new public key share Xⱼ = F(j) (+X'ⱼ if doing a refresh)
-	mpcKey, err := r.ecdsa_km.GetKey(rootOpts)
-	if err != nil {
-		return nil, err
-	}
-	mpcVSSKey, err := mpcKey.VSS(rootOpts)
+	mpcVSSKey, err := r.ecdsa_km.GetVss(rootOpts)
 	if err != nil {
 		return nil, err
 	}
 	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round4.Finalize: failed to create options")
+		}
 
 		elgamalj, err := r.elgamal_km.GetKey(partyOpts)
 		if err != nil {
@@ -363,7 +399,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
-		ECDSA:     vssSharePrivateKey,
+		// ECDSA:     vssSharePrivateKey,
 		// ElGamal:   r.ElGamalSecret,
 		// Paillier:  r.PaillierSecret,
 		RID:      rid.Raw(),
@@ -376,18 +412,13 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	h := r.Hash().Clone()
 	_ = h.WriteAny(UpdatedConfig, r.SelfID())
 
-	// proof := r.SchnorrRand.Prove(h, PublicData[r.SelfID()].ECDSA, UpdatedSecretECDSA, nil)
-	ecKey, err := r.ecdsa_km.GetKey(opts)
-	if err != nil {
-		return nil, err
-	}
-	proof, err := ecKey.GenerateSchnorrProof(h)
+	proof, err := r.ecdsa_km.GenerateSchnorrResponse(h, opts)
 	if err != nil {
 		return r, err
 	}
 
 	// send to all
-	err = r.BroadcastMessage(out, &broadcast5{SchnorrResponse: proof})
+	err = r.BroadcastMessage(out, &broadcast5{SchnorrResponse: proof.Response().Z})
 	if err != nil {
 		return r, err
 	}
@@ -400,7 +431,19 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		round4:        r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 		UpdatedConfig: UpdatedConfig,
 	}, nil
 }

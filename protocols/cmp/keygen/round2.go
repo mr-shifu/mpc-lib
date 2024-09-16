@@ -3,13 +3,36 @@ package keygen
 import (
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
-	*round1
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type broadcast2 struct {
@@ -29,8 +52,10 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(msg.From))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round2.StoreBroadcastMessage: failed to create options")
+	}
 
 	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
 	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
@@ -62,8 +87,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round2.Finalize: failed to create options")
+	}
 
 	// TODO need keyID to get the key
 	elgamalKey, err := r.elgamal_km.GetKey(opts)
@@ -85,11 +112,16 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	schnorrCommitment, err := ecKey.SchnorrCommitment()
+	schnorrProof, err := r.ecdsa_km.GetSchnorrProof(opts)
 	if err != nil {
 		return nil, err
 	}
-	vssKey, err := ecKey.VSS(opts)
+	sch_byte, err := schnorrProof.Commitment().Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	vssKey, err := r.ecdsa_km.GetVss(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +173,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		C:                  chainKey.Raw(),
 		EcdsaKey:           ec_bytes,
 		VSSPolynomial:      exponents_bytes,
-		SchnorrCommitments: schnorrCommitment,
+		SchnorrCommitments: sch_byte,
 		PaillierKey:        paillier_bytes,
 		ElgamalKey:         elgamal_bytes,
 		PedersenKey:        ped_bytes,
@@ -157,7 +189,19 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round3{
-		round2: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}, nil
 }
 
@@ -175,7 +219,7 @@ func (r *round2) CanFinalize() bool {
 }
 
 // PreviousRound implements round.Round.
-func (r *round2) PreviousRound() round.Round { return r.round1 }
+// func (r *round2) PreviousRound() round.Round { return r.round1 }
 
 // MessageContent implements round.Round.
 func (round2) MessageContent() round.Content { return nil }

@@ -24,8 +24,8 @@ func TestPaillier(t *testing.T) {
 	mgr := NewPaillierKeyManager(ks, pl)
 
 	// generate a new Paillier key pair
-	opts := keyopts.Options{}
-	opts.Set("ID", 123, "partyID", 1)
+	opts, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+	assert.NoError(t, err)
 	key, err := mgr.GenerateKey(opts)
 	assert.NoError(t, err)
 

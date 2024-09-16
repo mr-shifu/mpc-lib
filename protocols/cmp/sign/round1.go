@@ -14,6 +14,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round1)(nil)
@@ -21,11 +22,11 @@ var _ round.Round = (*round1)(nil)
 type round1 struct {
 	*round.Helper
 
-	cfg       config.SignConfig
-	statemgr  state.MPCStateManager
-	signature result.Signature
-	msgmgr    message.MessageManager
-	bcstmgr   message.MessageManager
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
 
 	hash_mgr    hash.HashManager
 	paillier_km paillier.PaillierKeyManager
@@ -46,8 +47,6 @@ type round1 struct {
 
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
-
-	sigma result.SigmaStore
 }
 
 // StoreBroadcastMessage implements round.Round.
@@ -75,25 +74,28 @@ func (round1) StoreMessage(round.Message) error { return nil }
 // In two rounds, we compare the hashes received and if they are different then we abort.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Retreive Paillier Key to encode K and Gamma
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+	}
 
 	paillierKey, err := r.paillier_km.GetKey(kopts)
 	if err != nil {
 		return r, err
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+	}
 
 	// Generate Gamma ECDSA key to mask K and store its SKI to Gamma keyrpository
-	gamma, err := r.gamma.GenerateKey(sopts)
-	if err != nil {
+	if _, err := r.gamma.GenerateKey(sopts); err != nil {
 		return r, err
 	}
 
 	// Encode Gamma using Paillier Key
-	gammaPEK, err := gamma.EncodeByPaillier(paillierKey.PublicKey())
+	gammaPEK, err := r.gamma.EncodeByPaillier(paillierKey.PublicKey(), sopts)
 	if err != nil {
 		return r, err
 	}
@@ -102,13 +104,12 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// Generate K Scalar using ecdsa keymanager and store its SKI to K keyrepository
-	KShare, err := r.signK.GenerateKey(sopts)
-	if err != nil {
+	if _, err := r.signK.GenerateKey(sopts); err != nil {
 		return r, err
 	}
 
 	// Encode K using Paillier Key
-	KSharePEK, err := KShare.EncodeByPaillier(paillierKey.PublicKey())
+	KSharePEK, err := r.signK.EncodeByPaillier(paillierKey.PublicKey(), sopts)
 	if err != nil {
 		return nil, err
 	}
@@ -124,14 +125,16 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	errors := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		partyKopts := keyopts.Options{}
-		partyKopts.Set("id", r.cfg.KeyID(), "partyid", string(j))
+		partyKopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(j))
+		if err != nil {
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+		}
 
 		pedj, err := r.pedersen_km.GetKey(partyKopts)
 		if err != nil {
 			return err
 		}
-		proof, err := KShare.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey())
+		proof, err := r.signK.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey(), sopts)
 		if err != nil {
 			return err
 		}
@@ -153,7 +156,26 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round2{
-		round1: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

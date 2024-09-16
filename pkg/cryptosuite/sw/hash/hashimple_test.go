@@ -22,11 +22,11 @@ func TestHash_WriteAny(t *testing.T) {
 	hs := keystore.NewInMemoryKeystore(v, kr)
 	mgr := NewHashManager(hs)
 
-	var err error
-
 	testFunc := func(vs ...interface{}) error {
-		opts := keyopts.Options{}
-		opts.Set("ID", 123, "partyID", 1)
+		opts, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+		if err != nil {
+			return err
+		}
 		h := mgr.NewHasher("test", opts)
 
 		for _, v := range vs {
@@ -57,8 +57,10 @@ func TestHash_WriteAny_Collision(t *testing.T) {
 	var err error
 
 	testFunc := func(vs ...interface{}) ([]byte, error) {
-		opts := keyopts.Options{}
-		opts.Set("ID", 123, "partyID", 1)
+		opts, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+		if err != nil {
+			return nil, err
+		}
 		h := mgr.NewHasher("test", opts)
 
 		for _, v := range vs {
@@ -92,8 +94,8 @@ func TestHash_Clone(t *testing.T) {
 	hs := keystore.NewInMemoryKeystore(v, kr)
 	mgr := NewHashManager(hs)
 	
-	opts := keyopts.Options{}
-	opts.Set("ID", 123, "partyID", 1)
+	opts, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+	assert.NoError(t, err)
 	h := mgr.NewHasher("test", opts)
 
 	h1 := h.Clone()
