@@ -59,50 +59,53 @@ func (mgr *VssKeyManagerImpl) GenerateSecrets(secret curve.Scalar, degree int, o
 }
 
 // ImportSecrets imports exponents of coefficients in []byte format and returns VssKey.
-func (mgr *VssKeyManagerImpl) ImportSecrets(key VssKey, opts keyopts.Options) (VssKey, error) {
-	// if data == nil {
-	// 	return nil, errors.New("invalid exponents")
-	// }
+func (mgr *VssKeyManagerImpl) ImportSecrets(key any, opts keyopts.Options) (VssKey, error) {
+	switch kt := key.(type) {
+	case []byte:
+		k := new(VssKeyImpl)
+		if err := k.FromBytes(kt); err != nil {
+			return nil, err
+		}
 
-	// exponents := polynomial.NewEmptyExponent(mgr.group)
-	// if err := exponents.UnmarshalBinary(data); err != nil {
-	// 	return nil, err
-	// }
+		// get SKI from binary encoded exponents
+		ski := k.SKI()
+		keyID := hex.EncodeToString(ski)
 
-	// get coefficients from keystore
-	// key := NewVssKey(nil, exponents)
+		// store coefficients and exponents in keystore
+		if err := mgr.ks.Import(keyID, kt, opts); err != nil {
+			return nil, err
+		}
 
-	// get SKI from binary encoded exponents
-	ski := key.SKI()
+		return k, nil
 
-	// encode ski to hex string as keyID
-	keyID := hex.EncodeToString(ski)
+	case VssKey:
+		// get SKI from binary encoded exponents
+		ski := kt.SKI()
 
-	// decode binary to polynomial
-	kb, err := key.Bytes()
-	if err != nil {
-		return nil, err
+		// encode ski to hex string as keyID
+		keyID := hex.EncodeToString(ski)
+
+		// decode binary to polynomial
+		kb, err := kt.Bytes()
+		if err != nil {
+			return nil, err
+		}
+
+		// store coefficients and exponents in keystore
+		if err = mgr.ks.Import(keyID, kb, opts); err != nil {
+			return nil, err
+		}
+
+		return kt, nil
+
+	default:
+		return nil, errors.New("vss: invalid key type")
 	}
 
-	// store coefficients and exponents in keystore
-	if err = mgr.ks.Import(keyID, kb, opts); err != nil {
-		return nil, err
-	}
-
-	// sharestore, err := mgr.st.WithSKI(ski)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// key.WithShareStore(sharestore)
-
-	return key, nil
 }
 
 // GetSecrets returns VssKey of coefficients.
 func (mgr *VssKeyManagerImpl) GetSecrets(opts keyopts.Options) (VssKey, error) {
-	// encode ski to hex string as keyID
-	// keyID := hex.EncodeToString(ski)
-
 	// get coefficients from keystore
 	vb, err := mgr.ks.Get(opts)
 	if err != nil {
@@ -110,15 +113,11 @@ func (mgr *VssKeyManagerImpl) GetSecrets(opts keyopts.Options) (VssKey, error) {
 	}
 
 	// decode binary to polynomial
-	vssKey, err := fromBytes(vb)
+	vssKey := new(VssKeyImpl)
+	err = vssKey.FromBytes(vb)
 	if err != nil {
 		return nil, err
 	}
-	// sharestore, err := mgr.st.WithSKI(ski)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// vssKey.WithShareStore(sharestore)
 
 	return vssKey, nil
 }

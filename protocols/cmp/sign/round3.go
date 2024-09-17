@@ -1,30 +1,66 @@
 package sign
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/paillier"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round3)(nil)
 
 type round3 struct {
-	*round2
+	*round.Helper
+
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 }
 
 type message3 struct {
-	DeltaD     *paillier.Ciphertext // DeltaD = Dᵢⱼ
-	DeltaF     *paillier.Ciphertext // DeltaF = Fᵢⱼ
+	DeltaD     *core_paillier.Ciphertext // DeltaD = Dᵢⱼ
+	DeltaF     *core_paillier.Ciphertext // DeltaF = Fᵢⱼ
 	DeltaProof *zkaffg.Proof
-	ChiD       *paillier.Ciphertext // DeltaD = D̂_{ij}
-	ChiF       *paillier.Ciphertext // ChiF = F̂ᵢⱼ
+	ChiD       *core_paillier.Ciphertext // DeltaD = D̂_{ij}
+	ChiF       *core_paillier.Ciphertext // ChiF = F̂ᵢⱼ
 	ChiProof   *zkaffg.Proof
 	ProofLog   *zklogstar.Proof
 }
@@ -46,10 +82,12 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// 	return round.ErrNilFields
 	// }
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	// gamma := sw_ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
+	// gamma := ecdsa.NewECDSAKey(nil, body.BigGammaShare, body.BigGammaShare.Curve())
 	if _, err := r.gamma.ImportKey(body.BigGammaShare, soptsFrom); err != nil {
 		return err
 	}
@@ -74,17 +112,25 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	koptsFrom := keyopts.Options{}
-	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+	koptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsTo := keyopts.Options{}
-	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+	koptsTo, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(to))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsTo := keyopts.Options{}
-	soptsTo.Set("id", r.cfg.ID(), "partyid", string(to))
+	soptsTo, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(to))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
 	paillierFrom, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
@@ -161,11 +207,15 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 func (r *round3) StoreMessage(msg round.Message) error {
 	from, body := msg.From, msg.Content.(*message3)
 
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
 	// αᵢⱼ
 	paillierKey, err := r.paillier_km.GetKey(kopts)
@@ -210,26 +260,34 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
 
 	// Γ = ∑ⱼ Γⱼ
 	Gamma := r.Group().NewPoint()
 	for _, j := range r.PartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+		}
 		gammaj, err := r.gamma.GetKey(soptsj)
 		if err != nil {
 			return nil, err
 		}
 		Gamma = Gamma.Add(gammaj.PublicKeyRaw())
 	}
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", "ROOT")
-	gammaRoot := sw_ecdsa.NewECDSAKey(nil, Gamma, Gamma.Curve())
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+	}
+	gammaRoot := ecdsa.NewKey(nil, Gamma, Gamma.Curve())
 	if _, err := r.gamma.ImportKey(gammaRoot, soptsRoot); err != nil {
 		return nil, err
 	}
@@ -239,8 +297,11 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	bigDeltaShare := KShare.Act(Gamma, false)
-	bigDelta := sw_ecdsa.NewECDSAKey(nil, bigDeltaShare, bigDeltaShare.Curve())
+	bigDeltaShare, err := r.signK.Act(Gamma, false, sopts)
+	if err != nil {
+		return nil, err
+	}
+	bigDelta := ecdsa.NewKey(nil, bigDeltaShare, bigDeltaShare.Curve())
 	if _, err := r.bigDelta.ImportKey(bigDelta, sopts); err != nil {
 		return nil, err
 	}
@@ -248,8 +309,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// δᵢ = γᵢ kᵢ + ∑ⱼ δᵢⱼ
 	deltaSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+		}
 		//δᵢ += αᵢⱼ + βᵢⱼ
 		deltaj, err := r.delta_mta.Get(soptsj)
 		if err != nil {
@@ -259,12 +322,11 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		deltaSum = deltaSum.Add(deltaSum, deltaj.Beta(), -1)
 	}
 	deltaSumScalar := r.Group().NewScalar().SetNat(deltaSum.Mod(r.Group().Order()))
-	gamma, err := r.gamma.GetKey(sopts)
+	DeltaShareScalar, err := r.gamma.CommitByKey(KShare, deltaSumScalar, sopts)
 	if err != nil {
 		return nil, err
 	}
-	DeltaShareScalar := gamma.CommitByKey(KShare, deltaSumScalar)
-	deltaShare := sw_ecdsa.NewECDSAKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
+	deltaShare := ecdsa.NewKey(DeltaShareScalar, DeltaShareScalar.ActOnBase(), DeltaShareScalar.Curve())
 	if _, err := r.delta.ImportKey(deltaShare, sopts); err != nil {
 		return nil, err
 	}
@@ -272,8 +334,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// χᵢ = xᵢ kᵢ + ∑ⱼ χᵢⱼ
 	chiSum := new(saferith.Int)
 	for _, j := range r.OtherPartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round3.StoreBroadcastMessage: failed to create options")
+		}
 		chij, err := r.chi_mta.Get(soptsj)
 		if err != nil {
 			return nil, err
@@ -282,12 +346,11 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		chiSum = chiSum.Add(chiSum, chij.Beta(), -1)
 	}
 	chiSumScalar := r.Group().NewScalar().SetNat(chiSum.Mod(r.Group().Order()))
-	eckey, err := r.ec.GetKey(sopts)
+	ChiShareScalar, err := r.ec.CommitByKey(KShare, chiSumScalar, sopts)
 	if err != nil {
 		return nil, err
 	}
-	ChiShareScalar := eckey.CommitByKey(KShare, chiSumScalar)
-	chiShare := sw_ecdsa.NewECDSAKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
+	chiShare := ecdsa.NewKey(ChiShareScalar, ChiShareScalar.ActOnBase(), ChiShareScalar.Curve())
 	if _, err := r.chi.ImportKey(chiShare, sopts); err != nil {
 		return nil, err
 	}
@@ -314,15 +377,17 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	errs := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		koptsj := keyopts.Options{}
-		koptsj.Set("id", r.cfg.KeyID(), "partyid", string(j))
+		koptsj, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(j))
+		if err != nil {
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to create options")
+		}
 
 		pedj, err := r.pedersen_km.GetKey(koptsj)
 		if err != nil {
 			return err
 		}
 
-		proofLog, err := KShare.NewZKLogstarProof(
+		proofLog, err := r.signK.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
 			KSharePEK,           // PEK
 			KSharePEK.Encoded(), // C
@@ -330,6 +395,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 			Gamma,               // G
 			paillier.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
 		if err != nil {
 			return err
@@ -352,7 +418,26 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round4{
-		round3: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

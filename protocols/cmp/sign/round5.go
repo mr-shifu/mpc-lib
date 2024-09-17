@@ -1,18 +1,54 @@
 package sign
 
 import (
-	"errors"
-
-	"github.com/mr-shifu/mpc-lib/core/ecdsa"
+	core_ecdsa "github.com/mr-shifu/mpc-lib/core/ecdsa"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round5)(nil)
 
 type round5 struct {
-	*round4
+	*round.Helper
+
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 }
 
 type broadcast5 struct {
@@ -33,11 +69,13 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(msg.From))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
 	// r.SigmaShares[msg.From] = body.SigmaShare
-	if err := r.sigma.ImportSigma(body.SigmaShare, soptsFrom); err != nil {
+	if err := r.sigmgr.SetSigma(body.SigmaShare, soptsFrom); err != nil {
 		return err
 	}
 
@@ -67,30 +105,41 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	soptsRoot := keyopts.Options{}
-	soptsRoot.Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	soptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string("ROOT"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsRoot := keyopts.Options{}
-	koptsRoot.Set("id", r.cfg.KeyID(), "partyid", string("ROOT"))
+	koptsRoot, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string("ROOT"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+	}
 
 	// compute σ = ∑ⱼ σⱼ
 	Sigma := r.Group().NewScalar()
 	for _, j := range r.PartyIDs() {
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
-		sigmaShare, err := r.sigma.GetSigma(soptsj)
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round5.StoreBroadcastMessage: failed to create options")
+		}
+		sig, err := r.sigmgr.Get(soptsj)
 		if err != nil {
 			return nil, err
 		}
-		Sigma = Sigma.Add(sigmaShare)
+		Sigma = Sigma.Add(sig.SignSigma())
 	}
 
-	r.signature.ImportSignSigma(r.cfg.ID(), Sigma)
-	signR := r.signature.SignR(r.cfg.ID())
+	if err := r.sigmgr.SetSigma(Sigma, soptsRoot); err != nil {
+		return nil, err
+	}
+	sig, err := r.sigmgr.Get(soptsRoot)
+	if err != nil {
+		return nil, err
+	}
 
-	signature := &ecdsa.Signature{
-		R: signR,
-		S: Sigma,
+	signature := &core_ecdsa.Signature{
+		R: sig.SignR(),
+		S: sig.SignSigma(),
 	}
 
 	ecKey, err := r.ec.GetKey(soptsRoot)

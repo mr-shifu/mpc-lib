@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/pool"
@@ -24,7 +23,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,18 +31,13 @@ var group = curve.Secp256k1{}
 
 func checkOutput(t *testing.T, rounds []round.Session) {
 	N := len(rounds)
-	newConfigs := make([]*config.Config, 0, N)
+	newConfigs := make([]*Config, 0, N)
 	for _, r := range rounds {
 		require.IsType(t, &round.Output{}, r)
 		resultRound := r.(*round.Output)
-		require.IsType(t, &config.Config{}, resultRound.Result)
-		c := resultRound.Result.(*config.Config)
-		marshalledConfig, err := cbor.Marshal(c)
-		require.NoError(t, err)
-		unmarshalledConfig := config.EmptyConfig(group)
-		err = cbor.Unmarshal(marshalledConfig, unmarshalledConfig)
-		require.NoError(t, err)
-		newConfigs = append(newConfigs, unmarshalledConfig)
+		require.IsType(t, &Config{}, resultRound.Result)
+		c := resultRound.Result.(*Config)
+		newConfigs = append(newConfigs, c)
 	}
 
 	firstConfig := newConfigs[0]
@@ -61,11 +54,6 @@ func checkOutput(t *testing.T, rounds []round.Session) {
 			assert.True(t, p.Pedersen.T().Eq(c.Public[id].Pedersen.T()) == 1, "T not the same", id)
 			assert.True(t, p.Pedersen.N().Nat().Eq(c.Public[id].Pedersen.N().Nat()) == 1, "N not the same", id)
 		}
-		data, err := c.MarshalBinary()
-		assert.NoError(t, err, "failed to marshal new config", c.ID)
-		c2 := config.EmptyConfig(group)
-		err = c2.UnmarshalBinary(data)
-		assert.NoError(t, err, "failed to unmarshal new config", c.ID)
 	}
 }
 
@@ -160,14 +148,14 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 3
+	N := 6
 	partyIDs := test.PartyIDs(N)
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
 		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(cfg, pl)(nil)
+		r, err := mpckg.Start(cfg)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -180,5 +168,5 @@ func TestKeygen(t *testing.T) {
 			break
 		}
 	}
-	// checkOutput(t, rounds)
+	checkOutput(t, rounds)
 }

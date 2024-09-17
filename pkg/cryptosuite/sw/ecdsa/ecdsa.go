@@ -7,10 +7,11 @@ import (
 	zkaffg "github.com/mr-shifu/mpc-lib/core/zk/affg"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	zklogstar "github.com/mr-shifu/mpc-lib/core/zk/logstar"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 )
@@ -35,62 +36,9 @@ type ECDSAKey interface {
 	PublicKeyRaw() curve.Point
 
 	Act(g curve.Point, inv bool) curve.Point
-
-	Mul(c curve.Scalar) curve.Scalar
-
-	AddKeys(keys ...ECDSAKey) curve.Scalar
-
-	CloneByMultiplier(c curve.Scalar) ECDSAKey
-
-	CloneByKeyMultiplier(km ECDSAKey, c curve.Scalar) ECDSAKey
-
-	Commit(m curve.Scalar, c curve.Scalar) curve.Scalar
-
-	CommitByKey(km ECDSAKey, c curve.Scalar) curve.Scalar
-
-	NewSchnorrCommitment() (curve.Point, error)
-
-	ImportSchnorrCommitment(commitment curve.Point) error
-
-	GenerateSchnorrProof(h hash.Hash) (curve.Scalar, error)
-
-	VerifySchnorrProof(h hash.Hash, proof curve.Scalar) (bool, error)
-
-	SchnorrCommitment() (curve.Point, error)
-
-	SchnorrProof() (curve.Scalar, error)
-
-	GenerateVSSSecrets(degree int, opts keyopts.Options) error
-
-	// ImportVSSSecrets(k vss.VssKey, opts keyopts.Options) error
-
-	VSS(opts keyopts.Options) (vss.VssKey, error)
-
-	EncodeByPaillier(pk paillier.PaillierKey) (pek.PaillierEncodedKey, error)
-
-	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey) (*zkenc.Proof, error)
-
-	NewZKLogstarProof(
-		h hash.Hash,
-		pek pek.PaillierEncodedKey,
-		C *paillier_core.Ciphertext,
-		X curve.Point,
-		G curve.Point,
-		prover paillier.PaillierKey,
-		ped pedersen.PedersenKey) (*zklogstar.Proof, error)
-
-	NewMtAAffgProof(
-		h hash.Hash,
-		encoded *paillier_core.Ciphertext,
-		selfPaillier paillier.PaillierKey,
-		partyPaillier paillier.PaillierKey,
-		ped pedersen.PedersenKey,
-	) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof)
 }
 
 type ECDSAKeyManager interface {
-	NewKey(priv curve.Scalar, pub curve.Point, group curve.Curve) ECDSAKey
-
 	// GenerateKey generates a new ECDSA key pair.
 	GenerateKey(opts keyopts.Options) (ECDSAKey, error)
 
@@ -99,4 +47,51 @@ type ECDSAKeyManager interface {
 
 	// GetKey returns a ECDSA key by its SKI.
 	GetKey(opts keyopts.Options) (ECDSAKey, error)
+
+	CloneByMultiplier(c curve.Scalar, opts keyopts.Options) (ECDSAKey, error)
+
+	CloneByKeyMultiplier(km ECDSAKey, c curve.Scalar, opts keyopts.Options) (ECDSAKey, error)
+
+	Act(g curve.Point, inv bool, opts keyopts.Options) (curve.Point, error)
+
+	Mul(c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
+
+	SumKeys(optsList ...keyopts.Options) (ECDSAKey, error)
+
+	Commit(m curve.Scalar, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
+
+	CommitByKey(km ECDSAKey, c curve.Scalar, opts keyopts.Options) (curve.Scalar, error)
+
+	GenerateSchnorrCommitment(h hash.Hash, opts keyopts.Options) (*Proof, error)
+	GenerateSchnorrResponse(h hash.Hash, opts keyopts.Options) (*Proof, error)
+	VerifySchnorrProof(h hash.Hash, opts keyopts.Options) (bool, error)
+	ImportSchnorrCommitment(cmt_byte []byte, opts keyopts.Options) error
+	ImportSchnorrProofResponse(zb []byte, opts keyopts.Options) error
+	GetSchnorrProof(opts keyopts.Options) (*Proof, error)
+
+	NewZKEncProof(h hash.Hash, pek pek.PaillierEncodedKey, pk paillier.PaillierKey, ped pedersen.PedersenKey, opts keyopts.Options) (*zkenc.Proof, error)
+
+	NewZKLogstarProof(
+		h hash.Hash,
+		pek pek.PaillierEncodedKey,
+		C *paillier_core.Ciphertext,
+		X curve.Point,
+		G curve.Point,
+		prover paillier.PaillierKey,
+		ped pedersen.PedersenKey,
+		opts keyopts.Options) (*zklogstar.Proof, error)
+
+	NewMtAAffgProof(
+		h hash.Hash,
+		encoded *paillier_core.Ciphertext,
+		selfPaillier paillier.PaillierKey,
+		partyPaillier paillier.PaillierKey,
+		ped pedersen.PedersenKey,
+		opts keyopts.Options) (*saferith.Int, *paillier_core.Ciphertext, *paillier_core.Ciphertext, *zkaffg.Proof, error)
+
+	EncodeByPaillier(pk paillier.PaillierKey, opts keyopts.Options) (paillierencodedkey.PaillierEncodedKey, error)
+
+	GenerateVss(degree int, opts keyopts.Options) (vss.VssKey, error)
+	ImportVss(key interface{}, opts keyopts.Options) error
+	GetVss(opts keyopts.Options) (vss.VssKey, error)
 }

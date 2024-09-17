@@ -5,17 +5,14 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/core/protocol"
 
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/common/keystore"
 	"github.com/mr-shifu/mpc-lib/pkg/common/vault"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
-	sw_ecdsa "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
-	sw_hash "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
-	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
@@ -27,9 +24,8 @@ import (
 	comm_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	mpc_message "github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	mpc_result "github.com/mr-shifu/mpc-lib/pkg/mpc/result"
+	ecsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/ecdsa"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/state"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/keygen"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/sign"
 )
@@ -67,8 +63,7 @@ type MPC struct {
 	delta_mta mta.MtAManager
 	chi_mta   mta.MtAManager
 
-	sigma     comm_result.SigmaStore
-	signature comm_result.Signature
+	sigmgr comm_result.EcdsaSignatureManager
 
 	pl *pool.Pool
 }
@@ -111,11 +106,11 @@ func NewMPC(
 	sch_kr := krf.NewKeyOpts(nil)
 	sch_vault := vf.NewVault(nil)
 	sch_ks := ksf.NewKeystore(sch_vault, sch_kr, nil)
-	ecdsa_km := sw_ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ecdsa_km := ecdsa.NewECDSAKeyManager(ec_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	ec_vss_kr := krf.NewKeyOpts(nil)
 	ec_vss_ks := ksf.NewKeystore(ec_vault, ec_vss_kr, nil)
-	ec_vss_km := sw_ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	ec_vss_km := ecdsa.NewECDSAKeyManager(ec_vss_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	rid_kr := krf.NewKeyOpts(nil)
 	rid_vault := vf.NewVault(nil)
@@ -130,17 +125,12 @@ func NewMPC(
 	hash_kr := krf.NewKeyOpts(nil)
 	hash_vault := vf.NewVault(nil)
 	hash_ks := ksf.NewKeystore(hash_vault, hash_kr, nil)
-	hash_mgr := sw_hash.NewHashManager(hash_ks)
+	hash_mgr := hash.NewHashManager(hash_ks)
 
 	commit_keyopts := krf.NewKeyOpts(nil)
 	commit_vault := vf.NewVault(nil)
 	commit_ks := ksf.NewKeystore(commit_vault, commit_keyopts, nil)
 	commit_mgr := commitment.NewCommitmentManagerImpl(commit_ks)
-
-	sigma_kr := krf.NewKeyOpts(nil)
-	sigma_vault := vf.NewVault(nil)
-	sigma_ks := ksf.NewKeystore(sigma_vault, sigma_kr, nil)
-	sigma := mpc_result.NewSigmaStore(sigma_ks)
 
 	keycfgmgr := mpc_config.NewKeyConfigManager(keycfgstore)
 	signcfgmgr := mpc_config.NewSignConfigManager(signcfgstore)
@@ -151,27 +141,29 @@ func NewMPC(
 	msgmgr := mpc_message.NewMessageManager(msgstore)
 	bcstmgr := mpc_message.NewMessageManager(bcststore)
 
-	signature := mpc_result.NewSignStore()
+	ecsig_keyopts := krf.NewKeyOpts(nil)
+	ecsigstore := ecsig.NewInMemoryEcdsaSignature(ecsig_keyopts)
+	ecsigmgr := ecsig.NewEcdsaSignatureManager(ecsigstore)
 
 	gamma_kr := krf.NewKeyOpts(nil)
 	gamma_ks := ksf.NewKeystore(ec_vault, gamma_kr, nil)
-	gamma_km := sw_ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	gamma_km := ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	signK_kr := krf.NewKeyOpts(nil)
 	signK_ks := ksf.NewKeystore(ec_vault, signK_kr, nil)
-	signK_km := sw_ecdsa.NewECDSAKeyManager(signK_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	signK_km := ecdsa.NewECDSAKeyManager(signK_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	delta_kr := krf.NewKeyOpts(nil)
 	delta_ks := ksf.NewKeystore(ec_vault, delta_kr, nil)
-	delta_km := sw_ecdsa.NewECDSAKeyManager(delta_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	delta_km := ecdsa.NewECDSAKeyManager(delta_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	chi_kr := krf.NewKeyOpts(nil)
 	chi_ks := ksf.NewKeystore(ec_vault, chi_kr, nil)
-	chi_km := sw_ecdsa.NewECDSAKeyManager(chi_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	chi_km := ecdsa.NewECDSAKeyManager(chi_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	bigDelta_kr := krf.NewKeyOpts(nil)
 	bigDelta_ks := ksf.NewKeystore(ec_vault, bigDelta_kr, nil)
-	bigDelta_km := sw_ecdsa.NewECDSAKeyManager(bigDelta_ks, sch_ks, vss_km, &sw_ecdsa.Config{Group: curve.Secp256k1{}})
+	bigDelta_km := ecdsa.NewECDSAKeyManager(bigDelta_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
 
 	gamma_pek_vault := vf.NewVault(nil)
 	gamma_pek_kr := krf.NewKeyOpts(nil)
@@ -186,12 +178,12 @@ func NewMPC(
 	delta_mta_vault := vf.NewVault(nil)
 	delta_mta_kr := krf.NewKeyOpts(nil)
 	delta_mta_ks := ksf.NewKeystore(delta_mta_vault, delta_mta_kr, nil)
-	delta_mta_km := sw_mta.NewMtAManager(delta_mta_ks)
+	delta_mta_km := mta.NewMtAManager(delta_mta_ks)
 
 	chi_mta_vault := vf.NewVault(nil)
 	chi_mta_kr := krf.NewKeyOpts(nil)
 	chi_mta_ks := ksf.NewKeystore(chi_mta_vault, chi_mta_kr, nil)
-	chi_mta_km := sw_mta.NewMtAManager(chi_mta_ks)
+	chi_mta_km := mta.NewMtAManager(chi_mta_ks)
 
 	return &MPC{
 		keycfgmgr:   keycfgmgr,
@@ -219,8 +211,7 @@ func NewMPC(
 		signK_pek:   signK_pek_mgr,
 		delta_mta:   delta_mta_km,
 		chi_mta:     chi_mta_km,
-		sigma:       sigma,
-		signature:   signature,
+		sigmgr:      ecsigmgr,
 		pl:          pl,
 	}
 }
@@ -266,14 +257,14 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 		mpc.signK_pek,
 		mpc.delta_mta,
 		mpc.chi_mta,
-		mpc.sigma,
-		mpc.signature,
+		mpc.sigmgr,
+		mpc.pl,
 	)
 }
 
 // Config represents the stored state of a party who participated in a successful `Keygen` protocol.
 // It contains secret key material and should be safely stored.
-type Config = config.Config
+type Config = keygen.Config
 
 // EmptyConfig creates an empty Config with a fixed group, ready for unmarshalling.
 //
@@ -292,7 +283,7 @@ func EmptyConfig(group curve.Curve) *Config {
 // Returns *cmp.Config if successful.
 func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	mpckg := mpc.NewMPCKeygenManager()
-	return mpckg.Start(cfg, pl)
+	return mpckg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

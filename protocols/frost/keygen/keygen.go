@@ -167,8 +167,10 @@ func (m *FROSTKeygen) GetRound(keyID string) (round.Session, error) {
 		FinalRoundNumber: Rounds,
 	}
 	// instantiate a new hasher for new keygen session
-	opts := keyopts.Options{}
-	opts.Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
+	if err != nil {
+		return nil, errors.WithMessage(err, "frost.Keygen: failed to set options")
+	}
 	h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 	// generate new helper for new keygen session

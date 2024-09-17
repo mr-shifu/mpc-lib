@@ -1,29 +1,64 @@
 package sign
 
 import (
-	"errors"
-
 	"github.com/cronokirby/saferith"
-	"github.com/mr-shifu/mpc-lib/core/paillier"
+	core_paillier "github.com/mr-shifu/mpc-lib/core/paillier"
 	zkenc "github.com/mr-shifu/mpc-lib/core/zk/enc"
 	"github.com/mr-shifu/mpc-lib/lib/round"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
 	sw_mta "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/mta"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	pek "github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillierencodedkey"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/result"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round2)(nil)
 
 type round2 struct {
-	*round1
+	*round.Helper
+
+	cfg      config.SignConfig
+	statemgr state.MPCStateManager
+	sigmgr   result.EcdsaSignatureManager
+	msgmgr   message.MessageManager
+	bcstmgr  message.MessageManager
+
+	hash_mgr    hash.HashManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+
+	ec       ecdsa.ECDSAKeyManager
+	ec_vss   ecdsa.ECDSAKeyManager
+	gamma    ecdsa.ECDSAKeyManager
+	signK    ecdsa.ECDSAKeyManager
+	delta    ecdsa.ECDSAKeyManager
+	chi      ecdsa.ECDSAKeyManager
+	bigDelta ecdsa.ECDSAKeyManager
+
+	vss_mgr vss.VssKeyManager
+
+	gamma_pek pek.PaillierEncodedKeyManager
+	signK_pek pek.PaillierEncodedKeyManager
+
+	delta_mta mta.MtAManager
+	chi_mta   mta.MtAManager
 }
 
 type broadcast2 struct {
 	round.ReliableBroadcastContent
 	// K = Kᵢ
-	K *paillier.Ciphertext
+	K *core_paillier.Ciphertext
 	// G = Gᵢ
-	G *paillier.Ciphertext
+	G *core_paillier.Ciphertext
 }
 
 type message2 struct {
@@ -40,11 +75,15 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	koptsFrom := keyopts.Options{}
-	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+	koptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
 	paillierj, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
@@ -89,14 +128,20 @@ func (r *round2) VerifyMessage(msg round.Message) error {
 		return round.ErrNilFields
 	}
 
-	koptsFrom := keyopts.Options{}
-	koptsFrom.Set("id", r.cfg.KeyID(), "partyid", string(from))
+	koptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
-	koptsTo := keyopts.Options{}
-	koptsTo.Set("id", r.cfg.KeyID(), "partyid", string(to))
+	koptsTo, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(to))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
-	soptsFrom := keyopts.Options{}
-	soptsFrom.Set("id", r.cfg.ID(), "partyid", string(from))
+	soptsFrom, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
 	paillierFrom, err := r.paillier_km.GetKey(koptsFrom)
 	if err != nil {
@@ -135,11 +180,15 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	sopts := keyopts.Options{}
-	sopts.Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	sopts, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
-	kopts := keyopts.Options{}
-	kopts.Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	kopts, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+	}
 
 	// Retreive Gamma key from keystore
 	gamma, err := r.gamma.GetKey(sopts)
@@ -167,18 +216,18 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	mtaOuts := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
 		j := otherIDs[i]
 
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+		}
 
-		koptsj := keyopts.Options{}
-		koptsj.Set("id", r.cfg.KeyID(), "partyid", string(j))
+		koptsj, err := keyopts.NewOptions().Set("id", r.cfg.KeyID(), "partyid", string(j))
+		if err != nil {
+			return errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+		}
 
 		// TODO must be changed to signID
 		gamma, err := r.gamma.GetKey(sopts)
-		if err != nil {
-			return err
-		}
-		eckey, err := r.ec.GetKey(sopts)
 		if err != nil {
 			return err
 		}
@@ -199,27 +248,35 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return err
 		}
 
-		DeltaBeta, DeltaD, DeltaF, DeltaProof := gamma.NewMtAAffgProof(
+		DeltaBeta, DeltaD, DeltaF, DeltaProof, err := r.gamma.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
 			paillierj.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
+		if err != nil {
+			return err
+		}
 
-		ChiBeta, ChiD, ChiF, ChiProof := eckey.NewMtAAffgProof(
+		ChiBeta, ChiD, ChiF, ChiProof, err := r.ec.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
 			paillierj.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
+		if err != nil {
+			return err
+		}
 
 		gammaPEK, err := r.gamma_pek.Get(sopts)
 		if err != nil {
 			return err
 		}
-		proof, err := gamma.NewZKLogstarProof(
+		proof, err := r.gamma.NewZKLogstarProof(
 			r.HashForID(r.SelfID()),
 			gammaPEK,
 			gammaPEK.Encoded(),
@@ -227,6 +284,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			nil,
 			paillierKey.PublicKey(),
 			pedj.PublicKey(),
+			sopts,
 		)
 		if err != nil {
 			return err
@@ -255,8 +313,10 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return r, m.err
 		}
 
-		soptsj := keyopts.Options{}
-		soptsj.Set("id", r.cfg.ID(), "partyid", string(j))
+		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.round2.StoreBroadcastMessage: failed to create options")
+		}
 
 		delta_mta := sw_mta.NewMtA(nil, m.DeltaBeta)
 		if err := r.delta_mta.Import(delta_mta, soptsj); err != nil {
@@ -274,7 +334,26 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round3{
-		round2: r,
+		Helper:      r.Helper,
+		cfg:         r.cfg,
+		statemgr:    r.statemgr,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		hash_mgr:    r.hash_mgr,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ec:          r.ec,
+		vss_mgr:     r.vss_mgr,
+		gamma:       r.gamma,
+		signK:       r.signK,
+		delta:       r.delta,
+		chi:         r.chi,
+		bigDelta:    r.bigDelta,
+		gamma_pek:   r.gamma_pek,
+		signK_pek:   r.signK_pek,
+		delta_mta:   r.delta_mta,
+		chi_mta:     r.chi_mta,
+		sigmgr:      r.sigmgr,
 	}, nil
 }
 

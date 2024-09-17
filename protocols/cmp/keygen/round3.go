@@ -1,22 +1,42 @@
 package keygen
 
 import (
-	"errors"
-
 	"github.com/mr-shifu/mpc-lib/core/hash"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/math/polynomial"
 	zkfac "github.com/mr-shifu/mpc-lib/core/zk/fac"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/pkg/errors"
 )
 
 var _ round.Round = (*round3)(nil)
 
 type round3 struct {
-	*round2
+	*round.Helper
+
+	statemanger state.MPCStateManager
+	msgmgr      message.MessageManager
+	bcstmgr     message.MessageManager
+	elgamal_km  elgamal.ElgamalKeyManager
+	paillier_km paillier.PaillierKeyManager
+	pedersen_km pedersen.PedersenKeyManager
+	ecdsa_km    ecdsa.ECDSAKeyManager
+	ec_vss_km   ecdsa.ECDSAKeyManager
+	vss_mgr     vss.VssKeyManager
+	rid_km      rid.RIDManager
+	chainKey_km rid.RIDManager
+	commit_mgr  commitment.CommitmentManager
 }
 
 type broadcast3 struct {
@@ -28,7 +48,7 @@ type broadcast3 struct {
 	// VSSPolynomial = Fᵢ(X) VSSPolynomial
 	VSSPolynomial []byte
 	// SchnorrCommitments = Aᵢ Schnorr commitment for the final confirmation
-	SchnorrCommitments curve.Point
+	SchnorrCommitments []byte
 	// ElGamalPublic      []byte // curve.Point
 	// // N Paillier and Pedersen N = p•q, p ≡ q ≡ 3 mod 4
 	// N *saferith.Modulus
@@ -88,8 +108,10 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// 	return errors.New("vss polynomial has incorrect degree")
 	// }
 
-	fromOpts := keyopts.Options{}
-	fromOpts.Set("id", r.ID, "partyid", string(from))
+	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round3.StoreBroadcastMessage: failed to create options")
+	}
 
 	ridFrom, err := r.rid_km.ImportKey(body.RID, fromOpts)
 	if err != nil {
@@ -110,8 +132,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	fromKey, err := r.ecdsa_km.ImportKey(body.EcdsaKey, fromOpts)
-	if err != nil {
+	if _, err := r.ecdsa_km.ImportKey(body.EcdsaKey, fromOpts); err != nil {
 		return err
 	}
 
@@ -124,11 +145,15 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	if err := fromKey.ImportSchnorrCommitment(body.SchnorrCommitments); err != nil {
+	if err := r.ecdsa_km.ImportSchnorrCommitment(body.SchnorrCommitments, fromOpts); err != nil {
+		return err
+	}
+	schproof, err := r.ecdsa_km.GetSchnorrProof(fromOpts)
+	if err != nil {
 		return err
 	}
 
-	vssKeyFrom, err := fromKey.VSS(fromOpts)
+	vssKeyFrom, err := r.ecdsa_km.GetVss(fromOpts)
 	if err != nil {
 		return err
 	}
@@ -164,7 +189,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		pedersenFrom.PublicKeyRaw().N(),
 		pedersenFrom.PublicKeyRaw().S(),
 		pedersenFrom.PublicKeyRaw().T(),
-		body.SchnorrCommitments,
+		schproof.Commitment(),
 	) {
 		return errors.New("failed to decommit")
 	}
@@ -200,35 +225,43 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, round.ErrNotEnoughMessages
 	}
 
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+	}
 
-	rootOpts := keyopts.Options{}
-	rootOpts.Set("id", r.ID, "partyid", "ROOT")
+	rootOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+	}
 
 	// c = ⊕ⱼ cⱼ
-	chainKey := r.PreviousChainKey
-	if chainKey == nil {
-		chainKey = types.EmptyRID()
-		for _, j := range r.PartyIDs() {
-			partyOpts := keyopts.Options{}
-			partyOpts.Set("id", r.ID, "partyid", string(j))
-			ck, err := r.chainKey_km.GetKey(partyOpts)
-			if err != nil {
-				return nil, err
-			}
-			chainKey.XOR(ck.Raw())
+	// chainKey := r.PreviousChainKey
+	// if chainKey == nil {
+	chainKey := types.EmptyRID()
+	for _, j := range r.PartyIDs() {
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
 		}
-		if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		ck, err := r.chainKey_km.GetKey(partyOpts)
+		if err != nil {
 			return nil, err
 		}
+		chainKey.XOR(ck.Raw())
 	}
+	if _, err := r.chainKey_km.ImportKey(chainKey, rootOpts); err != nil {
+		return nil, err
+	}
+	// }
 
 	// RID = ⊕ⱼ RIDⱼ
 	rid := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+		}
 		rj, err := r.rid_km.GetKey(partyOpts)
 		if err != nil {
 			return nil, err
@@ -271,9 +304,10 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// create P2P messages with encrypted shares and zkfac proof
 	for _, j := range r.OtherPartyIDs() {
-		partyOpts := keyopts.Options{}
-		partyOpts.Set("id", r.ID, "partyid", string(j))
-
+		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
+		if err != nil {
+			return nil, errors.WithMessage(err, "keygen.round3.Finalize: failed to create options")
+		}
 		pedj, err := r.pedersen_km.GetKey(partyOpts)
 		if err != nil {
 			return nil, err
@@ -313,7 +347,19 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Write rid to the hash state
 	r.UpdateHashState(rid)
 	return &round4{
-		round3: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}, nil
 }
 
@@ -340,7 +386,7 @@ func (broadcast3) RoundNumber() round.Number { return 3 }
 func (r *round3) BroadcastContent() round.BroadcastContent {
 	return &broadcast3{
 		// VSSPolynomial:      polynomial.EmptyExponent(r.Group()),
-		SchnorrCommitments: r.Group().NewPoint(), //zksch.EmptyCommitment(r.Group()),
+		// SchnorrCommitments: r.Group().NewPoint(), //zksch.EmptyCommitment(r.Group()),
 		// ElGamalPublic:      r.Group().NewPoint(),
 	}
 }

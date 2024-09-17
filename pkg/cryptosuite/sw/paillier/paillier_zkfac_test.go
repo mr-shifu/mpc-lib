@@ -20,11 +20,10 @@ func TestZKFAC(t *testing.T) {
 	hs := keystore.NewInMemoryKeystore(hs_vault, hs_kr)
 	mgr := hash.NewHashManager(hs)
 
-	opts1 := keyopts.Options{}
-	opts1.Set("ID", 123, "partyID", 1)
-
-	opts2 := keyopts.Options{}
-	opts2.Set("ID", 123, "partyID", 2)
+	opts1, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+	assert.NoError(t, err)
+	opts2, err := keyopts.NewOptions().Set("ID", 123, "partyID", 2)
+	assert.NoError(t, err)
 
 	h1 := mgr.NewHasher("key1", opts1)
 	h2 := mgr.NewHasher("key2", opts2)

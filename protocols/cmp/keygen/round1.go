@@ -2,20 +2,17 @@ package keygen
 
 import (
 	"encoding/hex"
-	"errors"
 
-	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/lib/round"
-	"github.com/mr-shifu/mpc-lib/lib/types"
+	"github.com/pkg/errors"
 
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
-	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/ecdsa"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/elgamal"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/paillier"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/pedersen"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
+	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
@@ -43,17 +40,17 @@ type round1 struct {
 	// Contains the previous secret ECDSA key share which is being refreshed
 	// Keygen:  sk'ᵢ = nil
 	// Refresh: sk'ᵢ = sk'ᵢ
-	PreviousSecretECDSA curve.Scalar
+	// PreviousSecretECDSA curve.Scalar
 
-	// PreviousPublicSharesECDSA[j] = pk'ⱼ
-	// Keygen:  pk'ⱼ = nil
-	// Refresh: pk'ⱼ = pk'ⱼ
-	PreviousPublicSharesECDSA map[party.ID]curve.Point
+	// // PreviousPublicSharesECDSA[j] = pk'ⱼ
+	// // Keygen:  pk'ⱼ = nil
+	// // Refresh: pk'ⱼ = pk'ⱼ
+	// PreviousPublicSharesECDSA map[party.ID]curve.Point
 
-	// PreviousChainKey contains the chain key, if we're refreshing
-	//
-	// In that case, we will simply use the previous chain key at the very end.
-	PreviousChainKey types.RID
+	// // PreviousChainKey contains the chain key, if we're refreshing
+	// //
+	// // In that case, we will simply use the previous chain key at the very end.
+	// PreviousChainKey types.RID
 }
 
 // VerifyMessage implements round.Round.
@@ -77,8 +74,11 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // - commit to message.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// generate Paillier and Pedersen
-	opts := keyopts.Options{}
-	opts.Set("id", r.ID, "partyid", string(r.SelfID()))
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen.Round1: failed to create options")
+	}
+
 	paillierKey, err := r.paillier_km.GenerateKey(opts)
 	if err != nil {
 		return nil, err
@@ -100,11 +100,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// save our own share already so we are consistent with what we receive from others
-	key, err := r.ecdsa_km.GetKey(opts)
-	if err != nil {
-		return nil, err
-	}
-	vssKey, err := key.VSS(opts)
+	vssKey, err := r.ecdsa_km.GetVss(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +111,17 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	sharePublic := share.ActOnBase()
-	shareKey := r.ecdsa_km.NewKey(share, sharePublic, r.Group())
-	vssOpts := keyopts.Options{}
-	vssOpts.Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+	shareKey := ecdsa.NewKey(share, sharePublic, r.Group())
+	vssOpts, err := keyopts.NewOptions().Set("id", hex.EncodeToString(vssKey.SKI()), "partyid", string(r.SelfID()))
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen.Round1: failed to create options")
+	}
 	if _, err := r.ec_vss_km.ImportKey(shareKey, vssOpts); err != nil {
 		return nil, err
 	}
 
 	// generate Schnorr randomness
-	schnorrCommitment, err := key.NewSchnorrCommitment()
+	schProof, err := r.ecdsa_km.GenerateSchnorrCommitment(r.HashForID(r.SelfID()), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +150,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		pedersenKey.PublicKeyRaw().N(),
 		pedersenKey.PublicKeyRaw().S(),
 		pedersenKey.PublicKeyRaw().T(),
-		schnorrCommitment,
+		schProof.Commitment(),
 	)
 	if err != nil {
 		return r, errors.New("failed to commit")
@@ -176,7 +174,19 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	nextRound := &round2{
-		round1: r,
+		Helper:      r.Helper,
+		statemanger: r.statemanger,
+		msgmgr:      r.msgmgr,
+		bcstmgr:     r.bcstmgr,
+		elgamal_km:  r.elgamal_km,
+		paillier_km: r.paillier_km,
+		pedersen_km: r.pedersen_km,
+		ecdsa_km:    r.ecdsa_km,
+		ec_vss_km:   r.ec_vss_km,
+		vss_mgr:     r.vss_mgr,
+		rid_km:      r.rid_km,
+		chainKey_km: r.chainKey_km,
+		commit_mgr:  r.commit_mgr,
 	}
 	return nextRound, nil
 }
