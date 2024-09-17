@@ -77,7 +77,7 @@ func NewMPCKeygen(
 	}
 }
 
-func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
+func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
 		info := round.Info{
 			ProtocolID:       "cmp/keygen",
@@ -96,7 +96,7 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig, pl *pool.Pool) protocol.Star
 
 		h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h)
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, m.pl, h)
 		if err != nil {
 			return nil, fmt.Errorf("keygen: %w", err)
 		}

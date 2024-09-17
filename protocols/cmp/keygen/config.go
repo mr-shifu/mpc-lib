@@ -1,4 +1,4 @@
-package config
+package keygen
 
 import (
 	"errors"
@@ -272,15 +272,4 @@ func (c *Config) DeriveBIP32(i uint32) (*Config, error) {
 		return nil, err
 	}
 	return c.Derive(scalar, newChainKey)
-}
-
-type configSerialized struct {
-	ID        party.ID
-	Threshold int
-	ECDSA     []byte
-	ElGamal   []byte
-	Paillier  []byte
-	RID       types.RID
-	ChainKey  types.RID
-	Public    map[party.ID][]byte
 }
