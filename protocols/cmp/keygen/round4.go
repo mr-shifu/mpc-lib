@@ -21,7 +21,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/pkg/errors"
 )
 
@@ -346,7 +345,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
+	PublicData := make(map[party.ID]*Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
 		partyOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(j))
 		if err != nil {
@@ -372,7 +371,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return r, err
 		}
 
-		PublicData[j] = &config.Public{
+		PublicData[j] = &Public{
 			ECDSA:    PublicECDSAShare,
 			ElGamal:  elgamalj.PublicKeyRaw(),
 			Paillier: paillierj.PublicKeyRaw(),
@@ -395,7 +394,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// TODO elgamal and paillier secret key is missed here
-	UpdatedConfig := &config.Config{
+	UpdatedConfig := &Config{
 		Group:     r.Group(),
 		ID:        r.SelfID(),
 		Threshold: r.Threshold(),
@@ -431,19 +430,19 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	return &round5{
-		Helper:      r.Helper,
-		statemanger: r.statemanger,
-		msgmgr:      r.msgmgr,
-		bcstmgr:     r.bcstmgr,
-		elgamal_km:  r.elgamal_km,
-		paillier_km: r.paillier_km,
-		pedersen_km: r.pedersen_km,
-		ecdsa_km:    r.ecdsa_km,
-		ec_vss_km:   r.ec_vss_km,
-		vss_mgr:     r.vss_mgr,
-		rid_km:      r.rid_km,
-		chainKey_km: r.chainKey_km,
-		commit_mgr:  r.commit_mgr,
+		Helper:        r.Helper,
+		statemanger:   r.statemanger,
+		msgmgr:        r.msgmgr,
+		bcstmgr:       r.bcstmgr,
+		elgamal_km:    r.elgamal_km,
+		paillier_km:   r.paillier_km,
+		pedersen_km:   r.pedersen_km,
+		ecdsa_km:      r.ecdsa_km,
+		ec_vss_km:     r.ec_vss_km,
+		vss_mgr:       r.vss_mgr,
+		rid_km:        r.rid_km,
+		chainKey_km:   r.chainKey_km,
+		commit_mgr:    r.commit_mgr,
 		UpdatedConfig: UpdatedConfig,
 	}, nil
 }

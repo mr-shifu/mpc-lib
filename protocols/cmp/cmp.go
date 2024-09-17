@@ -26,7 +26,6 @@ import (
 	mpc_message "github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	ecsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/ecdsa"
 	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/state"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/keygen"
 	"github.com/mr-shifu/mpc-lib/protocols/cmp/sign"
 )
@@ -265,7 +264,7 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 
 // Config represents the stored state of a party who participated in a successful `Keygen` protocol.
 // It contains secret key material and should be safely stored.
-type Config = config.Config
+type Config = keygen.Config
 
 // EmptyConfig creates an empty Config with a fixed group, ready for unmarshalling.
 //
@@ -284,7 +283,7 @@ func EmptyConfig(group curve.Curve) *Config {
 // Returns *cmp.Config if successful.
 func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
 	mpckg := mpc.NewMPCKeygenManager()
-	return mpckg.Start(cfg, pl)
+	return mpckg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

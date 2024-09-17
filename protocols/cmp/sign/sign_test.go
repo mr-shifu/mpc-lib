@@ -223,7 +223,7 @@ func TestSign(t *testing.T) {
 
 		mpckg := mpckeygens[partyID]
 
-		r, err := mpckg.Start(keycfg, pl)(nil)
+		r, err := mpckg.Start(keycfg)(nil)
 		fmt.Printf("r: %v\n", r)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)

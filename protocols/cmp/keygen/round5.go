@@ -13,7 +13,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
-	"github.com/mr-shifu/mpc-lib/protocols/cmp/config"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +34,7 @@ type round5 struct {
 	chainKey_km rid.RIDManager
 	commit_mgr  commitment.CommitmentManager
 
-	UpdatedConfig *config.Config
+	UpdatedConfig *Config
 }
 
 type broadcast5 struct {
