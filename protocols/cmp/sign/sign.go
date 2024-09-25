@@ -233,15 +233,9 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 		Group:            cfg.Group(),
 		FinalRoundNumber: 5,
 	}
-	// instantiate a new hasher for new sign session
-	opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
-	if err != nil {
-		return nil, errors.New("frost_sign: failed to set options")
-	}
-	h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 	// generate new helper for new sign session
-	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
+	helper, err := round.ResumeSession(cfg.ID(), info, nil, m.pl, m.hash_mgr)
 	if err != nil {
 		return nil, fmt.Errorf("frost_sign: %w", err)
 	}
