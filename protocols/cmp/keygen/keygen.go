@@ -77,8 +77,12 @@ func NewMPCKeygen(
 	}
 }
 
-func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
+func (m *MPCKeygen) Start(cfg any) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
+		cfg, ok := cfg.(mpc_config.KeyConfig)
+		if !ok {
+			return nil, errors.New("cmp.Keygen.Start: invalid config")
+		}
 		info := round.Info{
 			ProtocolID:       "cmp/keygen",
 			SelfID:           cfg.SelfID(),
@@ -139,7 +143,7 @@ func (m *MPCKeygen) Start(cfg mpc_config.KeyConfig) protocol.StartFunc {
 func (m *MPCKeygen) GetRound(keyID string) (round.Session, error) {
 	cfg, err := m.configmgr.GetConfig(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost.Keygen: failed to get config")
+		return nil, errors.WithMessage(err, "cmp.Keygen: failed to get config")
 	}
 
 	info := round.Info{
@@ -150,22 +154,16 @@ func (m *MPCKeygen) GetRound(keyID string) (round.Session, error) {
 		Group:            cfg.Group(),
 		FinalRoundNumber: Rounds,
 	}
-	// instantiate a new hasher for new keygen session
-	opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", string(info.SelfID))
-	if err != nil {
-		return nil, errors.WithMessage(err, "frost.Keygen: failed to set options")
-	}
-	h := m.hash_mgr.NewHasher(cfg.ID(), opts)
 
 	// generate new helper for new keygen session
-	helper, err := round.NewSession(cfg.ID(), info, nil, m.pl, h)
+	helper, err := round.ResumeSession(cfg.ID(), info, nil, m.pl, m.hash_mgr)
 	if err != nil {
-		return nil, fmt.Errorf("frost.Keygen: %w", err)
+		return nil, fmt.Errorf("cmp.Keygen: %w", err)
 	}
 
 	state, err := m.statemgr.Get(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost.Keygen: failed to get state")
+		return nil, errors.WithMessage(err, "cmp.Keygen: failed to get state")
 	}
 	rn := state.LastRound()
 	switch rn {
@@ -250,18 +248,18 @@ func (m *MPCKeygen) GetRound(keyID string) (round.Session, error) {
 			commit_mgr:  m.commit_mgr,
 		}, nil
 	default:
-		return nil, errors.New("frost.Keygen: invalid round number")
+		return nil, errors.New("cmp.Keygen: invalid round number")
 	}
 }
 
 func (m *MPCKeygen) StoreBroadcastMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "frost.Keygen: failed to get round")
+		return errors.WithMessage(err, "cmp.Keygen: failed to get round")
 	}
 
 	if err := r.StoreBroadcastMessage(msg); err != nil {
-		return errors.WithMessage(err, "frost.Keygen: failed to store message")
+		return errors.WithMessage(err, "cmp.Keygen: failed to store message")
 	}
 
 	return nil
@@ -270,11 +268,11 @@ func (m *MPCKeygen) StoreBroadcastMessage(keyID string, msg round.Message) error
 func (m *MPCKeygen) StoreMessage(keyID string, msg round.Message) error {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return errors.WithMessage(err, "frost.Keygen: failed to get round")
+		return errors.WithMessage(err, "cmp.Keygen: failed to get round")
 	}
 
 	if err := r.StoreMessage(msg); err != nil {
-		return errors.WithMessage(err, "frost.Keygen: failed to store message")
+		return errors.WithMessage(err, "cmp.Keygen: failed to store message")
 	}
 
 	return nil
@@ -283,7 +281,7 @@ func (m *MPCKeygen) StoreMessage(keyID string, msg round.Message) error {
 func (m *MPCKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Session, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost.Keygen: failed to get round")
+		return nil, errors.WithMessage(err, "cmp.Keygen: failed to get round")
 	}
 
 	return r.Finalize(out)
@@ -292,7 +290,7 @@ func (m *MPCKeygen) Finalize(out chan<- *round.Message, keyID string) (round.Ses
 func (m *MPCKeygen) CanFinalize(keyID string) (bool, error) {
 	r, err := m.GetRound(keyID)
 	if err != nil {
-		return false, errors.WithMessage(err, "frost.Keygen: failed to get round")
+		return false, errors.WithMessage(err, "cmp.Keygen: failed to get round")
 	}
 	return r.CanFinalize(), nil
 }
