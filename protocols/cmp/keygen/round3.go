@@ -75,10 +75,9 @@ type broadcast3 struct {
 // - validate commitments.
 // - store ridⱼ, Cⱼ, Nⱼ, Sⱼ, Tⱼ, Fⱼ(X), Aⱼ.
 func (r *round3) StoreBroadcastMessage(msg round.Message) error {
-	from := msg.From
-	body, ok := msg.Content.(*broadcast3)
-	if !ok || body == nil {
-		return round.ErrInvalidContent
+	content, err := r.validateBroadcastMessage(msg)
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round3.StoreBroadcastMessage: failed to validate message")
 	}
 
 	// TODO verify vss polynomial
@@ -107,37 +106,38 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	// if VSSPolynomial.Degree() != r.Threshold() {
 	// 	return errors.New("vss polynomial has incorrect degree")
 	// }
+	from := msg.From
 
 	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
 	if err != nil {
 		return errors.WithMessage(err, "keygen.round3.StoreBroadcastMessage: failed to create options")
 	}
 
-	ridFrom, err := r.rid_km.ImportKey(body.RID, fromOpts)
+	ridFrom, err := r.rid_km.ImportKey(content.RID, fromOpts)
 	if err != nil {
 		return err
 	}
 
-	chainKeyFrom, err := r.chainKey_km.ImportKey(body.C, fromOpts)
+	chainKeyFrom, err := r.chainKey_km.ImportKey(content.C, fromOpts)
 	if err != nil {
 		return err
 	}
 
-	if _, err := r.paillier_km.ImportKey(body.PaillierKey, fromOpts); err != nil {
+	if _, err := r.paillier_km.ImportKey(content.PaillierKey, fromOpts); err != nil {
 		return err
 	}
 
-	pedersenFrom, err := r.pedersen_km.ImportKey(body.PedersenKey, fromOpts)
+	pedersenFrom, err := r.pedersen_km.ImportKey(content.PedersenKey, fromOpts)
 	if err != nil {
 		return err
 	}
 
-	if _, err := r.ecdsa_km.ImportKey(body.EcdsaKey, fromOpts); err != nil {
+	if _, err := r.ecdsa_km.ImportKey(content.EcdsaKey, fromOpts); err != nil {
 		return err
 	}
 
 	exponents := polynomial.NewEmptyExponent(r.Group())
-	if err := exponents.UnmarshalBinary(body.VSSPolynomial); err != nil {
+	if err := exponents.UnmarshalBinary(content.VSSPolynomial); err != nil {
 		return err
 	}
 	vssKey := vss.NewVssKey(nil, exponents)
@@ -145,7 +145,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	if err := r.ecdsa_km.ImportSchnorrCommitment(body.SchnorrCommitments, fromOpts); err != nil {
+	if err := r.ecdsa_km.ImportSchnorrCommitment(content.SchnorrCommitments, fromOpts); err != nil {
 		return err
 	}
 	schproof, err := r.ecdsa_km.GetSchnorrProof(fromOpts)
@@ -162,26 +162,26 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return err
 	}
 
-	elgamalFrom, err := r.elgamal_km.ImportKey(body.ElgamalKey, fromOpts)
+	elgamalFrom, err := r.elgamal_km.ImportKey(content.ElgamalKey, fromOpts)
 	if err != nil {
 		return err
 	}
 
 	// Verify decommit
-	if err := body.Decommitment.Validate(); err != nil {
+	if err := content.Decommitment.Validate(); err != nil {
 		return err
 	}
 	cmt, err := r.commit_mgr.Get(fromOpts)
 	if err != nil {
 		return err
 	}
-	if err := r.commit_mgr.ImportDecommitment(body.Decommitment, fromOpts); err != nil {
+	if err := r.commit_mgr.ImportDecommitment(content.Decommitment, fromOpts); err != nil {
 		return err
 	}
 
 	if !r.Hash().Clone().Decommit(
 		cmt.Commitment(),
-		body.Decommitment,
+		content.Decommitment,
 		ridFrom,
 		chainKeyFrom,
 		exponentsFrom,
@@ -202,6 +202,41 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	return nil
+}
+
+func (r *round3) validateBroadcastMessage(msg round.Message) (*broadcast3, error) {
+	content, ok := msg.Content.(*broadcast3)
+	if !ok || content == nil {
+		return nil, round.ErrInvalidContent
+	}
+	if content.RID == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: RID is empty")
+	}
+	if content.C == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: C is empty")
+	}
+	if content.ElgamalKey == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: ElGamal key is nil")
+	}
+	if content.PaillierKey == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: Paillier key is nil")
+	}
+	if content.PedersenKey == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: Pedersen key is nil")
+	}
+	if content.EcdsaKey == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: ECDSA key is nil")
+	}
+	if content.VSSPolynomial == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: VSS polynomial is nil")
+	}
+	if content.SchnorrCommitments == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: Schnorr commitments is nil")
+	}
+	if content.Decommitment == nil {
+		return nil, errors.New("keygen.round3.validateBroadcastMessage: decommitment is nil")
+	}
+	return content, nil
 }
 
 // VerifyMessage implements round.Round.

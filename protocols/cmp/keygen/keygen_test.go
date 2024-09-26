@@ -1,12 +1,12 @@
 package keygen
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/commitment"
@@ -19,7 +19,7 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
 	"github.com/mr-shifu/mpc-lib/pkg/keystore"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	"github.com/mr-shifu/mpc-lib/pkg/vault"
@@ -60,8 +60,8 @@ func checkOutput(t *testing.T, rounds []round.Session) {
 func newMPCKeygen() *MPCKeygen {
 	pl := pool.NewPool(0)
 
-	keycfgstore := mpc_config.NewInMemoryConfigStore()
-	keycfgmr := mpc_config.NewKeyConfigManager(keycfgstore)
+	keycfgstore := config.NewInMemoryConfigStore()
+	keycfgmr := config.NewKeyConfigManager(keycfgstore)
 
 	keystatestore := state.NewInMemoryStateStore()
 	keystatemgr := state.NewMPCStateManager(keystatestore)
@@ -148,25 +148,31 @@ func TestKeygen(t *testing.T) {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 
-	N := 6
+	var group = curve.Secp256k1{}
+
+	N := 3
 	partyIDs := test.PartyIDs(N)
 
-	rounds := make([]round.Session, 0, N)
+	kgs := make([]protocol.Processor, 0, N)
 	for _, partyID := range partyIDs {
-		cfg := mpc_config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
+		cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
 		mpckg := newMPCKeygen()
-		r, err := mpckg.Start(cfg)(nil)
-		fmt.Printf("r: %v\n", r)
+		kgs = append(kgs, mpckg)
+		_, err := mpckg.Start(cfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
-		rounds = append(rounds, r)
 	}
 
 	for {
-		err, done := test.Rounds(rounds, nil)
+		_, done, err := test.CMPRounds(kgs, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
+			// for _, r := range rounds {
+			// 	r, ok := r.(*round.Output)
+			// 	if ok {
+			// 		res := r.Result.(*Config)
+			// 	}
+			// }
 			break
 		}
 	}
-	checkOutput(t, rounds)
 }

@@ -1,7 +1,6 @@
 package round
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -12,6 +11,8 @@ import (
 	"github.com/mr-shifu/mpc-lib/core/pool"
 	"github.com/mr-shifu/mpc-lib/lib/types"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/hash"
+	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
+	"github.com/pkg/errors"
 )
 
 // Helper implements Session without Round, and can therefore be embedded in the first round of a protocol
@@ -104,6 +105,49 @@ func NewSession(ID string, info Info, sessionID []byte, pl *pool.Pool, h hash.Ha
 		if err := h.WriteAny(a); err != nil {
 			return nil, fmt.Errorf("session: %w", err)
 		}
+	}
+
+	return &Helper{
+		info:          info,
+		ID:            ID,
+		Pool:          pl,
+		partyIDs:      partyIDs,
+		otherPartyIDs: partyIDs.Remove(info.SelfID),
+		ssid:          h.Clone().Sum(),
+		hash:          h,
+	}, nil
+}
+
+func ResumeSession(ID string, info Info, sessionID []byte, pl *pool.Pool, hm hash.HashManager) (*Helper, error) {
+	partyIDs := party.NewIDSlice(info.PartyIDs)
+	if !partyIDs.Valid() {
+		return nil, errors.New("session: partyIDs invalid")
+	}
+
+	// verify our ID is present
+	if !partyIDs.Contains(info.SelfID) {
+		return nil, errors.New("session: selfID not included in partyIDs")
+	}
+
+	// make sure the threshold is correct
+	if info.Threshold < 0 || info.Threshold > math.MaxUint32 {
+		return nil, fmt.Errorf("session: threshold %d is invalid", info.Threshold)
+	}
+
+	// the number of users satisfies the threshold
+	if n := len(partyIDs); n <= 0 || info.Threshold > n-1 {
+		return nil, fmt.Errorf("session: threshold %d is invalid for number of parties %d", info.Threshold, n)
+	}
+
+	var h hash.Hash
+
+	opts, err := keyopts.NewOptions().Set("id", ID, "partyid", string(info.SelfID))
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen: failed to set options")
+	}
+	h, err = hm.RestoreHasher(ID, opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen: failed to restore hasher")
 	}
 
 	return &Helper{

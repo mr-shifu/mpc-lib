@@ -44,11 +44,12 @@ type broadcast2 struct {
 // StoreBroadcastMessage implements round.BroadcastRound.
 // - save commitment Vⱼ.
 func (r *round2) StoreBroadcastMessage(msg round.Message) error {
-	body, ok := msg.Content.(*broadcast2)
-	if !ok || body == nil {
-		return round.ErrInvalidContent
+	content, err := r.validateBroadcastMessage(msg)
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round2.StoreBroadcastMessage: failed to validate message")
 	}
-	if err := body.Commitment.Validate(); err != nil {
+
+	if err := content.Commitment.Validate(); err != nil {
 		return err
 	}
 
@@ -57,7 +58,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return errors.WithMessage(err, "keygen.round2.StoreBroadcastMessage: failed to create options")
 	}
 
-	cmt := r.commit_mgr.NewCommitment(body.Commitment, nil)
+	cmt := r.commit_mgr.NewCommitment(content.Commitment, nil)
 	if err := r.commit_mgr.Import(cmt, fromOpts); err != nil {
 		return err
 	}
@@ -70,6 +71,17 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	return nil
+}
+
+func (r *round2) validateBroadcastMessage(msg round.Message) (*broadcast2, error) {
+	content, ok := msg.Content.(*broadcast2)
+	if !ok || content == nil {
+		return nil, round.ErrInvalidContent
+	}
+	if content.Commitment == nil {
+		return nil, errors.New("keygen.round2.validateBroadcastMessage: commitment is nil")
+	}
+	return content, nil
 }
 
 // VerifyMessage implements round.Round.
