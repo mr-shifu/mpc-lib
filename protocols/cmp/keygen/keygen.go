@@ -15,17 +15,17 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/rid"
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
-	mpc_config "github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/message"
-	mpc_state "github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/common/state"
 	"github.com/pkg/errors"
 )
 
 const Rounds round.Number = 5
 
 type MPCKeygen struct {
-	configmgr   mpc_config.KeyConfigManager
-	statemgr    mpc_state.MPCStateManager
+	configmgr   config.KeyConfigManager
+	statemgr    state.MPCStateManager
 	msgmgr      message.MessageManager
 	bcstmgr     message.MessageManager
 	elgamal_km  elgamal.ElgamalKeyManager
@@ -42,8 +42,8 @@ type MPCKeygen struct {
 }
 
 func NewMPCKeygen(
-	keyconfigmgr mpc_config.KeyConfigManager,
-	keystatmgr mpc_state.MPCStateManager,
+	keyconfigmgr config.KeyConfigManager,
+	keystatmgr state.MPCStateManager,
 	msgmgr message.MessageManager,
 	bcstmgr message.MessageManager,
 	elgamal elgamal.ElgamalKeyManager,
@@ -79,7 +79,7 @@ func NewMPCKeygen(
 
 func (m *MPCKeygen) Start(cfg any) protocol.StartFunc {
 	return func(sessionID []byte) (_ round.Session, err error) {
-		cfg, ok := cfg.(mpc_config.KeyConfig)
+		cfg, ok := cfg.(config.KeyConfig)
 		if !ok {
 			return nil, errors.New("cmp.Keygen.Start: invalid config")
 		}

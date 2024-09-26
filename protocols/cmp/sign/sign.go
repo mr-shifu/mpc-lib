@@ -112,8 +112,13 @@ func NewMPCSign(
 	}
 }
 
-func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.StartFunc {
+func (m *MPCSign) Start(cfg any) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
+		cfg, ok := cfg.(config.SignConfig)
+		if !ok {
+			return nil, errors.New("sign.Create: invalid config")
+		}
+
 		info := round.Info{
 			ProtocolID:       "cmp/sign",
 			FinalRoundNumber: 5,
@@ -136,7 +141,7 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 			return nil, errors.New("sign.Create: message is nil")
 		}
 
-		helper, err := round.NewSession(cfg.ID(), info, sessionID, pl, h, types.SigningMessage(cfg.Message()))
+		helper, err := round.NewSession(cfg.ID(), info, sessionID, m.pl, h, types.SigningMessage(cfg.Message()))
 		if err != nil {
 			return nil, fmt.Errorf("sign.Create: %w", err)
 		}
@@ -222,7 +227,7 @@ func (m *MPCSign) StartSign(cfg config.SignConfig, pl *pool.Pool) protocol.Start
 func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 	cfg, err := m.signcfgmgr.GetConfig(signID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost_sign: failed to get config")
+		return nil, errors.WithMessage(err, "cmp_sign: failed to get config")
 	}
 
 	info := round.Info{
@@ -235,14 +240,14 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 	}
 
 	// generate new helper for new sign session
-	helper, err := round.ResumeSession(cfg.ID(), info, nil, m.pl, m.hash_mgr)
+	helper, err := round.ResumeSession(cfg.KeyID(), info, nil, m.pl, m.hash_mgr)
 	if err != nil {
-		return nil, fmt.Errorf("frost_sign: %w", err)
+		return nil, fmt.Errorf("cmp_sign: %w", err)
 	}
 
 	state, err := m.statmgr.Get(signID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost_sign: failed to get state")
+		return nil, errors.WithMessage(err, "cmp_sign: failed to get state")
 	}
 	rn := state.LastRound()
 	switch rn {
@@ -362,18 +367,18 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			sigmgr:      m.sigmgr,
 		}, nil
 	default:
-		return nil, errors.New("frost_sign: invalid round number")
+		return nil, errors.New("cmp_sign: invalid round number")
 	}
 }
 
 func (m *MPCSign) StoreBroadcastMessage(signID string, msg round.Message) error {
 	r, err := m.GetRound(signID)
 	if err != nil {
-		return errors.WithMessage(err, "frost_sign: failed to get round")
+		return errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
 
 	if err := r.StoreBroadcastMessage(msg); err != nil {
-		return errors.WithMessage(err, "frost_sign: failed to store message")
+		return errors.WithMessage(err, "cmp_sign: failed to store message")
 	}
 
 	return nil
@@ -382,11 +387,11 @@ func (m *MPCSign) StoreBroadcastMessage(signID string, msg round.Message) error 
 func (f *MPCSign) StoreMessage(signID string, msg round.Message) error {
 	r, err := f.GetRound(signID)
 	if err != nil {
-		return errors.WithMessage(err, "frost_sign: failed to get round")
+		return errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
 
 	if err := r.StoreMessage(msg); err != nil {
-		return errors.WithMessage(err, "frost_sign: failed to store message")
+		return errors.WithMessage(err, "cmp_sign: failed to store message")
 	}
 
 	return nil
@@ -395,7 +400,7 @@ func (f *MPCSign) StoreMessage(signID string, msg round.Message) error {
 func (f *MPCSign) Finalize(out chan<- *round.Message, signID string) (round.Session, error) {
 	r, err := f.GetRound(signID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "frost_sign: failed to get round")
+		return nil, errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
 
 	return r.Finalize(out)
@@ -404,7 +409,7 @@ func (f *MPCSign) Finalize(out chan<- *round.Message, signID string) (round.Sess
 func (m *MPCSign) CanFinalize(signID string) (bool, error) {
 	r, err := m.GetRound(signID)
 	if err != nil {
-		return false, errors.WithMessage(err, "frost_sign: failed to get round")
+		return false, errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
 	return r.CanFinalize(), nil
 }

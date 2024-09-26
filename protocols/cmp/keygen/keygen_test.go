@@ -154,10 +154,8 @@ func TestKeygen(t *testing.T) {
 	partyIDs := test.PartyIDs(N)
 
 	kgs := make([]protocol.Processor, 0, N)
-	cfgs := make([]*config.KeyConfig, 0, N)
 	for _, partyID := range partyIDs {
 		cfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
-		cfgs = append(cfgs, cfg)
 		mpckg := newMPCKeygen()
 		kgs = append(kgs, mpckg)
 		_, err := mpckg.Start(cfg)(nil)
