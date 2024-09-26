@@ -59,11 +59,12 @@ type broadcast4 struct {
 //
 // - verify Mod, Prm proof for N
 func (r *round4) StoreBroadcastMessage(msg round.Message) error {
-	from := msg.From
-	body, ok := msg.Content.(*broadcast4)
-	if !ok || body == nil {
-		return round.ErrInvalidContent
+	content, err := r.validateBroadcastMessage(msg)
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreBroadcastMessage: failed to validate message")
 	}
+
+	from := msg.From
 
 	fromOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(from))
 	if err != nil {
@@ -78,12 +79,12 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	if !paillier.VerifyZKMod(body.Mod, r.HashForID(from), r.Pool) {
-		return errors.New("failed to validate mod proof")
+	if !paillier.VerifyZKMod(content.Mod, r.HashForID(from), r.Pool) {
+		return errors.New("keygen.round4.StoreBroadcastMessage: failed to validate mod proof")
 	}
 
 	// verify zkprm
-	if !ped.VerifyProof(r.HashForID(from), r.Pool, body.Prm) {
+	if !ped.VerifyProof(r.HashForID(from), r.Pool, content.Prm) {
 		return errors.New("failed to validate prm proof")
 	}
 
@@ -95,6 +96,20 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	return nil
+}
+
+func (r *round4) validateBroadcastMessage(msg round.Message) (*broadcast4, error) {
+	content, ok := msg.Content.(*broadcast4)
+	if !ok || content == nil {
+		return nil, round.ErrInvalidContent
+	}
+	if content.Mod == nil {
+		return nil, errors.New("keygen.round4.validateBroadcastMessage: mod is nil")
+	}
+	if content.Prm == nil {
+		return nil, errors.New("keygen.round4.validateBroadcastMessage: prm is nil")
+	}
+	return content, nil
 }
 
 // VerifyMessage implements round.Round.
@@ -152,7 +167,12 @@ func (r *round4) VerifyMessage(msg round.Message) error {
 // - check VSS condition.
 // - save share.
 func (r *round4) StoreMessage(msg round.Message) error {
-	from, body := msg.From, msg.Content.(*message4)
+	content, err := r.validateMessage(msg)
+	if err != nil {
+		return errors.WithMessage(err, "keygen.round4.StoreMessage: failed to validate message")
+	}
+
+	from := msg.From
 
 	selfOpts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", string(r.SelfID()))
 	if err != nil {
@@ -169,7 +189,7 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	if err != nil {
 		return err
 	}
-	DecryptedShare, err := paillierKey.Decode(body.Share)
+	DecryptedShare, err := paillierKey.Decode(content.Share)
 	if err != nil {
 		return err
 	}
@@ -210,6 +230,20 @@ func (r *round4) StoreMessage(msg round.Message) error {
 	}
 
 	return nil
+}
+
+func (r *round4) validateMessage(msg round.Message) (*message4, error) {
+	content, ok := msg.Content.(*message4)
+	if !ok || content == nil {
+		return nil, round.ErrInvalidContent
+	}
+	if content.Share == nil {
+		return nil, errors.New("keygen.round4.validateMessage: share is nil")
+	}
+	if content.Fac == nil {
+		return nil, errors.New("keygen.round4.validateMessage: fac is nil")
+	}
+	return content, nil
 }
 
 // Finalize implements round.Round

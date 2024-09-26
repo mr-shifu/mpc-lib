@@ -19,9 +19,9 @@ func TestZKMod(t *testing.T) {
 	hs := keystore.NewInMemoryKeystore(hs_vault, hs_kr)
 	mgr := hash.NewHashManager(hs)
 
-	opts1, err := keyopts.NewOptions().Set("ID", 123, "partyID", 1)
+	opts1, err := keyopts.NewOptions().Set("id", "123", "partyid", "1")
 	assert.NoError(t, err)
-	opts2, err := keyopts.NewOptions().Set("ID", 123, "partyID", 2)
+	opts2, err := keyopts.NewOptions().Set("id", "123", "partyid", "2")
 	assert.NoError(t, err)
 	h1 := mgr.NewHasher("key1", opts1)
 	h2 := mgr.NewHasher("key2", opts2)

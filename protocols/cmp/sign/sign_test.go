@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
-	"github.com/mr-shifu/mpc-lib/core/party"
 	"github.com/mr-shifu/mpc-lib/core/pool"
+	"github.com/mr-shifu/mpc-lib/core/protocol"
 	"github.com/mr-shifu/mpc-lib/lib/round"
 	"github.com/mr-shifu/mpc-lib/lib/test"
 	"github.com/mr-shifu/mpc-lib/pkg/keyopts"
@@ -29,9 +29,9 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/cryptosuite/sw/vss"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
-	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 	ecsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/ecdsa"
-
+	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
+	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 )
 
 func newMPC() (*keygen.MPCKeygen, *MPCSign) {
@@ -200,37 +200,31 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 func TestSign(t *testing.T) {
 	keyID := uuid.NewString()
 
-	group := curve.Secp256k1{}
-
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
+
+	var group = curve.Secp256k1{}
 
 	N := 2
 	partyIDs := test.PartyIDs(N)
 
-	mpckeygens := make(map[party.ID]*keygen.MPCKeygen)
-	mpcsigns := make(map[party.ID]*MPCSign)
-
-	for _, partyID := range partyIDs {
+	mpckeygens := make([]protocol.Processor, 0, N)
+	mpcsigns := make([]protocol.Processor, 0, N)
+	for range partyIDs {
 		mpckg, mpcSign := newMPC()
-		mpckeygens[partyID] = mpckg
-		mpcsigns[partyID] = mpcSign
+		mpckeygens = append(mpckeygens, mpckg)
+		mpcsigns = append(mpcsigns, mpcSign)
 	}
 
-	rounds := make([]round.Session, 0, N)
-	for _, partyID := range partyIDs {
+	for i, partyID := range partyIDs {
+		mpckg := mpckeygens[i]
 		keycfg := config.NewKeyConfig(keyID, group, N-1, partyID, partyIDs)
-
-		mpckg := mpckeygens[partyID]
-
-		r, err := mpckg.Start(keycfg)(nil)
-		fmt.Printf("r: %v\n", r)
+		_, err := mpckg.Start(keycfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
-		rounds = append(rounds, r)
 	}
 
 	for {
-		err, done := test.Rounds(rounds, nil)
+		_, done, err := test.CMPRounds(mpckeygens, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
 			break
@@ -243,24 +237,28 @@ func TestSign(t *testing.T) {
 	messageHash := make([]byte, 64)
 	sha3.ShakeSum128(messageHash, messageToSign)
 
-	signRounds := make([]round.Session, 0, N)
-	for _, partyID := range partyIDs {
+	for i, partyID := range partyIDs {
 		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
 
-		mpcsign := mpcsigns[partyID]
+		mpcsign := mpcsigns[i]
 
-		r, err := mpcsign.StartSign(cfg, pl)(nil)
-		fmt.Printf("r: %v\n", r)
+		_, err := mpcsign.Start(cfg)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
-		signRounds = append(signRounds, r)
 	}
 
 	for {
-		err, done := test.Rounds(signRounds, nil)
+		rounds, done, err := test.CMPRounds(mpcsigns, signID)
 		require.NoError(t, err, "failed to process round")
 		if done {
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res := r.Result.(result.EddsaSignature)
+					sig := append(res.R().Bytes(), res.Z().Bytes()...)
+					fmt.Printf("[Party %s]Output Signature: %x\n", r.SelfID(), sig)
+				}
+			}
 			break
 		}
 	}
-	// checkOutput(t, rounds)
 }

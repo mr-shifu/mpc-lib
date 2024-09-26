@@ -281,14 +281,14 @@ func EmptyConfig(group curve.Curve) *Config {
 //
 // For better performance, a `pool.Pool` can be provided in order to parallelize certain steps of the protocol.
 // Returns *cmp.Config if successful.
-func (mpc *MPC) Keygen(cfg comm_config.KeyConfig, pl *pool.Pool) protocol.StartFunc {
+func (mpc *MPC) Keygen(cfg comm_config.KeyConfig) protocol.StartFunc {
 	mpckg := mpc.NewMPCKeygenManager()
 	return mpckg.Start(cfg)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.
 // Returns *ecdsa.Signature if successful.
-func (mpc *MPC) Sign(cfg comm_config.SignConfig, pl *pool.Pool) protocol.StartFunc {
+func (mpc *MPC) Sign(cfg comm_config.SignConfig) protocol.StartFunc {
 	mpcsign := mpc.NewMPCSignManager()
-	return mpcsign.StartSign(cfg, pl)
+	return mpcsign.Start(cfg)
 }

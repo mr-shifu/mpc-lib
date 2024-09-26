@@ -167,11 +167,11 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	// update last round processed in StateManager
-	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+	if err := r.statemgr.SetLastRound(r.cfg.ID(), int(r.Number())); err != nil {
 		return r, err
 	}
 	// update state to Completed in StateManager
-	if err := r.statemgr.SetCompleted(r.ID, true); err != nil {
+	if err := r.statemgr.SetCompleted(r.cfg.ID(), true); err != nil {
 		return r, err
 	}
 
