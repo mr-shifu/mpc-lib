@@ -329,7 +329,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	// update last round processed in StateManager
-	if err := r.statemgr.SetLastRound(r.ID, int(r.Number())); err != nil {
+	if err := r.statemgr.SetLastRound(r.cfg.ID(), int(r.Number())); err != nil {
 		return r, err
 	}
 
