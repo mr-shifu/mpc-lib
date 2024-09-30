@@ -294,3 +294,15 @@ func (m *MPCKeygen) CanFinalize(keyID string) (bool, error) {
 	}
 	return r.CanFinalize(), nil
 }
+
+func (m *MPCKeygen) CanStoreMessage(keyID string, roundNumber int) (bool, error) {
+	state, err := m.statemgr.Get(keyID)
+	if err != nil {
+		return false, errors.WithMessage(err, "cmp.Keygen: failed to get state")
+	}
+	rn := state.LastRound()
+	if rn != roundNumber-1 {
+		return false, nil
+	}
+	return true, nil
+}

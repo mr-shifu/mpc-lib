@@ -30,7 +30,6 @@ import (
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/config"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/message"
 	ecsig "github.com/mr-shifu/mpc-lib/pkg/mpc/result/ecdsa"
-	result "github.com/mr-shifu/mpc-lib/pkg/mpc/result/eddsa"
 	"github.com/mr-shifu/mpc-lib/pkg/mpc/state"
 )
 
@@ -130,6 +129,11 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		pl,
 	)
 
+	ec_sig_kr := krf.NewKeyOpts(nil)
+	ec_sig_ks := ksf.NewKeystore(ec_vault, ec_sig_kr, nil)
+	ec_sig_km := ecdsa.NewECDSAKeyManager(ec_sig_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+
+	
 	gamma_kr := krf.NewKeyOpts(nil)
 	gamma_ks := ksf.NewKeystore(ec_vault, gamma_kr, nil)
 	gamma_km := ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
@@ -179,6 +183,7 @@ func newMPC() (*keygen.MPCKeygen, *MPCSign) {
 		paillier_km,
 		pedersen_km,
 		ecdsa_km,
+		ec_sig_km,
 		ec_vss_km,
 		vss_km,
 		gamma_km,
@@ -238,7 +243,7 @@ func TestSign(t *testing.T) {
 	sha3.ShakeSum128(messageHash, messageToSign)
 
 	for i, partyID := range partyIDs {
-		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
+		cfg := config.NewSignConfig(signID, keyID, partyID, partyIDs, messageHash)
 
 		mpcsign := mpcsigns[i]
 
@@ -253,8 +258,10 @@ func TestSign(t *testing.T) {
 			for _, r := range rounds {
 				r, ok := r.(*round.Output)
 				if ok {
-					res := r.Result.(result.EddsaSignature)
-					sig := append(res.R().Bytes(), res.Z().Bytes()...)
+					res := r.Result.(*ecsig.EcdsaSignature)
+					rb, _ := res.SignR().MarshalBinary()
+					sb, _ := res.SignSigma().MarshalBinary()
+					sig := append(rb, sb...)
 					fmt.Printf("[Party %s]Output Signature: %x\n", r.SelfID(), sig)
 				}
 			}

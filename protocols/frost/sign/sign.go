@@ -87,8 +87,6 @@ func (f *FROSTSign) Start(configs any) protocol.StartFunc {
 			FinalRoundNumber: protocolRounds,
 			SelfID:           cfg.SelfID(),
 			PartyIDs:         cfg.PartyIDs(),
-			Threshold:        cfg.Threshold(),
-			Group:            cfg.Group(),
 		}
 
 		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", info.SelfID)
@@ -174,8 +172,6 @@ func (f *FROSTSign) GetRound(signID string) (round.Session, error) {
 		ProtocolID:       SIGN_CONFIG_PROTOCOL_ID,
 		SelfID:           cfg.SelfID(),
 		PartyIDs:         cfg.PartyIDs(),
-		Threshold:        cfg.Threshold(),
-		Group:            cfg.Group(),
 		FinalRoundNumber: protocolRounds,
 	}
 	// instantiate a new hasher for new sign session
@@ -291,4 +287,16 @@ func (m *FROSTSign) CanFinalize(signID string) (bool, error) {
 		return false, errors.WithMessage(err, "frost_sign: failed to get round")
 	}
 	return r.CanFinalize(), nil
+}
+
+func (m *FROSTSign) CanStoreMessage(signID string, roundNumber int) (bool, error) {
+	state, err := m.statemgr.Get(signID)
+	if err != nil {
+		return false, errors.WithMessage(err, "cmp.Sign: failed to get state")
+	}
+	rn := state.LastRound()
+	if rn != roundNumber-1 {
+		return false, nil
+	}
+	return true, nil
 }

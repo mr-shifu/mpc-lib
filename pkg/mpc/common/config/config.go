@@ -26,8 +26,6 @@ type KeyConfigManager interface {
 type SignConfig interface {
 	ID() string
 	KeyID() string
-	Group() curve.Curve
-	Threshold() int
 	SelfID() party.ID
 	PartyIDs() party.IDSlice
 	Message() []byte

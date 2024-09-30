@@ -32,7 +32,8 @@ type round1 struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -132,15 +133,14 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 		pedj, err := r.pedersen_km.GetKey(partyKopts)
 		if err != nil {
-			return err
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to get pedersen key")
 		}
 		proof, err := r.signK.NewZKEncProof(r.HashForID(r.SelfID()), KSharePEK, paillierKey.PublicKey(), pedj.PublicKey(), sopts)
 		if err != nil {
-			return err
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to create ZK proof")
 		}
-
 		if err := r.SendMessage(out, &message2{ProofEnc: proof}, j); err != nil {
-			return err
+			return errors.WithMessage(err, "sign.round1.Finalize: failed to send message")
 		}
 		return nil
 	})
@@ -149,7 +149,6 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return r, err.(error)
 		}
 	}
-
 
 	// update last round processed in StateManager
 	if err := r.statemgr.SetLastRound(r.cfg.ID(), int(r.Number())); err != nil {
@@ -165,7 +164,8 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 		hash_mgr:    r.hash_mgr,
 		paillier_km: r.paillier_km,
 		pedersen_km: r.pedersen_km,
-		ec:          r.ec,
+		ec_key:      r.ec_key,
+		ec_sig:      r.ec_sig,
 		vss_mgr:     r.vss_mgr,
 		gamma:       r.gamma,
 		signK:       r.signK,

@@ -42,7 +42,7 @@ type MPC struct {
 	elgamal    elgamal.ElgamalKeyManager
 	paillier   paillier.PaillierKeyManager
 	pedersen   pedersen.PedersenKeyManager
-	ec         ecdsa.ECDSAKeyManager
+	ec_key     ecdsa.ECDSAKeyManager
 	ec_vss     ecdsa.ECDSAKeyManager
 	rid        rid.RIDManager
 	chainKey   rid.RIDManager
@@ -51,6 +51,7 @@ type MPC struct {
 
 	vss_mgr vss.VssKeyManager
 
+	ec_sig   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
 	delta    ecdsa.ECDSAKeyManager
@@ -145,6 +146,10 @@ func NewMPC(
 	ecsigstore := ecsig.NewInMemoryEcdsaSignature(ecsig_keyopts)
 	ecsigmgr := ecsig.NewEcdsaSignatureManager(ecsigstore)
 
+	ec_sig_kr := krf.NewKeyOpts(nil)
+	ec_sig_ks := ksf.NewKeystore(ec_vault, ec_sig_kr, nil)
+	ec_sig_km := ecdsa.NewECDSAKeyManager(ec_sig_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
+
 	gamma_kr := krf.NewKeyOpts(nil)
 	gamma_ks := ksf.NewKeystore(ec_vault, gamma_kr, nil)
 	gamma_km := ecdsa.NewECDSAKeyManager(gamma_ks, sch_ks, vss_km, &ecdsa.Config{Group: curve.Secp256k1{}})
@@ -195,13 +200,14 @@ func NewMPC(
 		elgamal:     elgamal_km,
 		paillier:    paillier_km,
 		pedersen:    pedersen_km,
-		ec:          ecdsa_km,
+		ec_key:      ecdsa_km,
 		ec_vss:      ec_vss_km,
 		vss_mgr:     vss_km,
 		rid:         rid_km,
 		chainKey:    chainKey_km,
 		hash_mgr:    hash_mgr,
 		commit_mgr:  commit_mgr,
+		ec_sig:      ec_sig_km,
 		gamma:       gamma_km,
 		signK:       signK_km,
 		delta:       delta_km,
@@ -225,7 +231,7 @@ func (mpc *MPC) NewMPCKeygenManager() *keygen.MPCKeygen {
 		mpc.elgamal,
 		mpc.paillier,
 		mpc.pedersen,
-		mpc.ec,
+		mpc.ec_key,
 		mpc.ec_vss,
 		mpc.vss_mgr,
 		mpc.rid,
@@ -245,7 +251,8 @@ func (mpc *MPC) NewMPCSignManager() *sign.MPCSign {
 		mpc.hash_mgr,
 		mpc.paillier,
 		mpc.pedersen,
-		mpc.ec,
+		mpc.ec_key,
+		mpc.ec_sig,
 		mpc.ec_vss,
 		mpc.vss_mgr,
 		mpc.gamma,

@@ -36,7 +36,8 @@ type round2 struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -260,7 +261,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 			return err
 		}
 
-		ChiBeta, ChiD, ChiF, ChiProof, err := r.ec.NewMtAAffgProof(
+		ChiBeta, ChiD, ChiF, ChiProof, err := r.ec_sig.NewMtAAffgProof(
 			r.HashForID(r.SelfID()),
 			k_pek.Encoded(),
 			paillierKey.PublicKey(),
@@ -342,7 +343,8 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		hash_mgr:    r.hash_mgr,
 		paillier_km: r.paillier_km,
 		pedersen_km: r.pedersen_km,
-		ec:          r.ec,
+		ec_key:      r.ec_key,
+		ec_sig:      r.ec_sig,
 		vss_mgr:     r.vss_mgr,
 		gamma:       r.gamma,
 		signK:       r.signK,
