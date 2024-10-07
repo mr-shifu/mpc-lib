@@ -125,7 +125,26 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 
-	return r.ResultRound(r.UpdatedConfig), nil
+	opts, err := keyopts.NewOptions().Set("id", r.ID, "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen.Round5: failed to create options")
+	}
+
+	key, err := r.ecdsa_km.GetKey(opts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "cmp.Keygen.Round5: failed to get key")
+	}
+	public := key.PublicKeyRaw()
+
+	res := &Result{
+		Threshold: r.Helper.Threshold(),
+		N:         r.Helper.N(),
+		Group:     r.Group(),
+		PartyIDs:  r.PartyIDs(),
+		PublicKey: public,
+	}
+
+	return r.ResultRound(res), nil
 }
 
 func (r *round5) CanFinalize() bool {

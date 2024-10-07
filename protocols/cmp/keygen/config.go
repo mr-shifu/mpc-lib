@@ -44,6 +44,14 @@ type Config struct {
 	Public map[party.ID]*Public
 }
 
+type Result struct {
+	Threshold int
+	N         int
+	Group     curve.Curve
+	PartyIDs  party.IDSlice
+	PublicKey curve.Point
+}
+
 // Public holds public information for a party.
 type Public struct {
 	// ECDSA public key share
