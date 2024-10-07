@@ -38,7 +38,8 @@ type round3 struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -154,7 +155,7 @@ func (r *round3) VerifyMessage(msg round.Message) error {
 		return err
 	}
 
-	eckeyFrom, err := r.ec.GetKey(soptsFrom)
+	eckeyFrom, err := r.ec_sig.GetKey(soptsFrom)
 	if err != nil {
 		return err
 	}
@@ -346,7 +347,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		chiSum = chiSum.Add(chiSum, chij.Beta(), -1)
 	}
 	chiSumScalar := r.Group().NewScalar().SetNat(chiSum.Mod(r.Group().Order()))
-	ChiShareScalar, err := r.ec.CommitByKey(KShare, chiSumScalar, sopts)
+	ChiShareScalar, err := r.ec_sig.CommitByKey(KShare, chiSumScalar, sopts)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +427,8 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		hash_mgr:    r.hash_mgr,
 		paillier_km: r.paillier_km,
 		pedersen_km: r.pedersen_km,
-		ec:          r.ec,
+		ec_key:      r.ec_key,
+		ec_sig:      r.ec_sig,
 		vss_mgr:     r.vss_mgr,
 		gamma:       r.gamma,
 		signK:       r.signK,

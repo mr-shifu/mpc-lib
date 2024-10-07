@@ -35,7 +35,8 @@ type round4 struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -200,7 +201,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// δ = ∑ⱼ δⱼ
 	deltaSharesOpts := make([]com_keyopts.Options, 0)
-	for _, j := range r.OtherPartyIDs() {
+	for _, j := range r.PartyIDs() {
 		soptsj, err := keyopts.NewOptions().Set("id", r.cfg.ID(), "partyid", string(j))
 		if err != nil {
 			return nil, errors.WithMessage(err, "sign.round4.StoreBroadcastMessage: failed to create options")
@@ -228,7 +229,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 	// Δ == [δ]G
 	if !BigDelta.Equal(Delta.PublicKeyRaw()) {
-		return r.AbortRound(errors.New("computed Δ is inconsistent with [δ]G")), nil
+		return nil, errors.New("computed Δ is inconsistent with [δ]G")
 	}
 
 	// R = [δ⁻¹] Γ
@@ -237,8 +238,8 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		return nil, err
 	}
 	BigR := Delta.Act(gamma.PublicKeyRaw(), true) // δ⁻¹
-	R := BigR.XScalar()                           // r = R|ₓ
-	if err := r.sigmgr.SetR(BigR, soptsRoot); err != nil {
+	R := BigR.XScalar()
+	if err := r.sigmgr.Import(r.sigmgr.NewEcdsaSignature(BigR, nil), soptsRoot); err != nil { // r = R|ₓ
 		return nil, err
 	}
 
@@ -255,7 +256,7 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := r.sigmgr.SetSigma(SigmaShare, sopts); err != nil {
+	if err := r.sigmgr.Import(r.sigmgr.NewEcdsaSignature(nil, SigmaShare), sopts); err != nil {
 		return nil, err
 	}
 
@@ -279,7 +280,8 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 		hash_mgr:    r.hash_mgr,
 		paillier_km: r.paillier_km,
 		pedersen_km: r.pedersen_km,
-		ec:          r.ec,
+		ec_key:      r.ec_key,
+		ec_sig:      r.ec_sig,
 		vss_mgr:     r.vss_mgr,
 		gamma:       r.gamma,
 		signK:       r.signK,

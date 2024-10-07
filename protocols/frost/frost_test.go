@@ -46,7 +46,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, msg []byte, pl
 	c := r.(*Config)
 
 	signID := uuid.New().String()
-	signcfg := config.NewSignConfig(signID, keyID, curve.Secp256k1{}, threshold, id, ids, msg)
+	signcfg := config.NewSignConfig(signID, keyID, id, ids, msg)
 	frost.Sign(signcfg)
 	h, err = protocol.NewMultiHandler(frost.Sign(signcfg), nil)
 	require.NoError(t, err)

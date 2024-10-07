@@ -2,7 +2,6 @@ package ecdsa
 
 import (
 	"crypto/rand"
-	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/mr-shifu/mpc-lib/core/math/curve"
@@ -259,7 +258,6 @@ func newSchnorrProof(h hash.Hash, private curve.Scalar, public curve.Point) (*Pr
 
 func verifySchnorrProof(h hash.Hash, proof *Proof, public curve.Point) (bool, error) {
 	challenge, err := newSchnorrChallenge(h.Clone(), proof.Commitment().C, public)
-	fmt.Printf("verify challenge: %v\n", challenge)
 	if err != nil {
 		return false, errors.WithMessage(err, "ecdsa_zksch: failed to create challenge")
 	}

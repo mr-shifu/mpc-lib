@@ -199,7 +199,7 @@ func TestSign(t *testing.T) {
 	sha3.ShakeSum128(messageHash, messageToSign)
 
 	for i, partyID := range partyIDs {
-		cfg := config.NewSignConfig(signID, keyID, group, N-1, partyID, partyIDs, messageHash)
+		cfg := config.NewSignConfig(signID, keyID, partyID, partyIDs, messageHash)
 
 		mpcsign := mpcsigns[i]
 

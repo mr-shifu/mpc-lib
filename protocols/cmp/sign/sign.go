@@ -43,7 +43,8 @@ type MPCSign struct {
 
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -72,7 +73,8 @@ func NewMPCSign(
 	hash_mgr hash.HashManager,
 	paillier_km paillier.PaillierKeyManager,
 	pedersen_km pedersen.PedersenKeyManager,
-	ec ecdsa.ECDSAKeyManager,
+	ec_key ecdsa.ECDSAKeyManager,
+	ec_sig ecdsa.ECDSAKeyManager,
 	ec_vss ecdsa.ECDSAKeyManager,
 	vss_mgr vss.VssKeyManager,
 	gamma ecdsa.ECDSAKeyManager,
@@ -95,7 +97,8 @@ func NewMPCSign(
 		hash_mgr:    hash_mgr,
 		paillier_km: paillier_km,
 		pedersen_km: pedersen_km,
-		ec:          ec,
+		ec_key:      ec_key,
+		ec_sig:      ec_sig,
 		ec_vss:      ec_vss,
 		vss_mgr:     vss_mgr,
 		gamma:       gamma,
@@ -119,15 +122,23 @@ func (m *MPCSign) Start(cfg any) protocol.StartFunc {
 			return nil, errors.New("sign.Create: invalid config")
 		}
 
+		kopts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", "ROOT")
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+		}
+		key, err := m.ec_key.GetKey(kopts)
+		if err != nil {
+			return nil, errors.WithMessage(err, "sign.Create: failed to get key")
+		}
+
 		info := round.Info{
 			ProtocolID:       "cmp/sign",
 			FinalRoundNumber: 5,
 			SelfID:           cfg.SelfID(),
 			PartyIDs:         cfg.PartyIDs(),
-			Threshold:        cfg.Threshold(),
-			Group:            cfg.Group(),
+			Group:            key.Group(),
 		}
-		group := info.Group
+		group := key.Group()
 
 		opts, err := keyopts.NewOptions().Set("id", cfg.ID(), "partyid", info.SelfID)
 		if err != nil {
@@ -177,7 +188,7 @@ func (m *MPCSign) Start(cfg any) protocol.StartFunc {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := m.ec.ImportKey(clonedj, partyOpts); err != nil {
+			if _, err := m.ec_sig.ImportKey(clonedj, partyOpts); err != nil {
 				return nil, err
 			}
 			clonedPubKey = clonedPubKey.Add(clonedj.PublicKeyRaw())
@@ -187,7 +198,7 @@ func (m *MPCSign) Start(cfg any) protocol.StartFunc {
 			return nil, errors.WithMessage(err, "sign.Create: failed to create options")
 		}
 		cloned := ecdsa.NewKey(nil, clonedPubKey, info.Group)
-		if _, err := m.ec.ImportKey(cloned, rootECOpts); err != nil {
+		if _, err := m.ec_sig.ImportKey(cloned, rootECOpts); err != nil {
 			return nil, err
 		}
 
@@ -208,7 +219,8 @@ func (m *MPCSign) Start(cfg any) protocol.StartFunc {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -230,13 +242,21 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 		return nil, errors.WithMessage(err, "cmp_sign: failed to get config")
 	}
 
+	kopts, err := keyopts.NewOptions().Set("id", cfg.KeyID(), "partyid", "ROOT")
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.Create: failed to create options")
+	}
+	key, err := m.ec_key.GetKey(kopts)
+	if err != nil {
+		return nil, errors.WithMessage(err, "sign.Create: failed to get key")
+	}
+
 	info := round.Info{
 		ProtocolID:       "cmp/sign",
 		SelfID:           cfg.SelfID(),
 		PartyIDs:         cfg.PartyIDs(),
-		Threshold:        cfg.Threshold(),
-		Group:            cfg.Group(),
 		FinalRoundNumber: 5,
+		Group:            key.Group(),
 	}
 
 	// generate new helper for new sign session
@@ -261,7 +281,8 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -284,7 +305,8 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -307,7 +329,8 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -330,7 +353,8 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -353,7 +377,8 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 			hash_mgr:    m.hash_mgr,
 			paillier_km: m.paillier_km,
 			pedersen_km: m.pedersen_km,
-			ec:          m.ec,
+			ec_key:      m.ec_key,
+			ec_sig:      m.ec_sig,
 			vss_mgr:     m.vss_mgr,
 			gamma:       m.gamma,
 			signK:       m.signK,
@@ -374,18 +399,18 @@ func (m *MPCSign) GetRound(signID string) (round.Session, error) {
 func (m *MPCSign) StoreBroadcastMessage(signID string, msg round.Message) error {
 	r, err := m.GetRound(signID)
 	if err != nil {
-		return errors.WithMessage(err, "cmp_sign: failed to get round")
+		return errors.WithMessage(err, "cmp.Sign: failed to get round")
 	}
 
 	if err := r.StoreBroadcastMessage(msg); err != nil {
-		return errors.WithMessage(err, "cmp_sign: failed to store message")
+		return errors.WithMessage(err, "cmp.Sign: failed to store message")
 	}
 
 	return nil
 }
 
-func (f *MPCSign) StoreMessage(signID string, msg round.Message) error {
-	r, err := f.GetRound(signID)
+func (m *MPCSign) StoreMessage(signID string, msg round.Message) error {
+	r, err := m.GetRound(signID)
 	if err != nil {
 		return errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
@@ -412,4 +437,16 @@ func (m *MPCSign) CanFinalize(signID string) (bool, error) {
 		return false, errors.WithMessage(err, "cmp_sign: failed to get round")
 	}
 	return r.CanFinalize(), nil
+}
+
+func (m *MPCSign) CanStoreMessage(signID string, roundNumber int) (bool, error) {
+	state, err := m.statmgr.Get(signID)
+	if err != nil {
+		return false, errors.WithMessage(err, "cmp.Sign: failed to get state")
+	}
+	rn := state.LastRound()
+	if rn != roundNumber-1 {
+		return false, nil
+	}
+	return true, nil
 }

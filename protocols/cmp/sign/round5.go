@@ -34,7 +34,8 @@ type round5 struct {
 	paillier_km paillier.PaillierKeyManager
 	pedersen_km pedersen.PedersenKeyManager
 
-	ec       ecdsa.ECDSAKeyManager
+	ec_key   ecdsa.ECDSAKeyManager
+	ec_sig   ecdsa.ECDSAKeyManager
 	ec_vss   ecdsa.ECDSAKeyManager
 	gamma    ecdsa.ECDSAKeyManager
 	signK    ecdsa.ECDSAKeyManager
@@ -75,7 +76,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// r.SigmaShares[msg.From] = body.SigmaShare
-	if err := r.sigmgr.SetSigma(body.SigmaShare, soptsFrom); err != nil {
+	if err := r.sigmgr.Import(r.sigmgr.NewEcdsaSignature(nil, body.SigmaShare), soptsFrom); err != nil {
 		return err
 	}
 
@@ -142,7 +143,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		S: sig.SignSigma(),
 	}
 
-	ecKey, err := r.ec.GetKey(soptsRoot)
+	ecKey, err := r.ec_sig.GetKey(soptsRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +155,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return r.AbortRound(errors.New("failed to validate signature")), nil
 	}
 
-	ecKey, err = r.ec.GetKey(koptsRoot)
+	ecKey, err = r.ec_key.GetKey(koptsRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +176,7 @@ func (r *round5) Finalize(chan<- *round.Message) (round.Session, error) {
 		return r, err
 	}
 
-	return r.ResultRound(signature), nil
+	return r.ResultRound(sig), nil
 }
 
 func (r *round5) CanFinalize() bool {
@@ -189,6 +190,17 @@ func (r *round5) CanFinalize() bool {
 		return false
 	}
 	return rcvd
+}
+
+func (r *round5) CanStoreMessage() (bool, error) {
+	stat, err := r.statemgr.Get(r.cfg.ID())
+	if err != nil {
+		return false, err
+	}
+	if stat.LastRound() != int(r.Number())-1 {
+		return false, nil
+	}
+	return true, nil
 }
 
 // MessageContent implements round.Round.
