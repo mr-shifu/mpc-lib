@@ -1,6 +1,8 @@
 package keygen
 
 import (
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -163,15 +165,20 @@ func TestKeygen(t *testing.T) {
 	}
 
 	for {
-		_, done, err := test.CMPRounds(kgs, keyID)
+		rounds, done, err := test.CMPRounds(kgs, keyID)
 		require.NoError(t, err, "failed to process round")
 		if done {
-			// for _, r := range rounds {
-			// 	r, ok := r.(*round.Output)
-			// 	if ok {
-			// 		res := r.Result.(*Config)
-			// 	}
-			// }
+			for _, r := range rounds {
+				r, ok := r.(*round.Output)
+				if ok {
+					res, ok := r.Result.(*Result)
+					assert.True(t, ok)
+					kb, err := res.PublicKey.MarshalBinary()
+					kb64 := hex.EncodeToString(kb)
+					assert.NoError(t, err)
+					fmt.Printf("Public Key: %s\n", kb64)
+				}
+			}
 			break
 		}
 	}
